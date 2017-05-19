@@ -28,8 +28,7 @@ final class Trivial[+A](a: A) extends Control[A] {
 }
 
 private[effekt]
-trait Handler extends Serializable {
-  outer =>
+trait Handler extends Serializable { outer =>
 
   val prompt: Capability
   val state: prompt.effect.State
@@ -49,10 +48,9 @@ object Control {
   // f receives an updated copy of E, reflecting the new state of the
   // parametrized handler and a continuation that takes both the
   // next value and again an updated handler.
-  // Not sure about the result type, yet.
   //
-  // operationally, it
-  // (1) slices the meta continuation at point E, obtaining cont k upto E and
+  // Operationally, it
+  // (1) slices the meta continuation at point E, obtaining cont k up to E and
   //     the current version e2 of E
   // (2) calls f with the current version of E to obtain an A and yet a new version
   //     e3 of E.
