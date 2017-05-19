@@ -34,7 +34,8 @@ lazy val micrositeSettings = Seq(
   // micrositePushSiteWith := GitHub4s,
   includeFilter in makeSite := "*.html" | "*.css" | "*.png" | "*.jpg" | "*.gif" | "*.js" | "*.swf" | "*.md",
   micrositePalette := greenTheme,
-  fork in tut := true
+  fork in tut := true,
+  git.remoteRepo := "git@github.com:b-studios/scala-effekt.git"
 )
 
 lazy val docs = (project in file("docs"))
