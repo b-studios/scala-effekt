@@ -1,5 +1,7 @@
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.2",
+  version := "0.1-SNAPSHOT",
+  organization := "de.b-studios",
   crossScalaVersions := Seq("2.11.2", "2.11.8"),
   scalacOptions ++= Seq(
     "-deprecation",
@@ -46,8 +48,9 @@ lazy val docs = (project in file("docs"))
   .dependsOn(effekt)
 
 lazy val effekt = project.in(file("."))
-  .settings(moduleName := "root")
+  .settings(moduleName := "effekt")
   .settings(commonSettings)
+  .settings(publishSettings)
 
 lazy val greenTheme = Map(
     "brand-primary" -> "#3C8875",
@@ -58,3 +61,29 @@ lazy val greenTheme = Map(
     "gray-light" -> "#CFE4E4",
     "gray-lighter" -> "#F4F4F4",
     "white-color" -> "#FFFFFF")
+
+lazy val publishSettings = Seq(
+  publishMavenStyle := true,
+  publishArtifact in Test := false,
+  pomIncludeRepository := (_ => false),
+  publishTo := {
+      if (version.value.trim endsWith "SNAPSHOT")
+        Some("Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/")
+      else
+        Some("Sonatype OSS Staging" at "https://oss.sonatype.org/service/local/staging/deploy/maven2/")
+  },
+  homepage := Some(url("http://b-studios.de/scala-effekt")),
+  licenses := Seq("MIT" -> url("http://opensource.org/licenses/MIT")),
+  scmInfo := Some(ScmInfo(url("https://github.com/b-studios/scala-effekt"), "scm:git:git@github.com:b-studios/scala-effekt.git")),
+  autoAPIMappings := true,
+  apiURL := Some(url("http://b-studios.de/scala-effekt")),
+  pomExtra := (
+    <developers>
+      <developer>
+        <id>b-studios</id>
+        <name>Jonathan Brachthäuser</name>
+        <url>https://github.com/b-studios/</url>
+      </developer>
+    </developers>
+  )
+)
