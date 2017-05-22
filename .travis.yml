@@ -3,6 +3,10 @@ scala:
 - 2.12.2
 jdk:
 - oraclejdk8
+cache:
+  directories:
+    - $HOME/.ivy2/cache
+    - $HOME/.sbt
 before_install:
 - if [ "$TRAVIS_BRANCH" = "master" -a "$TRAVIS_PULL_REQUEST" = "false" ]; then bash
   scripts/decrypt-keys.sh; fi
