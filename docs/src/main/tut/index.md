@@ -56,6 +56,9 @@ def prog: Int using Amb = flip() map { x => if (x) 2 else 3 }
 
 Pretty neat, isn't it?
 
+We prepared [this Scastie](https://scastie.scala-lang.org/WAJ1GKvISxyHqihRzJVGNQ) for
+you to play around with dotty and **effekt**.
+
 ### Delimited Control
 As in the Koka language, effect handlers in **Effekt** get access to
 the operation's continuation delimited by the handler itself:
