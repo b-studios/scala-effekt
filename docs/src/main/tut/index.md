@@ -2,12 +2,69 @@
 layout: home
 ---
 
-# Scala Effekt
-The **Effekt** library allows you to structure your effectful programs
-in a functional way. It thus represents an alternative to traditional
-monad transformer based program structuring techniques.
+# Extensible, effectful DSLs
+Create extensible, effectful domain specific
+languages while separating the effect definition from the effect
+implementation.
+**Effekt** is an implementation of *algebraic effects
+with handlers* and allows you to structure your effectful programs in a
+purely functional way. It thus represents an alternative to
+monad transformer based program structuring techniques or free monads.
 
-## Usage
+<section class="home-box" markdown="1">
+<div class="container" markdown="1">
+<div class="row" markdown="1">
+<div class="col-md-5" markdown="1">
+### An example
+The `Twitter`-API example shows how to define an effect signature with
+one effectful operation `userTweets`. The effect itself can be
+implemented in many ways by simply implementing the abstract methods
+in the `Twitter` trait. It could actually contact the Twitter API
+(potentially using other effects, like HTTP in the implementation) or
+it could just return dummy tweets for testing purposes. We chose the
+latter for the implementation of `twitterStub` and thus running the
+result actually perform the side-effects always gives the same results.
+
+You can find the full sources for this example in [this Scastie](https://scastie.scala-lang.org/JL6G1u6OQ1GKaK9Rymg4FQ).
+</div>
+<div class="col-md-7" markdown="1">
+```tut:invisible
+import effekt._
+case class Tweet(msg: String)
+```
+**Effect signature**
+```tut:book:silent
+trait Twitter extends Eff {
+  def userTweets[R](userId: Long): List[Tweet] @@ R
+}
+```
+```tut:invisible
+def userTweets(userId: Long)(implicit u: Use[Twitter]): Control[List[Tweet]] =
+  use(u)(u.effect.userTweets(userId))
+object twitterStub extends Twitter {
+  type State = Unit
+  type Out[A] = A
+  def unit[A] = (s, a) => a
+  def userTweets[R](userId: Long): List[Tweet] @@ R = state => resume =>
+    resume(List(Tweet("hi")))(state)
+}
+```
+**Effect usage**
+```tut:book:silent
+def query(implicit u: Use[Twitter]): Control[List[Tweet]] =
+  for {
+    ts1 <- userTweets(133452)
+    ts2 <- userTweets(111345)
+  } yield ts1 ++ ts2
+
+val result = handle(twitterStub) { implicit u => query }
+```
+</div>
+</div>
+</div>
+</section>
+
+## Getting Started
 To use **Effekt** (tested with Scala 2.11 and Scala 2.12), include the
 following line to your `build.sbt` file:
 
@@ -16,64 +73,3 @@ libraryDependencies += "de.b-studios" %% "effekt" % "0.1-SNAPSHOT"
 ```
 
 To learn how to use the library, see [Your First Effect](./first-effect.html).
-
-## Design Decisions
-
-This is not the first effect library. There are many cool libraries
-out there with different target groups and different philosophies.
-The key motivation behind **Effekt** is to bring
-[Koka-like](https://koka-lang.github.io/koka/doc/kokaspec.html) algebraic
-effects with handlers to the Scala language. In consequence many
-design decisions are influenced by Koka.
-
-### Shallowly Embedded Effects
-Other libraries (like [Eff](https://github.com/atnos-org/eff)) use
-free monads to represent effectful operations and define interpreters
-for the free monad to implement handling of the effect.
-
-In **Effekt** effect signatures are shallowly embedded. That is,
-instead of creating an instance of a `Flip()` class to represent the
-action of flipping a coin and later interpreting it, in **Effekt** the
-flip operation is immediately called on the corresponding handler:
-
-```
-def prog(implicit amb: Use[Amb]): Control[Int] =
-  amb.flip() map { x => if (x) 2 else 3 }
-```
-(**ATTENTION**: The above code is a slight simplification, only for
-illustrative purposes. For real code see [Your First Effect](./first-effect.html))
-
-As can be seen above, **Effekt** uses implicit arguments to pass down
-handler implementations to the use-site (`flip`).
-
-This works even more nicely in [Dotty](http://dotty.epfl.ch/), where
-implicit function types are available:
-
-```
-type using[A, E <: Eff] = implicit Use[E] => Control[A]
-def prog: Int using Amb = flip() map { x => if (x) 2 else 3 }
-```
-
-Pretty neat, isn't it?
-
-We prepared [this Scastie](https://scastie.scala-lang.org/3EiIE3pYSb27IbpGYmFdKQ) for
-you to play around with dotty and **effekt**.
-
-### Delimited Control
-As in the Koka language, effect handlers in **Effekt** get access to
-the operation's continuation delimited by the handler itself:
-
-```
-object ambList extends Amb {
-  def flip[R]() = _ => resume => resume(true)
-  ...
-}
-```
-The continuation may be called zero to arbitrary many times. To
-implement this functionality, **Effekt** is based on a specialized
-variant of the `CC`-monad as introduced in
-
-> **A Monadic Framework for Delimited Continuations**
-> by R. Kent Dybvig, Simon Peyton Jones and Amr Sabry (2007), [PDF](https://www.cs.indiana.edu/~sabry/papers/monadicDC.pdf)
-
-In **Effekt** the control-monad is called `Control`, no surprise there.
