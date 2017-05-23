@@ -75,7 +75,7 @@ To handle an effect we use the library function `handle(handler)(state)(prog)` w
 us a capability for the effect type that `handler` implements.
 
 ```tut:book:silent
-val handled: Control[List[Int]] = handle(ambList)(()) { implicit h => prog }
+val handled: Control[List[Int]] = handle(ambList) { implicit h => prog }
 ```
 
 After all effects are handled, we can run the effectful computation:

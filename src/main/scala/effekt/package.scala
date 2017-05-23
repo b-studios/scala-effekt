@@ -16,4 +16,8 @@ package object effekt {
   @inline final def handle[R](e: Eff)(init: e.State)(
     f: Capability {val effect: e.type} => Control[R]
   ): Control[e.Out[R]] = Control.handle[R](e)(init)(f)
+
+  @inline final def handle[R](e: Eff { type State = Unit })(
+    f: Capability {val effect: e.type} => Control[R]
+  ): Control[e.Out[R]] = Control.handle[R](e)(())(f)
 }
