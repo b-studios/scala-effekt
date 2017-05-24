@@ -1,5 +1,7 @@
 package effekt
 
+import scala.util.escape._
+
 private[effekt]
 sealed trait MetaCont[-A, +B] extends Serializable {
   def apply(a: A): B
@@ -30,7 +32,7 @@ case class CastCont[-A, +B]() extends MetaCont[A, B] {
 
   final def append[C](s: MetaCont[B, C]): MetaCont[A, C] = s.asInstanceOf[MetaCont[A, C]]
 
-  final def splitAt(c: Capability) = sys error s"Prompt $c not found on the stack."
+  final def splitAt(c: Capability) = sys error s"Prompt not found on the stack."
 
   override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(x => g(x).asInstanceOf[B])
 }
@@ -57,9 +59,10 @@ case class HandlerCont[R, A](h: Handler {type Res = R}, tail: MetaCont[R, A]) ex
 
   final def append[C](s: MetaCont[A, C]): MetaCont[R, C] = HandlerCont(h, tail append s)
 
-  final def splitAt(c: Capability) =
-  // Here we deduce type equality from referential equality
-    if (h.prompt eq c) {
+  final def splitAt(c: Capability) = {
+    // Here we deduce type equality from referential equality
+    val comp: Boolean = h.prompt eq c
+    if (comp) {
       val head = CastCont[R, c.Res]()
       val handler = h.asInstanceOf[H[c.type]]
       val rest = tail.asInstanceOf[MetaCont[c.Res, A]]
@@ -67,4 +70,5 @@ case class HandlerCont[R, A](h: Handler {type Res = R}, tail: MetaCont[R, A]) ex
     } else tail.splitAt(c) match {
       case (head, matched, tail) => (HandlerCont(h, head), matched, tail)
     }
+  }
 }

@@ -1,5 +1,5 @@
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.2",
+  scalaVersion := "2.11.4",
   version := "0.1-SNAPSHOT",
   organization := "de.b-studios",
   crossScalaVersions := Seq("2.11.8", "2.12.1"),
@@ -18,6 +18,12 @@ lazy val commonSettings = Seq(
     "-Ywarn-value-discard",
     "-Xfuture"
   ),
+  libraryDependencies ++= Seq(
+    "org.scala-lang.plugins"  % "scala-escape-plugin_2.11.4" % "1.0.1-SNAPSHOT",
+    "org.scala-lang.plugins"  % "scala-escape-library_2.11" % "1.0.1-SNAPSHOT"
+  ),
+  autoCompilerPlugins := true,
+  addCompilerPlugin("org.scala-lang.plugins" % "scala-escape-plugin_2.11.4" % "1.0.1-SNAPSHOT"),
   fork in test := true,
   parallelExecution in Test := false
 )
