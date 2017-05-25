@@ -53,9 +53,9 @@ lazy val effekt = project.in(file("."))
   .settings(publishSettings)
 
 lazy val greenTheme = Map(
-    "brand-primary" -> "#3C8875",
-    "brand-secondary" -> "#17534A",
-    "brand-tertiary" -> "#134946",
+    "brand-primary" -> "#469E6B",
+    "brand-secondary" -> "#175341",
+    "brand-tertiary" -> "#103D33",
     "gray-dark" -> "#394A4B",
     "gray" -> "#4F5B5C",
     "gray-light" -> "#CFE4E4",
