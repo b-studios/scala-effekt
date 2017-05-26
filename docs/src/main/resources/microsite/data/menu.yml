@@ -1,0 +1,22 @@
+options:
+
+  #######################
+  # Guides Menu Options #
+  #######################
+
+  - title: Guides
+    url: guides.html
+    menu_type: guides
+    menu_section: guides
+
+  - title: Getting Started
+    url: guides/getting-started.html
+    menu_type: guides
+
+  - title: Multiple Effects
+    url: guides/multiple-effects.html
+    menu_type: guides
+
+  - title: Multiple Handlers at Once
+    url: guides/multiple-handlers.html
+    menu_type: guides
