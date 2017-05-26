@@ -15,6 +15,9 @@ In this tutorial, we'll see that in **Effekt** it is very natural to
 define such combined handlers. Let's start with defining the
 effect signatures for `Reader` and `Writer`.
 
+You can play around with the full source code for this example at this
+[Scastie (Scala 2.12)](https://scastie.scala-lang.org/Weot74oAQAa6n0uJOpOIbA).
+
 ```tut:invisible
 import effekt._
 ```
