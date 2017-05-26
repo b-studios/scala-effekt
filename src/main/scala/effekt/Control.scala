@@ -9,11 +9,11 @@ trait Control[+A] { outer =>
   // Attention: It is unsafe to run control if not all effects have been handled!
   def run(): A = apply(ReturnCont(identity))
 
-  def map[B](f: A => B): Control[B] = new Control[B] {
+  def map[B](@local f: A => B): Control[B] = new Control[B] {
     def apply[R](k: MetaCont[B, R]): R = outer(k map f)
   }
 
-  def flatMap[B](f: A => Control[B]): Control[B] = new Control[B] {
+  def flatMap[B](@local f: A => Control[B]): Control[B] = new Control[B] {
     def apply[R](k: MetaCont[B, R]): R = outer(k flatMap f)
   }
 }
@@ -63,7 +63,7 @@ object Control {
     new Control[e.Out[R]] {
       def apply[R2](k: MetaCont[e.Out[R], R2]): R2 = {
         // extract new state
-        val c = f(p).flatMap{ a =>
+        val c = f(p).flatMap { a =>
           new Control[e.Out[R]] {
             def apply[R3](k: MetaCont[e.Out[R], R3]): R3 = {
               (k: @unchecked) match {

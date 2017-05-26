@@ -8,13 +8,13 @@ object testApp extends App {
 
   var x: Use[Amb] = null
 
-  val res = handle(ambList) (new (Use[Amb] -> Control[Boolean]) {
-    def apply(@local a: Use[Amb]) = {
-      implicit @local val av = a
-//      x = a // won't compile
-      flip()
+  val res = handle(ambList) { a =>
+    flip()(a).flatMap { x =>
+      flip()(a).map { y =>
+        x || y
+      }
     }
-  })
+  }
 
   println(res.run())
 }

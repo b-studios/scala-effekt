@@ -16,7 +16,8 @@ lazy val commonSettings = Seq(
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard",
-    "-Xfuture"
+    "-Xfuture",
+    "-Xexperimental"
   ),
   libraryDependencies ++= Seq(
     "org.scala-lang.plugins"  % "scala-escape-plugin_2.11.4" % "1.0.1-SNAPSHOT",

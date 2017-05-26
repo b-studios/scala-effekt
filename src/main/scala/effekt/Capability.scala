@@ -17,7 +17,6 @@ sealed trait Capability { c =>
     f: effect.State => (A => effect.State => Control[Res]) => Control[Res]
   ): Control[A] = new Control[A] {
 
-    // c cannot be used in apply, since it must not be captured!
     def apply[R](k: MetaCont[A, R]): R = {
 
       // slice the meta continuation in three parts
