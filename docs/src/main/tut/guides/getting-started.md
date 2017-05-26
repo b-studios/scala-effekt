@@ -1,8 +1,7 @@
 ---
-layout: page
+layout: docs
 title:  "Getting Started"
 section: "guides"
-position: 2
 ---
 
 # Getting Started

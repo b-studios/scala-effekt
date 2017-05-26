@@ -1,8 +1,7 @@
 ---
-layout: page
-title:  "Multi Handlers"
+layout: docs
+title:  "Multiple Handlers at Once"
 section: "guides"
-position: 5
 ---
 
 # Handling Multiple Effects at Once

@@ -1,8 +1,7 @@
 ---
-layout: page
+layout: docs
 title:  "Multiple Effects"
 section: "guides"
-position: 3
 ---
 
 # Combining Multiple Effects with Handlers
