@@ -63,7 +63,7 @@ def prog1(amb: Use[Amb]): Control[Int] =
 ```
 
 The result type `Control[Int]` tells us that the integer-result will be
-contained in the `Control` monad which is **Effekt** specific. The
+contained in the `Control` *monad* which is **Effekt** specific. The
 call to `use` shows us that we use the capability `Use[Amb]` in two ways:
 
 1. It serves as a proof, that we are allowed to use effect operations
@@ -100,9 +100,9 @@ needs to give the type to interpret the effect into (`Out[A]`) and
 a function `unit` that lifts pure values into the effect interpretation.
 
 ```tut:book:silent
-object ambList extends Amb {
+object ambHandler extends Amb {
   type Out[A] = List[A]
-  type State = Unit // We don't use the state, yet.
+  type State = Unit // We don't use the handler state, yet.
   def flip[R]() = s => resume =>
     for {
       t <- resume(true)(s)
@@ -129,7 +129,7 @@ To handle an effect we use the library function `handle(handler)(state)(prog)` w
 us a capability for the effect type that `handler` implements.
 
 ```tut:book:silent
-val handled: Control[List[Int]] = handle(ambList) { implicit h => prog }
+val handled: Control[List[Int]] = handle(ambHandler) { implicit h => prog }
 ```
 
 After all effects are handled, we can run the effectful computation:
