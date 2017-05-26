@@ -5,14 +5,14 @@ section: "guides"
 ---
 
 # Combining Multiple Effects with Handlers
-After having defined a single effect in [Getting Started](./first-effect), this quick tutorial shows how multiple, different effects can be defined and handled in **Effekt**.
+After having defined a single effect in [Getting Started](./getting-started), this quick tutorial shows how multiple, different effects can be defined and handled in **Effekt**.
 
 Again, we prepared Scasties to follow along with this tutorial.
 
 - [Scala 2.12](https://scastie.scala-lang.org/14UuWNqvSvu0g4seLZ4iug) ([full solution](https://scastie.scala-lang.org/3VsqIjFNTYeQ4HBc44wEpQ))
 
 ## Defining a second effect
-In [Getting Started](./first-effect) we have defined ambiguity as our
+In [Getting Started](./getting-started) we have defined ambiguity as our
 first effect. The ambiguity effect signature had one effect operation
 and looked like this:
 
