@@ -1,5 +1,10 @@
 package object effekt {
 
+  /**
+   * Type alias for convenient use of capabilities
+   *
+   * @tparam E the effect signature to use
+   */
   type Use[E <: Eff] = Capability {
     val effect: E
   }

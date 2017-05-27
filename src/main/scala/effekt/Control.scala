@@ -1,10 +1,50 @@
 package effekt
 
+/**
+ * The effect monad, implementing delimited control.
+ *
+ * Effectful programs that use the effect `E <: Eff` and return
+ * `A` typically have the type
+ *
+ * {{{
+ *    implicit Use[E] => Control[A]
+ * }}}
+ *
+ * Given the capability to use the effect `E`, the result of
+ * type `A` is interpreted in the `Control` and can be obtained
+ * using the method `run()`. It is important to know that calling
+ * `run` before all effects have been handled will lead to a
+ * runtime exception.
+ *
+ * {{{
+ *  // safe use of `run`
+ *  handle(ambHandler) { implicit a => flip() }.run()
+ *
+ *  // unsafe use of `run`
+ *  handle(ambHandler) { implicit a => flip().run() }
+ * }}}
+ *
+ * =Implementation Details=
+ *
+ * The Control` monad itself is a specialized variant of the
+ * multiprompt delimited control monad, as presented in:
+ *
+ *     A Monadic Framework for Delimited Continuations [[http://www.cs.indiana.edu/~sabry/papers/monadicDC.pdf PDF]]
+ *
+ * Capabilities, obtained by the `handle` primitive act as
+ * prompt markers.
+ *
+ * @tparam A the type of the resulting value which is eventually
+ *           computed within the control monad.
+ */
 sealed trait Control[+A] { outer =>
 
-  def apply[R](k: MetaCont[A, R]): R
-
-  // Attention: It is unsafe to run control if not all effects have been handled!
+  /**
+   * Runs the computation to yield an A
+   *
+   * Attention: It is unsafe to run control if not all effects have
+   *            been handled!
+   */
   def run(): A = apply(ReturnCont(identity))
 
   def map[B](f: A => B): Control[B] = new Control[B] {
@@ -14,6 +54,8 @@ sealed trait Control[+A] { outer =>
   def flatMap[B](f: A => Control[B]): Control[B] = new Control[B] {
     def apply[R](k: MetaCont[B, R]): R = outer(k flatMap f)
   }
+
+  private[effekt] def apply[R](k: MetaCont[A, R]): R
 }
 
 private[effekt]
@@ -74,8 +116,6 @@ object Control {
             // as in shift and shift0 we repush the prompt, but here
             // we also internally update the contained state.
             val repushedPrompt = init append HandlerCont(updatedHandler, k)
-
-            //              println("return %-15s k = %s".format(s"${actionName} = ${a}", repushedPrompt))
 
             // invoke assembled continuation
             repushedPrompt(a)

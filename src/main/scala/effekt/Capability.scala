@@ -1,14 +1,25 @@
 package effekt
 
+/**
+ * A wrapper around an effect handler that serves as capability to use the effect.
+ *
+ * Instances of [[Capability]] should only be obtained by calling `handle`.
+ */
 sealed trait Capability {
 
-  // the handler implementation
+  /**
+   * the handler implementation
+   */
   val effect: Eff
 
-  // the answertype
+  /**
+   * the answertype
+   */
   type R
 
-  // shorthand for the answertype in the effect interpretation
+  /**
+   * shorthand for the answertype in the effect interpretation
+   */
   type Res = effect.Out[R]
 }
 
