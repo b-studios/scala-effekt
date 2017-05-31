@@ -159,7 +159,7 @@ object Control {
             }
           }
         }
-        c(HandlerCont(h, k))
+        Impure(c, HandlerCont(h, k))
       }
     }
   }

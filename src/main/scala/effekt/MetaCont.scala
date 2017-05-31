@@ -37,7 +37,7 @@ case class CastCont[-A, +B]() extends MetaCont[A, B] {
 
 private[effekt]
 case class FrameCont[-A, B, +C](frame: Frame[A, B], tail: MetaCont[B, C]) extends MetaCont[A, C] {
-  final def apply(a: A): Result[C] = frame(a)(tail)
+  final def apply(a: A): Result[C] = Impure(frame(a), tail)
 
   final def append[D](s: MetaCont[C, D]): MetaCont[A, D] = (tail append s) flatMap frame
 
