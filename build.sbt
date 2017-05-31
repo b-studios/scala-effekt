@@ -1,3 +1,5 @@
+import org.scalajs.sbtplugin.cross.CrossProject
+
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.2",
   version := "0.1-SNAPSHOT",
@@ -22,7 +24,6 @@ lazy val commonSettings = Seq(
   parallelExecution in Test := false
 )
 
-
 lazy val micrositeSettings = Seq(
   micrositeName := "Scala Effekt",
   micrositeDescription := "Extensible algebraic effects with handlers",
@@ -45,12 +46,30 @@ lazy val docs = (project in file("docs"))
   .settings(moduleName := "docs")
   .settings(commonSettings)
   .settings(micrositeSettings)
-  .dependsOn(effekt)
+  .dependsOn(effektJVM)
 
-lazy val effekt = project.in(file("."))
-  .settings(moduleName := "effekt")
+lazy val root = project
+  .in(file("."))
+  .aggregate(effektJVM, effektJS)
+  .settings(
+    publish := {},
+    publishLocal := {}
+  )
+
+lazy val effekt = crossProject.in(file("."))
+  .settings(name := "effekt")
   .settings(commonSettings)
   .settings(publishSettings)
+  .jsSettings(commonJsSettings:_*)
+
+lazy val effektJVM = effekt.jvm
+lazy val effektJS = effekt.js
+
+lazy val commonJsSettings = Seq(
+  scalaJSModuleKind := ModuleKind.CommonJSModule,
+  scalaJSStage in Global := FastOptStage,
+  requiresDOM := false
+)
 
 lazy val greenTheme = Map(
     "brand-primary" -> "#469E6B",
