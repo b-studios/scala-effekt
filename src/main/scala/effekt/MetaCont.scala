@@ -2,7 +2,7 @@ package effekt
 
 private[effekt]
 sealed trait MetaCont[-A, +B] extends Serializable {
-  def apply(a: A): B
+  def apply(a: A): Result[B]
 
   def append[C](s: MetaCont[B, C]): MetaCont[A, C]
 
@@ -15,7 +15,7 @@ sealed trait MetaCont[-A, +B] extends Serializable {
 
 private[effekt]
 case class ReturnCont[-A, +B](f: A => B) extends MetaCont[A, B] {
-  final def apply(a: A): B = f(a)
+  final def apply(a: A): Result[B] = Pure(f(a))
 
   final def append[C](s: MetaCont[B, C]): MetaCont[A, C] = s map f
 
@@ -26,7 +26,7 @@ case class ReturnCont[-A, +B](f: A => B) extends MetaCont[A, B] {
 
 private[effekt]
 case class CastCont[-A, +B]() extends MetaCont[A, B] {
-  final def apply(a: A): B = a.asInstanceOf[B]
+  final def apply(a: A): Result[B] = Pure(a.asInstanceOf[B])
 
   final def append[C](s: MetaCont[B, C]): MetaCont[A, C] = s.asInstanceOf[MetaCont[A, C]]
 
@@ -37,7 +37,7 @@ case class CastCont[-A, +B]() extends MetaCont[A, B] {
 
 private[effekt]
 case class FrameCont[-A, B, +C](frame: Frame[A, B], tail: MetaCont[B, C]) extends MetaCont[A, C] {
-  final def apply(a: A): C = frame(a)(tail)
+  final def apply(a: A): Result[C] = Impure(frame(a), tail)
 
   final def append[D](s: MetaCont[C, D]): MetaCont[A, D] = (tail append s) flatMap frame
 
@@ -53,7 +53,7 @@ case class FrameCont[-A, B, +C](frame: Frame[A, B], tail: MetaCont[B, C]) extend
 
 private[effekt]
 case class HandlerCont[R, A](h: Handler {type Res = R}, tail: MetaCont[R, A]) extends MetaCont[R, A] {
-  final def apply(r: R): A = tail(r)
+  final def apply(r: R): Result[A] = tail(r)
 
   final def append[C](s: MetaCont[A, C]): MetaCont[R, C] = HandlerCont(h, tail append s)
 
