@@ -60,7 +60,7 @@ lazy val root = project
   .dependsOn(effektJVM, effektJS)
 
 lazy val effekt = crossProject
-  .crossType(CrossType.Pure)
+  .crossType(CrossType.Full)
   .in(file("."))
   .settings(moduleName := "effekt", name := "effekt")
   .settings(effektSettings:_*)
