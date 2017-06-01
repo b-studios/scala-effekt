@@ -29,7 +29,7 @@ def prog(implicit amb: Use[Amb]): Control[Int] =
   amb.flip() map { x => if (x) 2 else 3 }
 ```
 (**ATTENTION**: The above code is a slight simplification, only for
-illustrative purposes. For real code see [Your First Effect](./first-effect.html))
+illustrative purposes. For real code see [Your First Effect](./guides/getting-started.html))
 
 As can be seen above, **Effekt** uses implicit arguments to pass down
 handler implementations to the use-site (`flip`).
