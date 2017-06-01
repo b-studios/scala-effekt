@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/b-studios/scala-effekt.svg?branch=master)](https://travis-ci.org/b-studios/scala-effekt)
+[![Scala.js](http://scala-js.org/assets/badges/scalajs-0.6.15.svg)](http://scala-js.org)
 
 # Scala Effekt
 The **Effekt** library allows you to structure your effectful programs
