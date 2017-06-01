@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/b-studios/scala-effekt.svg?branch=master)](https://travis-ci.org/b-studios/scala-effekt)
+[![Chat](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scala-effekt/scala-effekt)
 [![Scala.js](http://scala-js.org/assets/badges/scalajs-0.6.15.svg)](http://scala-js.org)
 
 # Scala Effekt
