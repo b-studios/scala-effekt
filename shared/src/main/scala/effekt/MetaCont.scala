@@ -10,7 +10,7 @@ sealed trait MetaCont[-A, +B] extends Serializable {
 
   def map[C](f: C => A): MetaCont[C, B] = flatMap(f andThen pure)
 
-  def flatMap[C](f: Frame[C, A]): MetaCont[C, B] = FramesCont(Vector(f), 0, this)
+  def flatMap[C](f: Frame[C, A]): MetaCont[C, B] = FramesCont(List(f), this)
 }
 
 private[effekt]
@@ -36,28 +36,21 @@ case class CastCont[-A, +B]() extends MetaCont[A, B] {
 }
 
 private[effekt]
-class FramesCont[-A, B, +C](frames: Vector[Frame[_, _]], idx: Int, tail: MetaCont[B, C]) extends MetaCont[A, C] {
+case class FramesCont[-A, B, +C](frames: List[Frame[_, _]], tail: MetaCont[B, C]) extends MetaCont[A, C] {
 
-  final def apply(a: A): Result[C] =
-     Impure(frames(idx).asInstanceOf[Frame[A, _]](a), FramesCont(frames, idx + 1, tail))
-
-  final def append[D](s: MetaCont[C, D]): MetaCont[A, D] = FramesCont(frames, idx, tail append s)
-
-  final def splitAt(c: Capability) = tail.splitAt(c) match {
-    case (head, matched, tail) => (FramesCont(frames, idx, head), matched, tail)
+  final def apply(a: A): Result[C] = frames match {
+    case first :: Nil  => Impure(first.asInstanceOf[Frame[A, B]](a), tail)
+    case first :: rest => Impure(first.asInstanceOf[Frame[A, _]](a), FramesCont(rest, tail))
+    case Nil => tail.asInstanceOf[MetaCont[A, C]](a)
   }
 
-  override def flatMap[D](f: Frame[D, A]): MetaCont[D, C] =
-    FramesCont(f +: frames.drop(idx), 0, tail)
-}
-private[effekt]
-object FramesCont {
-  def apply[A, B, C](frames: Vector[Frame[_, _]], idx: Int, tail: MetaCont[B, C]): MetaCont[A, C] =
-    if (idx >= frames.size) {
-      tail.asInstanceOf[MetaCont[A, C]]
-    } else {
-      new FramesCont(frames, idx, tail)
-    }
+  final def append[D](s: MetaCont[C, D]): MetaCont[A, D] = FramesCont(frames, tail append s)
+
+  final def splitAt(c: Capability) = tail.splitAt(c) match {
+    case (head, matched, tail) => (FramesCont(frames, head), matched, tail)
+  }
+
+  override def flatMap[D](f: Frame[D, A]): MetaCont[D, C] = FramesCont(f :: frames, tail)
 }
 
 private[effekt]
