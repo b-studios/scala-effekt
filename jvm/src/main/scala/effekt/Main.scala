@@ -1,7 +1,5 @@
 package effekt
 
-import scala.scalajs.js
-
 trait Amb extends Eff { self =>
   def flip[R](): Boolean @@ R
 }
@@ -42,7 +40,7 @@ object StateHandler {
 }
 
 import Amb._, State._
-object Main extends js.JSApp {
+object Main extends App {
 
 
   def flipCounter(implicit s: Use[State[Int]], amb: Use[Amb]): Control[Boolean] =
@@ -82,10 +80,8 @@ object Main extends js.JSApp {
     }
   }
 
+  println(result1.run())
+  println(result2.run())
+  println(flipN(100000))
 
-  def main(): Unit = {
-    println(result1.run())
-    println(result2.run())
-    println(flipN(100000))
-  }
 }
