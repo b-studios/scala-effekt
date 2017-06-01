@@ -46,26 +46,33 @@ lazy val docs = (project in file("docs"))
   .settings(moduleName := "docs")
   .settings(commonSettings)
   .settings(micrositeSettings)
+  .settings(noPublishSettings)
   .dependsOn(effektJVM)
+
+lazy val effektSettings = commonSettings ++ publishSettings
 
 lazy val root = project
   .in(file("."))
+  .settings(moduleName := "root")
+  .settings(effektSettings)
+  .settings(noPublishSettings)
   .aggregate(effektJVM, effektJS)
-  .settings(
-    publish := {},
-    publishLocal := {}
-  )
+  .dependsOn(effektJVM, effektJS)
 
-lazy val effekt = crossProject.in(file("."))
-  .settings(name := "effekt")
-  .settings(commonSettings)
-  .settings(publishSettings)
+lazy val effekt = crossProject
+  .crossType(CrossType.Pure)
+  .in(file("."))
+  .settings(moduleName := "effekt", name := "effekt")
+  .settings(effektSettings:_*)
+  .jvmSettings(commonJvmSettings:_*)
   .jsSettings(commonJsSettings:_*)
 
 lazy val effektJVM = effekt.jvm
 lazy val effektJS = effekt.js
 
-lazy val commonJsSettings = Seq(
+lazy val commonJvmSettings = commonSettings
+
+lazy val commonJsSettings = commonSettings ++ Seq(
   scalaJSModuleKind := ModuleKind.CommonJSModule,
   scalaJSStage in Global := FastOptStage,
   requiresDOM := false
@@ -105,4 +112,10 @@ lazy val publishSettings = Seq(
       </developer>
     </developers>
   )
+)
+
+lazy val noPublishSettings = Seq(
+  publish := (),
+  publishLocal := (),
+  publishArtifact := false
 )
