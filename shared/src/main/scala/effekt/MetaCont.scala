@@ -26,6 +26,7 @@ case class ReturnCont[-A, +B](f: A => B) extends MetaCont[A, B] {
 
 private[effekt]
 case class CastCont[-A, +B]() extends MetaCont[A, B] {
+
   final def apply(a: A): Result[B] = Pure(a.asInstanceOf[B])
 
   final def append[C](s: MetaCont[B, C]): MetaCont[A, C] = s.asInstanceOf[MetaCont[A, C]]
@@ -38,10 +39,14 @@ case class CastCont[-A, +B]() extends MetaCont[A, B] {
 private[effekt]
 case class FramesCont[-A, B, +C](frames: List[Frame[_, _]], tail: MetaCont[B, C]) extends MetaCont[A, C] {
 
-  final def apply(a: A): Result[C] = frames match {
-    case first :: Nil  => Impure(first.asInstanceOf[Frame[A, B]](a), tail)
-    case first :: rest => Impure(first.asInstanceOf[Frame[A, _]](a), FramesCont(rest, tail))
-    case Nil => tail.asInstanceOf[MetaCont[A, C]](a)
+  final def apply(a: A): Result[C] = {
+    val first :: rest = frames
+    val result = first.asInstanceOf[Frame[A, B]](a)
+    if (rest.isEmpty) {
+      Impure(result, tail)
+    } else {
+      Impure(result, FramesCont(rest, tail))
+    }
   }
 
   final def append[D](s: MetaCont[C, D]): MetaCont[A, D] = FramesCont(frames, tail append s)
