@@ -8,9 +8,9 @@ sealed trait MetaCont[-A, +B] extends Serializable {
 
   def splitAt(c: Capability): (MetaCont[A, c.Res], H[c.type], MetaCont[c.Res, B])
 
-  def map[C](f: C => A): MetaCont[C, B] = flatMap(f andThen pure) //PureCont(f, this)
+  def map[C](f: C => A): MetaCont[C, B] = flatMap(f andThen pure)
 
-  def flatMap[C](f: Frame[C, A]): MetaCont[C, B] = FrameCont(f, this)
+  def flatMap[C](f: Frame[C, A]): MetaCont[C, B] = FramesCont(Vector(f), 0, this)
 }
 
 private[effekt]
@@ -36,19 +36,30 @@ case class CastCont[-A, +B]() extends MetaCont[A, B] {
 }
 
 private[effekt]
-case class FrameCont[-A, B, +C](frame: Frame[A, B], tail: MetaCont[B, C]) extends MetaCont[A, C] {
-  final def apply(a: A): Result[C] = Impure(frame(a), tail)
+case class FramesCont[-A, B, +C](frames: Vector[Frame[_, _]], idx: Int, tail: MetaCont[B, C]) extends MetaCont[A, C] {
 
-  final def append[D](s: MetaCont[C, D]): MetaCont[A, D] = (tail append s) flatMap frame
+  final def apply(a: A): Result[C] =
+     Impure(frames(idx).asInstanceOf[Frame[A, B]](a), FramesCont(frames, idx + 1, tail))
+
+  final def append[D](s: MetaCont[C, D]): MetaCont[A, D] = FramesCont(frames, idx, tail append s)
 
   final def splitAt(c: Capability) = tail.splitAt(c) match {
-    case (head, matched, tail) => (head flatMap frame, matched, tail)
+    case (head, matched, tail) => (FramesCont(frames, idx, head), matched, tail)
   }
 
-  override def map[D](g: D => A): MetaCont[D, C] = tail flatMap (g andThen frame)
-
-  override def flatMap[D](f: Frame[D, A]): MetaCont[D, C] = tail flatMap { x => f(x).flatMap(frame) }
-
+  override def flatMap[D](f: Frame[D, A]): MetaCont[D, C] = {
+    val (_, fs) = frames.splitAt(idx)
+    FramesCont(f +: fs, 0, tail)
+  }
+}
+private[effekt]
+object FramesCont {
+  def apply[A, B, C](frames: Vector[Frame[_, _]], idx: Int, tail: MetaCont[B, C]): MetaCont[A, C] =
+    if (idx >= frames.size) {
+      tail.asInstanceOf[MetaCont[A, C]]
+    } else {
+      new FramesCont(frames, idx, tail)
+    }
 }
 
 private[effekt]
