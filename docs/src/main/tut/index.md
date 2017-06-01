@@ -72,4 +72,4 @@ following line to your `build.sbt` file:
 libraryDependencies += "de.b-studios" %% "effekt" % "0.1-SNAPSHOT"
 ```
 
-To learn how to use the library, see [Your First Effect](./first-effect.html).
+To learn how to use the library, see [Your First Effect](./guides/getting-started.html).
