@@ -36,10 +36,10 @@ case class CastCont[-A, +B]() extends MetaCont[A, B] {
 }
 
 private[effekt]
-case class FramesCont[-A, B, +C](frames: Vector[Frame[_, _]], idx: Int, tail: MetaCont[B, C]) extends MetaCont[A, C] {
+class FramesCont[-A, B, +C](frames: Vector[Frame[_, _]], idx: Int, tail: MetaCont[B, C]) extends MetaCont[A, C] {
 
   final def apply(a: A): Result[C] =
-     Impure(frames(idx).asInstanceOf[Frame[A, B]](a), FramesCont(frames, idx + 1, tail))
+     Impure(frames(idx).asInstanceOf[Frame[A, _]](a), FramesCont(frames, idx + 1, tail))
 
   final def append[D](s: MetaCont[C, D]): MetaCont[A, D] = FramesCont(frames, idx, tail append s)
 
@@ -47,10 +47,8 @@ case class FramesCont[-A, B, +C](frames: Vector[Frame[_, _]], idx: Int, tail: Me
     case (head, matched, tail) => (FramesCont(frames, idx, head), matched, tail)
   }
 
-  override def flatMap[D](f: Frame[D, A]): MetaCont[D, C] = {
-    val (_, fs) = frames.splitAt(idx)
-    FramesCont(f +: fs, 0, tail)
-  }
+  override def flatMap[D](f: Frame[D, A]): MetaCont[D, C] =
+    FramesCont(f +: frames.drop(idx), 0, tail)
 }
 private[effekt]
 object FramesCont {
