@@ -1,1 +1,1 @@
-package object effekt extends EffektApi 
+package object effekt extends EffektApi

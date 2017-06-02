@@ -75,7 +75,8 @@ lazy val commonJvmSettings = commonSettings
 lazy val commonJsSettings = commonSettings ++ Seq(
   scalaJSModuleKind := ModuleKind.CommonJSModule,
   scalaJSStage in Global := FastOptStage,
-  requiresDOM := false
+  requiresDOM := false,
+  jsDependencies += ProvidedJS / "effekt.js"
 )
 
 lazy val effects = crossProject
