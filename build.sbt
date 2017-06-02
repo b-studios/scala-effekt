@@ -56,8 +56,8 @@ lazy val root = project
   .settings(moduleName := "root")
   .settings(effektSettings)
   .settings(noPublishSettings)
-  .aggregate(effektJVM, effektJS)
-  .dependsOn(effektJVM, effektJS)
+  .aggregate(effektJVM, effektJS, effectsJVM, effectsJS)
+  .dependsOn(effektJVM, effektJS, effectsJVM, effectsJS)
 
 lazy val effekt = crossProject
   .crossType(CrossType.Full)
