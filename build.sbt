@@ -78,6 +78,24 @@ lazy val commonJsSettings = commonSettings ++ Seq(
   requiresDOM := false
 )
 
+lazy val effects = crossProject
+  .crossType(CrossType.Pure)
+  .in(file("effects"))
+  .settings(moduleName := "effekt-effects", name := "effect instances using Effekt")
+  .settings(effektSettings ++ effectsSettings:_*)
+  .jsSettings(commonJsSettings:_*)
+  .jvmSettings(commonJvmSettings:_*)
+  .dependsOn(effekt)
+
+lazy val effectsJVM = effects.jvm
+lazy val effectsJS = effects.js
+
+lazy val effectsSettings = Seq(
+  libraryDependencies ++= Seq(
+    "org.typelevel" %% "cats" % "0.9.0"
+  )
+)
+
 lazy val greenTheme = Map(
     "brand-primary" -> "#469E6B",
     "brand-secondary" -> "#175341",
