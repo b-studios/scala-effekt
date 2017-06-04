@@ -11,9 +11,9 @@ trait Control[+A] extends js.Object { outer =>
 
   def run(): A = js.native
 
-  def map[B](f: A => B): Control[B] = js.native
+  def map[B](f: A -> B): Control[B] = js.native
 
-  def flatMap[B](f: A => Control[B]): Control[B] = js.native
+  def flatMap[B](f: A -> Control[B]): Control[B] = js.native
 }
 
 object Control {
@@ -48,4 +48,10 @@ private[effekt] object ControlJS extends js.Object {
     f: js.Function1[Use[e.type], Control[R]]
   ): Control[e.Out[R]] = js.native
 
+}
+
+@JSExportTopLevel("JSControl")
+object JSControl {
+  @JSExport
+  def unit[A](e: Eff)(s: e.State, a: A) = e.unit(s, a)
 }
