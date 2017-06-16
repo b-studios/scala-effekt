@@ -12,7 +12,7 @@ package object effekt {
   @inline final def pure[A](a: A): Control[A] = Control.pure(a)
 
   @inline final def use[A](@local c: Capability)(
-    f: c.effect.State => (A => c.effect.State => Control[c.Res]) => Control[c.Res]
+    f: c.effect.State => (A => c.effect.State => Control[c.Res]) -> Control[c.Res]
   ): Control[A] = c.use(f)
 
   @inline final def handle[R](e: Eff)(init: e.State)(

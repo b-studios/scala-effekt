@@ -10,11 +10,16 @@ trait Control[+A] { outer =>
   def run(): A = apply(ReturnCont(identity))
 
   def map[B](@local f: A => B): Control[B] = new Control[B] {
-    def apply[R](k: MetaCont[B, R]): R = outer(k map f)
+    @safe @local val g = f;
+
+    def apply[R](k: MetaCont[B, R]): R = {
+      outer(k map (g))
+    }
   }
 
   def flatMap[B](@local f: A => Control[B]): Control[B] = new Control[B] {
-    def apply[R](k: MetaCont[B, R]): R = outer(k flatMap f)
+    @safe @local val g = f;
+    def apply[R](k: MetaCont[B, R]): R = outer(k flatMap g)
   }
 }
 
