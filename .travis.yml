@@ -11,6 +11,11 @@ before_install:
 - if [ "$TRAVIS_BRANCH" = "master" -a "$TRAVIS_PULL_REQUEST" = "false" ]; then bash
   scripts/decrypt-keys.sh; fi
 - export PATH=${PATH}:./vendor/bundle
+before_script:
+- git clone git@github.com:b-studios/scala-escape.git
+- pushd scala-escape
+- sbt publishLocal
+- popd
 install:
 - rvm use 2.2.3 --install --fuzzy
 - gem update --system
