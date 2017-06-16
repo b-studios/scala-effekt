@@ -3,7 +3,7 @@ import scala.util.escape._
 import effekt._
 
 trait Amb extends Eff {
-  def flip[R](): State => (Boolean => State => Control[Out[R]]) -> Control[Out[R]]
+  def flip[R](): Boolean @@ R
 }
 object Amb {
   def flip()(implicit @local u: Use[Amb]): Control[Boolean] =
