@@ -13,8 +13,8 @@ sealed trait Capability { c =>
   // shorthand for the answertype in the effect interpretation
   type Res = effect.Out[R]
 
-  def use[A](
-    f: effect.State => (A => effect.State => Control[Res]) => Control[Res]
+  private[effekt] def use[A](
+    f: effect.State => (A => effect.State => Control[Res]) -> Control[Res]
   ): Control[A] = new Control[A] {
 
     def apply[R](k: MetaCont[A, R]): R = {

@@ -25,9 +25,10 @@ object testApp extends App {
 
   var esc: Use[Amb] = null
 
-  val res = handle(ambList) { a =>
-    flip()(a).flatMap { x =>
-      flip()(a).map { y =>
+  val res = handle(ambList) { implicit a =>
+    flip().flatMap { x =>
+      flip().map { y =>
+        // esc = a // or returning a will fail!
         x || y
       }
     }

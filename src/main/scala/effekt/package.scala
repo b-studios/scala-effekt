@@ -6,6 +6,11 @@ package object effekt {
     val effect: E
   }
 
+  trait ~>[-A, +B] extends scala.AnyRef with scala.Function1[A, B] {
+    def applyImplicit(implicit @local a: A): B
+    def apply(@local a: A): B = applyImplicit(a)
+  }
+
   private[effekt] type H[C <: Capability] = Handler { val prompt: C }
   private[effekt] type Frame[-A, +B] = A => Control[B]
 
@@ -16,10 +21,10 @@ package object effekt {
   ): Control[A] = c.use(f)
 
   @inline final def handle[R](e: Eff)(init: e.State)(
-    f: Capability {val effect: e.type} -> Control[R]
+    f: Capability {val effect: e.type} ~> Control[R]
   ): Control[e.Out[R]] = Control.handle[R](e)(init)(f)
 
   @inline final def handle[R](e: Eff { type State = Unit })(
-    f: Capability {val effect: e.type} -> Control[R]
+    f: Capability {val effect: e.type} ~> Control[R]
   ): Control[e.Out[R]] = Control.handle[R](e)(())(f)
 }

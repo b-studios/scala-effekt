@@ -53,7 +53,7 @@ object Control {
   private[effekt] def pure[A](a: A): Control[A] = new Trivial(a)
 
   private[effekt] final def handle[R](e: Eff)(init: e.State)(
-    f: Capability { val effect: e.type } -> Control[R]
+    f: Capability { val effect: e.type } ~> Control[R]
   ): Control[e.Out[R]] = {
 
     // produce a new prompt
