@@ -6,7 +6,7 @@ sealed trait MetaCont[-A, +B] extends Serializable {
 
   def append[C](s: MetaCont[B, C]): MetaCont[A, C]
 
-  def splitAt(c: Capability): (MetaCont[A, c.Res], H[c.type], MetaCont[c.Res, B])
+  def splitAt(c: Capability): (MetaCont[A, c.Res], MetaCont[c.Res, B])
 
   def map[C](f: C => A): MetaCont[C, B] = flatMap(f andThen pure)
 
@@ -25,18 +25,6 @@ case class ReturnCont[-A, +B](f: A => B) extends MetaCont[A, B] {
 }
 
 private[effekt]
-case class CastCont[-A, +B]() extends MetaCont[A, B] {
-
-  final def apply(a: A): Result[B] = Pure(a.asInstanceOf[B])
-
-  final def append[C](s: MetaCont[B, C]): MetaCont[A, C] = s.asInstanceOf[MetaCont[A, C]]
-
-  final def splitAt(c: Capability) = sys error s"Prompt $c not found on the stack."
-
-  override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(x => g(x).asInstanceOf[B])
-}
-
-private[effekt]
 case class FramesCont[-A, B, +C](frames: List[Frame[_, _]], tail: MetaCont[B, C]) extends MetaCont[A, C] {
 
   final def apply(a: A): Result[C] = {
@@ -52,26 +40,26 @@ case class FramesCont[-A, B, +C](frames: List[Frame[_, _]], tail: MetaCont[B, C]
   final def append[D](s: MetaCont[C, D]): MetaCont[A, D] = FramesCont(frames, tail append s)
 
   final def splitAt(c: Capability) = tail.splitAt(c) match {
-    case (head, matched, tail) => (FramesCont(frames, head), matched, tail)
+    case (head, tail) => (FramesCont(frames, head), tail)
   }
 
   override def flatMap[D](f: Frame[D, A]): MetaCont[D, C] = FramesCont(f :: frames, tail)
 }
 
 private[effekt]
-case class HandlerCont[R, A](h: Handler {type Res = R}, tail: MetaCont[R, A]) extends MetaCont[R, A] {
-  final def apply(r: R): Result[A] = tail(r)
+case class HandlerCont[R0, A](h: Capability { type Res = R0 }, tail: MetaCont[R0, A]) extends MetaCont[R0, A] {
+  final def apply(r: R0): Result[A] = tail(r)
 
-  final def append[C](s: MetaCont[A, C]): MetaCont[R, C] = HandlerCont(h, tail append s)
+  final def append[C](s: MetaCont[A, C]): MetaCont[R0, C] = HandlerCont(h, tail append s)
 
   final def splitAt(c: Capability) =
   // Here we deduce type equality from referential equality
-    if (h.prompt eq c) {
-      val head = CastCont[R, c.Res]()
-      val handler = h.asInstanceOf[H[c.type]]
+    if (h eq c) {
+      // R0 == c.Res
+      val head = HandlerCont[R0, c.Res](h, ReturnCont(a => a.asInstanceOf[c.Res]))
       val rest = tail.asInstanceOf[MetaCont[c.Res, A]]
-      (head, handler, rest)
+      (head, rest)
     } else tail.splitAt(c) match {
-      case (head, matched, tail) => (HandlerCont(h, head), matched, tail)
+      case (head, tail) => (HandlerCont(h, head), tail)
     }
 }

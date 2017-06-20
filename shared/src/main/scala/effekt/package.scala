@@ -8,8 +8,6 @@ package object effekt {
   type Use[E <: Eff] = Capability {
     val effect: E
   }
-
-  private[effekt] type H[C <: Capability] = Handler { val prompt: C }
   private[effekt] type Frame[-A, +B] = A => Control[B]
 
   @inline final def pure[A](a: A): Control[A] = Control.pure(a)

@@ -69,12 +69,6 @@ final class Trivial[+A](a: A) extends Control[A] {
   override def run(): A = a
 }
 
-private[effekt]
-trait Handler extends Serializable { outer =>
-  val prompt: Capability
-  type Res = prompt.Res
-}
-
 object Control {
 
   private[effekt] def pure[A](a: A): Control[A] = new Trivial(a)
@@ -95,23 +89,17 @@ object Control {
     def apply[R](k: MetaCont[A, R]): Result[R] = {
 
       // slice the meta continuation in three parts
-      val (init, h, tail) = k splitAt c
+      val (init, tail) = k splitAt c
 
-      val localCont: A => Control[c.Res] =
-        a => new Control[c.Res] {
-          def apply[R2](k: MetaCont[c.Res, R2]): Result[R2] = {
+      val handled: Control[c.Res] = f { a => new Control[c.Res] {
+        def apply[R2](k: MetaCont[c.Res, R2]): Result[R2] = {
 
-            // we can simplify this by changing the semantics of split!
-            val repushedPrompt = init append HandlerCont(h, k)
+          val repushedPrompt = init append k
 
-            // invoke assembled continuation
-            repushedPrompt(a)
-          }
+          // invoke assembled continuation
+          repushedPrompt(a)
         }
-
-      // run f with the current state to obtain a value of type A and an
-      // updated copy of the state.
-      val handled: Control[c.Res] = f(localCont)
+      }}
 
       // continue with tail
       Impure(handled, tail)
@@ -125,25 +113,9 @@ object Control {
     // produce a new prompt
     val p = Capability[R](e)
 
-    // construct handler from prompt and initial state
-    val h = new Handler { val prompt: p.type = p }
-
     new Control[e.Out[R]] {
       def apply[R2](k: MetaCont[e.Out[R], R2]): Result[R2] = {
-        // extract new state
-        val c = f(p).flatMap{ a =>
-          new Control[e.Out[R]] {
-            def apply[R3](k: MetaCont[e.Out[R], R3]): Result[R3] = {
-              (k: @unchecked) match {
-                // Invariant: The last continuation on the metacont stack is a HandlerCont for p
-                case HandlerCont(h2: H[p.type] @unchecked, k2) => {
-                  k2(e.unit[R](a))
-                }
-              }
-            }
-          }
-        }
-        Impure(c, HandlerCont(h, k))
+        Impure(f(p).map { e.unit[R] }, HandlerCont(p, k))
       }
     }
   }
