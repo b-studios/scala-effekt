@@ -15,14 +15,10 @@ package object effekt {
   @inline final def pure[A](a: A): Control[A] = Control.pure(a)
 
   @inline final def use[A](c: Capability)(
-    f: c.effect.State => (A => c.effect.State => Control[c.Res]) => Control[c.Res]
+    f: (A => Control[c.Res]) => Control[c.Res]
   ): Control[A] = Control.use[A](c)(f)
 
-  @inline final def handle[R](e: Eff)(init: e.State)(
+  @inline final def handle[R](e: Eff)(
     f: Capability {val effect: e.type} => Control[R]
-  ): Control[e.Out[R]] = Control.handle[R](e)(init)(f)
-
-  @inline final def handle[R](e: Eff { type State = Unit })(
-    f: Capability {val effect: e.type} => Control[R]
-  ): Control[e.Out[R]] = Control.handle[R](e)(())(f)
+  ): Control[e.Out[R]] = Control.handle[R](e)(f)
 }

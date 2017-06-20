@@ -71,16 +71,8 @@ final class Trivial[+A](a: A) extends Control[A] {
 
 private[effekt]
 trait Handler extends Serializable { outer =>
-
   val prompt: Capability
-  val state: prompt.effect.State
   type Res = prompt.Res
-
-  def updateWith(s: prompt.effect.State): Handler {val prompt: outer.prompt.type} =
-    new Handler {
-      val prompt: outer.prompt.type = outer.prompt
-      val state = s
-    }
 }
 
 object Control {
@@ -98,24 +90,19 @@ object Control {
   //     e3 of E.
   // (3) splices in k and pushes e3 as prompt
   private[effekt] final def use[A](c: Capability)(
-    f: c.effect.State => (A => c.effect.State => Control[c.Res]) => Control[c.Res]
+    f: (A => Control[c.Res]) => Control[c.Res]
   ): Control[A] = new Control[A] {
     def apply[R](k: MetaCont[A, R]): Result[R] = {
 
       // slice the meta continuation in three parts
       val (init, h, tail) = k splitAt c
 
-      val localCont: A => c.effect.State => Control[c.Res] =
-        a => updatedState => new Control[c.Res] {
+      val localCont: A => Control[c.Res] =
+        a => new Control[c.Res] {
           def apply[R2](k: MetaCont[c.Res, R2]): Result[R2] = {
 
-            // create a copy of the handler with the very same prompt but
-            // updated state
-            val updatedHandler = h updateWith updatedState
-
-            // as in shift and shift0 we repush the prompt, but here
-            // we also internally update the contained state.
-            val repushedPrompt = init append HandlerCont(updatedHandler, k)
+            // we can simplify this by changing the semantics of split!
+            val repushedPrompt = init append HandlerCont(h, k)
 
             // invoke assembled continuation
             repushedPrompt(a)
@@ -124,14 +111,14 @@ object Control {
 
       // run f with the current state to obtain a value of type A and an
       // updated copy of the state.
-      val handled: Control[c.Res] = f(h.state)(localCont)
+      val handled: Control[c.Res] = f(localCont)
 
       // continue with tail
       Impure(handled, tail)
     }
   }
 
-  private[effekt] final def handle[R](e: Eff)(init: e.State)(
+  private[effekt] final def handle[R](e: Eff)(
     f: Capability { val effect: e.type } => Control[R]
   ): Control[e.Out[R]] = {
 
@@ -139,10 +126,7 @@ object Control {
     val p = Capability[R](e)
 
     // construct handler from prompt and initial state
-    val h = new Handler {
-      val prompt: p.type = p
-      val state = init
-    }
+    val h = new Handler { val prompt: p.type = p }
 
     new Control[e.Out[R]] {
       def apply[R2](k: MetaCont[e.Out[R], R2]): Result[R2] = {
@@ -153,7 +137,7 @@ object Control {
               (k: @unchecked) match {
                 // Invariant: The last continuation on the metacont stack is a HandlerCont for p
                 case HandlerCont(h2: H[p.type] @unchecked, k2) => {
-                  k2(e.unit[R](h2.state, a))
+                  k2(e.unit[R](a))
                 }
               }
             }

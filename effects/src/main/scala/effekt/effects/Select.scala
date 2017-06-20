@@ -10,16 +10,14 @@ object Select {
     use(u)(u.effect.select(as))
 
   def selectOption[A] = new Select[A] {
-
-    type State  = Unit
     type Out[A] = Option[A]
-    def unit[A] = (s, a) => Some(a)
+    def unit[A] = a => Some(a)
 
-    def select[R](as: List[A]) = state => resume => {
+    def select[R](as: List[A]) = resume => {
       def tryFirst(as: List[A]): Control[Option[R]] =
         if (as.isEmpty) {
           pure(None)
-        } else resume(as.head)(state) flatMap {
+        } else resume(as.head) flatMap {
           case s @ Some(y) => pure(s)
           case None        => tryFirst(as.tail)
         }
@@ -31,13 +29,11 @@ object Select {
   def selectAlternative[A, F[_]: Alternative] = new Select[A] {
 
     val altF = Alternative[F]
-
-    type State  = Unit
     type Out[A] = F[A]
-    def unit[A] = (s, a) => altF pure a
+    def unit[A] = a => altF pure a
 
-    def select[R](as: List[A]) = state => resume => {
-      as.map { a => resume(a)(state) }.foldLeft(pure(altF.empty[R])) {
+    def select[R](as: List[A]) = resume => {
+      as.map { a => resume(a) }.foldLeft(pure(altF.empty[R])) {
         case (ys1, ys2) => for {
           y1 <- ys1
           y2 <- ys2

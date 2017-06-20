@@ -32,7 +32,7 @@ object Writer extends WriterSyntax
  *     y <- s.value
  *   } yield (x, y)
  *
- *   handle(state[Int])(0) { implicit s => prog }
+ *   handle(state[Int]) { implicit s => prog }.runState(0)
  * }}}
  */
 trait State[S] extends Reader[S] with Writer[S] {
@@ -53,12 +53,15 @@ object State extends ReaderSyntax with WriterSyntax {
     def value_=(s: S): Control[Unit] = put[S](s)(u)
   }
 
-  def state[S] = new State[S] {
-    type State = S
-    type Out[A] = (State, A)
-    def unit[A] = (s, a) => (s, a)
+  implicit class ImplicitStateOps[S, A](ca: Control[S => Control[A]]) {
+    def runState(s: S): Control[A] = ca.flatMap(f => f(s))
+  }
 
-    def put[R](s: S) = state => resume => resume(())(s)
-    def get[R]() = state => resume => resume(state)(state)
+  def state[S] = new State[S] {
+    type Out[A] = S => Control[A]
+    def unit[A] = a => s => pure(a)
+
+    def put[R](s: S) = resume => pure(s => resume(()).runState(s))
+    def get[R]() = resume => pure(s => resume(s).runState(s))
   }
 }
