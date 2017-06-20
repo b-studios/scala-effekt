@@ -53,7 +53,7 @@ object State extends ReaderSyntax with WriterSyntax {
     def value_=(s: S): Control[Unit] = put[S](s)(u)
   }
 
-  implicit class ImplicitStateOps[S, A](ca: Control[S => Control[A]]) {
+  implicit class ImplicitStateOps[S, A](val ca: Control[S => Control[A]]) extends AnyVal {
     def runState(s: S): Control[A] = ca.flatMap(f => f(s))
   }
 

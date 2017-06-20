@@ -91,15 +91,12 @@ object Control {
       // slice the meta continuation in three parts
       val (init, tail) = k splitAt c
 
-      val handled: Control[c.Res] = f { a => new Control[c.Res] {
-        def apply[R2](k: MetaCont[c.Res, R2]): Result[R2] = {
-
-          val repushedPrompt = init append k
-
-          // invoke assembled continuation
-          repushedPrompt(a)
+      val handled: Control[c.Res] = f { a =>
+        new Control[c.Res] {
+          def apply[R2](k: MetaCont[c.Res, R2]): Result[R2] =
+            (init append k).apply(a)
         }
-      }}
+      }
 
       // continue with tail
       Impure(handled, tail)
