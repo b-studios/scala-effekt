@@ -14,6 +14,18 @@ sealed trait MetaCont[-A, +B] extends Serializable {
 }
 
 private[effekt]
+case class CastCont[-A, +B]() extends MetaCont[A, B] {
+
+  final def apply(a: A): Result[B] = Pure(a.asInstanceOf[B])
+
+  final def append[C](s: MetaCont[B, C]): MetaCont[A, C] = s.asInstanceOf[MetaCont[A, C]]
+
+  final def splitAt(c: Capability) = sys error s"Prompt $c not found on the stack."
+
+  override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(x => g(x).asInstanceOf[B])
+}
+
+private[effekt]
 case class ReturnCont[-A, +B](f: A => B) extends MetaCont[A, B] {
   final def apply(a: A): Result[B] = Pure(f(a))
 
@@ -56,7 +68,7 @@ case class HandlerCont[R0, A](h: Capability { type Res = R0 }, tail: MetaCont[R0
   // Here we deduce type equality from referential equality
     if (h eq c) {
       // R0 == c.Res
-      val head = HandlerCont[R0, c.Res](h, ReturnCont(a => a.asInstanceOf[c.Res]))
+      val head = HandlerCont[R0, c.Res](h, CastCont[R0, c.Res])
       val rest = tail.asInstanceOf[MetaCont[c.Res, A]]
       (head, rest)
     } else tail.splitAt(c) match {
