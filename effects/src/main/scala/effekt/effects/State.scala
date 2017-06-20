@@ -61,7 +61,7 @@ object State extends ReaderSyntax with WriterSyntax {
     type Out[A] = S => Control[A]
     def unit[A] = a => s => pure(a)
 
-    def put[R](s: S) = resume => pure(s => resume(()).runState(s))
+    def put[R](s: S) = resume => pure(_ => resume(()).runState(s))
     def get[R]() = resume => pure(s => resume(s).runState(s))
   }
 }
