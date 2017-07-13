@@ -103,16 +103,16 @@ object Control {
     }
   }
 
-  private[effekt] final def handle[R](e: Eff)(
-    f: Capability { val effect: e.type } => Control[R]
-  ): Control[e.Out[R]] = {
+  private[effekt] final def handle(e: Eff)(
+    f: Capability { val effect: e.type } => Control[e.R]
+  ): Control[e.Res] = {
 
     // produce a new prompt
-    val p = Capability[R](e)
+    val p = Capability(e)
 
-    new Control[e.Out[R]] {
-      def apply[R2](k: MetaCont[e.Out[R], R2]): Result[R2] = {
-        Impure(f(p).map { e.unit[R] }, HandlerCont(p, k))
+    new Control[e.Res] {
+      def apply[R2](k: MetaCont[e.Res, R2]): Result[R2] = {
+        Impure(f(p).map { e.unit }, HandlerCont(p, k))
       }
     }
   }

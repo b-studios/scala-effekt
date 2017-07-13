@@ -2,7 +2,7 @@ package effekt
 package effects
 
 trait Reader[S] extends Eff {
-  def ask[R](): S @@ R
+  def ask(): CPS[S]
 }
 trait ReaderSyntax {
   def ask[S]()(implicit u: Use[Reader[S]]): Control[S] =
@@ -11,7 +11,7 @@ trait ReaderSyntax {
 object Reader extends ReaderSyntax
 
 trait Writer[S] extends Eff {
-  def tell[R](s: S): Unit @@ R
+  def tell(s: S): CPS[Unit]
 }
 trait WriterSyntax {
   def tell[S](s: S)(implicit u: Use[Writer[S]]): Control[Unit] =
@@ -36,10 +36,10 @@ object Writer extends WriterSyntax
  * }}}
  */
 trait State[S] extends Reader[S] with Writer[S] {
-  def put[R](s: S): Unit @@ R
-  def get[R](): S @@ R
-  def ask[R]() = get()
-  def tell[R](s: S) = put(s)
+  def put(s: S): CPS[Unit]
+  def get(): CPS[S]
+  def ask() = get()
+  def tell(s: S) = put(s)
 }
 object State extends ReaderSyntax with WriterSyntax {
   def get[S]()(implicit u: Use[State[S]]): Control[S] =
@@ -57,11 +57,12 @@ object State extends ReaderSyntax with WriterSyntax {
     def runState(s: S): Control[A] = ca.flatMap(f => f(s))
   }
 
-  def state[S] = new State[S] {
-    type Out[A] = S => Control[A]
-    def unit[A] = a => s => pure(a)
+  def state[S, R0] = new State[S] {
+    type R = R0
+    type Res = S => Control[R]
+    def unit = a => s => pure(a)
 
-    def put[R](s: S) = resume => pure(_ => resume(()).runState(s))
-    def get[R]() = resume => pure(s => resume(s).runState(s))
+    def put(s: S) = resume => pure(_ => resume(()).runState(s))
+    def get() = resume => pure(s => resume(s).runState(s))
   }
 }
