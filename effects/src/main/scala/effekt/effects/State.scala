@@ -2,7 +2,7 @@ package effekt
 package effects
 
 trait Reader[S] extends Eff {
-  def ask(): CPS[S]
+  def ask(): Op[S]
 }
 trait ReaderSyntax {
   def ask[S]()(implicit u: Use[Reader[S]]): Control[S] =
@@ -11,7 +11,7 @@ trait ReaderSyntax {
 object Reader extends ReaderSyntax
 
 trait Writer[S] extends Eff {
-  def tell(s: S): CPS[Unit]
+  def tell(s: S): Op[Unit]
 }
 trait WriterSyntax {
   def tell[S](s: S)(implicit u: Use[Writer[S]]): Control[Unit] =
@@ -36,8 +36,8 @@ object Writer extends WriterSyntax
  * }}}
  */
 trait State[S] extends Reader[S] with Writer[S] {
-  def put(s: S): CPS[Unit]
-  def get(): CPS[S]
+  def put(s: S): Op[Unit]
+  def get(): Op[S]
   def ask() = get()
   def tell(s: S) = put(s)
 }
@@ -57,7 +57,7 @@ object State extends ReaderSyntax with WriterSyntax {
     def runState(s: S): Control[A] = ca.flatMap(f => f(s))
   }
 
-  trait StateImpl[S] extends State[S] {
+  trait StateImpl[S] extends State[S] with Handler {
     type Res = S => Control[R]
     def unit = a => s => pure(a)
 

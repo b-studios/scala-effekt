@@ -2,10 +2,10 @@ package effekt
 package effects
 
 trait Amb extends Eff {
-  def flip(): CPS[Boolean]
+  def flip(): Op[Boolean]
 }
 object Amb {
-  trait AmbList extends Amb {
+  trait AmbList extends Amb with Handler {
     type Res = List[R]
     def unit = a => List(a)
 

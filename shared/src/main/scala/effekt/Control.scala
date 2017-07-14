@@ -103,7 +103,7 @@ object Control {
     }
   }
 
-  private[effekt] final def handle(e: Eff)(
+  private[effekt] final def handle(e: Handler)(
     f: Capability { val effect: e.type } => Control[e.R]
   ): Control[e.Res] = {
 

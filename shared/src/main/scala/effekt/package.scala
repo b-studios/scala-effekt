@@ -16,7 +16,7 @@ package object effekt {
     f: (A => Control[c.Res]) => Control[c.Res]
   ): Control[A] = Control.use[A](c)(f)
 
-  @inline final def handle(e: Eff)(
+  @inline final def handle(e: Handler)(
     f: Capability { val effect: e.type } => Control[e.R]
   ): Control[e.Res] = Control.handle(e)(f)
 }
