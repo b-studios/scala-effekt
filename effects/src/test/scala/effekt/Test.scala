@@ -12,7 +12,7 @@ object Test extends App {
     y <- s.value
   } yield (x, y)
 
-  val res = handle(state[Int, (Int, Int)]) { implicit s => prog }.runState(0)
+  val res = state(0) { implicit s => prog }
 
   def flipCounter(implicit s: Use[State[Int]], ua: Use[Amb]): Control[Boolean] = {
     get().flatMap { c =>
@@ -28,10 +28,10 @@ object Test extends App {
   }
 
   def countTo(n: Int): List[Boolean] =
-    (handle(ambList[Boolean]) { implicit a =>
-      handle(state[Int, Boolean]) { implicit r1 =>
+    (ambList { implicit a =>
+      state(n) { implicit r1 =>
         flipCounter
-      }.runState(n)
+      }
     }).run()
 
   val N = 10000
