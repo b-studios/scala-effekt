@@ -103,9 +103,9 @@ object Control {
     }
   }
 
-  private[effekt] final def handle(e: Handler)(
-    f: Capability { val effect: e.type } => Control[e.R]
-  ): Control[e.Res] = {
+  private[effekt] final def handle[R, Res](e: Handler[R, Res])(
+    f: Capability { val effect: e.type } => Control[R]
+  ): Control[Res] = {
 
     // produce a new prompt
     val p = Capability(e)

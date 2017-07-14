@@ -5,9 +5,8 @@ trait Amb extends Eff {
   def flip(): Op[Boolean]
 }
 object Amb {
-  trait AmbList extends Amb with Handler {
-    type Res = List[R]
-    def unit = a => List(a)
+  trait AmbList[R] extends Amb with Handler[R, List[R]] {
+    def unit = r => List(r)
 
     def flip() = resume => for {
       ts <- resume(true)
@@ -16,9 +15,7 @@ object Amb {
   }
 
   // Boilerplate:
-  def ambList[R0](
-   f: Capability { val effect: Amb { type R = R0 } } => Control[R0]
-  ) = handle(new AmbList { type R = R0 })(f)
+  def ambList[R](f: Use[Amb] => Control[R]) = handle(new AmbList[R] {})(f)
 
   def flip()(implicit u: Use[Amb]): Control[Boolean] =
     use(u)(u.effect.flip())

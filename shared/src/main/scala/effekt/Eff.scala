@@ -39,11 +39,7 @@ trait Eff extends Serializable {
   type Op[A] = (A => Control[Res]) => Control[Res]
 }
 
-trait Handler extends Eff {
-  type R
+trait Handler[R, Res0] extends Eff {
+  type Res = Res0
   def unit: R => Res
-}
-
-object Handler {
-  type Aux[R0] = Handler { type R = R0 }
 }

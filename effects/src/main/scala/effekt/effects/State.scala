@@ -57,15 +57,14 @@ object State extends ReaderSyntax with WriterSyntax {
     def runState(s: S): Control[A] = ca.flatMap(f => f(s))
   }
 
-  trait StateImpl[S] extends State[S] with Handler {
-    type Res = S => Control[R]
-    def unit = a => s => pure(a)
+  trait StateImpl[S, R] extends State[S] with Handler[R, S => Control[R]] {
+    def unit = r => s => pure(r)
 
     def put(s: S) = resume => pure(_ => resume(()).runState(s))
     def get() = resume => pure(s => resume(s).runState(s))
   }
 
-  def state[S, R0](init: S)(
-   f: Capability { val effect: State[S] { type R = R0 } } => Control[R0]
-  ) = handle(new StateImpl[S] { type R = R0 })(f).runState(init)
+  def state[S, R](init: S)(
+   f: Use[State[S]] => Control[R]
+  ) = handle(new StateImpl[S, R] {})(f).runState(init)
 }

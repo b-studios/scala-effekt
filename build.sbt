@@ -18,7 +18,8 @@ lazy val commonSettings = Seq(
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard",
-    "-Xfuture"
+    "-Xfuture",
+    "-Ypartial-unification"
   ),
   fork in test := true,
   parallelExecution in Test := false
