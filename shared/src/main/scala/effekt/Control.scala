@@ -83,36 +83,33 @@ object Control {
   // (2) calls f with the current version of E to obtain an A and yet a new version
   //     e3 of E.
   // (3) splices in k and pushes e3 as prompt
-  private[effekt] final def use[A](c: Capability)(
-    f: (A => Control[c.Res]) => Control[c.Res]
-  ): Control[A] = new Control[A] {
-    def apply[R](k: MetaCont[A, R]): Result[R] = {
+  private[effekt] final def use[A](c: Capability)(f: CPS[A, c.Res]): Control[A] =
+    new Control[A] {
+      def apply[R](k: MetaCont[A, R]): Result[R] = {
 
-      // slice the meta continuation in three parts
-      val (init, tail) = k splitAt c
+        // slice the meta continuation in three parts
+        val (init, tail) = k splitAt c
 
-      val handled: Control[c.Res] = f { a =>
-        new Control[c.Res] {
-          def apply[R2](k: MetaCont[c.Res, R2]): Result[R2] =
-            (init append k).apply(a)
+        val handled: Control[c.Res] = f { a =>
+          new Control[c.Res] {
+            def apply[R2](k: MetaCont[c.Res, R2]): Result[R2] =
+              (init append k).apply(a)
+          }
         }
+
+        // continue with tail
+        Impure(handled, tail)
       }
-
-      // continue with tail
-      Impure(handled, tail)
     }
-  }
 
-  private[effekt] final def handle[R, Res](e: Handler[R, Res])(
-    f: Capability { val effect: e.type } => Control[R]
-  ): Control[Res] = {
+  private[effekt] final def handle(h: Handler)(f: Use[h.type] => Control[h.R]): Control[h.Res] = {
 
     // produce a new prompt
-    val p = Capability(e)
+    val p = Capability(h)
 
-    new Control[e.Res] {
-      def apply[R2](k: MetaCont[e.Res, R2]): Result[R2] = {
-        Impure(f(p).map { e.unit }, HandlerCont(p, k))
+    new Control[p.Res] {
+      def apply[R2](k: MetaCont[p.Res, R2]): Result[R2] = {
+        Impure(f(p).map { h.unit }, HandlerCont(p, k))
       }
     }
   }

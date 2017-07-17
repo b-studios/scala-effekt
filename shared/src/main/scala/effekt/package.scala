@@ -5,18 +5,18 @@ package object effekt {
    *
    * @tparam E the effect signature to use
    */
-  type Use[E <: Eff] = Capability {
-    val effect: E
+  type Use[E] = Capability {
+    val effect: E with Handler
   }
   private[effekt] type Frame[-A, +B] = A => Control[B]
 
+  type CPS[A, Res] = (A => Control[Res]) => Control[Res]
+
   @inline final def pure[A](a: A): Control[A] = Control.pure(a)
 
-  @inline final def use[A](c: Capability)(
-    f: (A => Control[c.Res]) => Control[c.Res]
-  ): Control[A] = Control.use[A](c)(f)
+  @inline final def use[A](c: Capability)(f: CPS[A, c.Res]): Control[A] =
+    Control.use[A](c)(f)
 
-  @inline final def handle[R, Res](e: Handler[R, Res])(
-    f: Capability { val effect: e.type } => Control[R]
-  ): Control[Res] = Control.handle(e)(f)
+  @inline final def handle(h: Handler)(f: Use[h.type] => Control[h.R]): Control[h.Res] =
+    Control.handle(h)(f)
 }

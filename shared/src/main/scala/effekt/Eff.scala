@@ -35,11 +35,18 @@ package effekt
  *      [[http://b-studios.de/scala-effekt/guides/getting-started.html getting started guide]].
  */
 trait Eff extends Serializable {
-  type Res
-  type Op[A] = (A => Control[Res]) => Control[Res]
+  type Op[A]
 }
 
-trait Handler[R, Res0] extends Eff {
-  type Res = Res0
+trait Handler extends Eff {
+  type R
+  type Res
+  type Op[A] = CPS[A, Res]
   def unit: R => Res
+}
+object Handler {
+  trait Aux[R0, Res0] extends Handler {
+    type R = R0
+    type Res = Res0
+  }
 }

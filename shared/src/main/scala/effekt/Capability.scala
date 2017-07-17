@@ -10,13 +10,13 @@ sealed trait Capability {
   /**
    * the handler implementation
    */
-  val effect: Eff
+  val effect: Handler
 
   type Res = effect.Res
 }
 
 object Capability {
   // only Control.handle is allowed to create new capabilities
-  private[effekt] def apply(e: Eff): Capability { val effect: e.type } =
-    new Capability { override val effect: e.type = e }
+  private[effekt] def apply(h: Handler): Capability { val effect: h.type } =
+    new Capability { override val effect: h.type = h }
 }

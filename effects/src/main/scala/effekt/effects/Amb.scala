@@ -5,7 +5,7 @@ trait Amb extends Eff {
   def flip(): Op[Boolean]
 }
 object Amb {
-  trait AmbList[R] extends Amb with Handler[R, List[R]] {
+  trait AmbList[R] extends Amb with Handler.Aux[R, List[R]] {
     def unit = r => List(r)
 
     def flip() = resume => for {
