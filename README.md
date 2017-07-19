@@ -7,11 +7,11 @@ The **Effekt** library allows you to structure your effectful programs
 in a functional way. It thus represents an alternative to traditional
 monad transformer based program structuring techniques.
 
-To use **Effekt** (tested with Scala 2.11 and Scala 2.12), include the
-following line to your `build.sbt` file:
+To use **Effekt** (with Dotty), include the
+following line to your `build.sbt` file (also see https://github.com/lampepfl/dotty-example-project to set up a Dotty project):
 
 ```
-libraryDependencies += "de.b-studios" %% "effekt" % "0.1-SNAPSHOT"
+libraryDependencies += "de.b-studios" % "effekt_0.2" % "0.1-SNAPSHOT"
 ```
 
 To learn how to use the library, see [Your First Effect](http://b-studios.de/scala-effekt/guides/getting-started.html).
