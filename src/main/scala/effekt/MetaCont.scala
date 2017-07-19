@@ -8,7 +8,7 @@ sealed trait MetaCont[-A, +B] extends Serializable {
 
   def splitAt(c: Capability): (MetaCont[A, c.Res], MetaCont[c.Res, B])
 
-  def map[C](f: C => A): MetaCont[C, B] = flatMap(f andThen pure)
+  def map[C](f: C => A): MetaCont[C, B] = flatMap(x => pure(f(x)))
 
   def flatMap[C](f: Frame[C, A]): MetaCont[C, B] = FramesCont(List(f), this)
 }
@@ -37,7 +37,7 @@ case class ReturnCont[-A, +B](f: A => B) extends MetaCont[A, B] {
 }
 
 private[effekt]
-case class FramesCont[-A, B, +C](frames: List[Frame[_, _]], tail: MetaCont[B, C]) extends MetaCont[A, C] {
+case class FramesCont[-A, B, +C](frames: List[Frame[Nothing, Any]], tail: MetaCont[B, C]) extends MetaCont[A, C] {
 
   final def apply(a: A): Result[C] = {
     val first :: rest = frames
@@ -59,19 +59,19 @@ case class FramesCont[-A, B, +C](frames: List[Frame[_, _]], tail: MetaCont[B, C]
 }
 
 private[effekt]
-case class HandlerCont[R0, A](h: Capability { type Res = R0 }, tail: MetaCont[R0, A]) extends MetaCont[R0, A] {
-  final def apply(r: R0): Result[A] = tail(r)
+case class HandlerCont[Res, +A](h: Cap[Handler[_, Res]])(tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+  final def apply(r: h.Res): Result[A] = tail(r)
 
-  final def append[C](s: MetaCont[A, C]): MetaCont[R0, C] = HandlerCont(h, tail append s)
+  final def append[C](s: MetaCont[A, C]): MetaCont[h.Res, C] = HandlerCont(h)(tail append s)
 
   final def splitAt(c: Capability) =
   // Here we deduce type equality from referential equality
     if (h eq c) {
       // R0 == c.Res
-      val head = HandlerCont[R0, c.Res](h, CastCont[R0, c.Res])
+      val head = HandlerCont(h)(CastCont[h.Res, c.Res]())
       val rest = tail.asInstanceOf[MetaCont[c.Res, A]]
       (head, rest)
     } else tail.splitAt(c) match {
-      case (head, tail) => (HandlerCont(h, head), tail)
+      case (head, tail) => (HandlerCont(h)(head), tail)
     }
 }

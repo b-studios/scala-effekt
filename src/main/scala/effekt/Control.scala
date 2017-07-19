@@ -102,14 +102,14 @@ object Control {
       }
     }
 
-  private[effekt] final def handle(h: Handler)(f: Use[h.type] => Control[h.R]): Control[h.Res] = {
+  private[effekt] final def handle(h: Handler[_, _])(f: Cap[h.type] => Control[h.R]): Control[h.Res] = {
 
     // produce a new prompt
-    val p = Capability(h)
+    val p = Cap(h)
 
-    new Control[p.Res] {
-      def apply[R2](k: MetaCont[p.Res, R2]): Result[R2] = {
-        Impure(f(p).map { h.unit }, HandlerCont(p, k))
+    new Control[h.Res] {
+      def apply[R2](k: MetaCont[h.Res, R2]): Result[R2] = {
+        Impure(f(p).map { h.unit }, HandlerCont[h.Res, R2](p)(k))
       }
     }
   }

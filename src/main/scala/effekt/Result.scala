@@ -4,10 +4,10 @@ private[effekt]
 sealed trait Result[+A]
 
 private[effekt]
-case class Pure[A](value: A) extends Result[A]
+case class Pure[+A](value: A) extends Result[A]
 
 private[effekt]
-case class Impure[A, R](c: Control[R], k: MetaCont[R, A]) extends Result[A]
+case class Impure[+A, R](c: Control[R], k: MetaCont[R, A]) extends Result[A]
 
 private[effekt]
 object Result {
