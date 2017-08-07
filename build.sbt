@@ -1,5 +1,3 @@
-import org.scalajs.sbtplugin.cross.CrossProject
-
 lazy val commonSettings = Seq(
   scalaVersion := "0.2.0-RC1",
   version := "0.1-SNAPSHOT",
@@ -12,7 +10,7 @@ lazy val commonSettings = Seq(
   ),
   fork in test := true,
   parallelExecution in Test := false,
-  mainClass in (Compile, run) := Some("effekt.examples.DottyTest")
+  mainClass in (Compile, run) := Some("effekt.examples.shallow.fluent")
 )
 
 

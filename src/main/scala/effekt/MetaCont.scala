@@ -33,7 +33,7 @@ case class ReturnCont[-A, +B](f: A => B) extends MetaCont[A, B] {
 
   final def splitAt(c: Capability) = sys error s"Prompt $c not found on the stack."
 
-  override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(g andThen f)
+  override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(x => f(g(x)))
 }
 
 private[effekt]
