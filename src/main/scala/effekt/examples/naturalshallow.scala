@@ -55,7 +55,7 @@ trait Syntax { self: SpeakerDSL with ScopeDSL with ImplicatureDSL =>
       res      <- say(s, sentence)
     } yield res
 
-    def which(f: NP => Control[S]): NP using Implicature =
+    def who(f: NP => Control[S]): NP using Implicature =
       for {
         person <- p
         y      <- f(person)
@@ -70,10 +70,6 @@ trait Syntax { self: SpeakerDSL with ScopeDSL with ImplicatureDSL =>
 
   implicit def liftOps(t: NP)(implicit alg: Sentences[NP, S]): LiftedPersonOps =
     new LiftedPersonOps(pure(t))
-
-//  def every(pred: NP => S)(implicit alg: Logical[NP, S]): NP using Scope[S] = every(x => pure(pred(x)))
-//
-//  def a(pred: NP => S)(implicit alg: Logical[NP, S]): NP using Scope[S] = a(x => pure(pred(x)))
 
   def every(pred: NP => Control[S])(implicit alg: Logical[NP, S]): NP using Scope[S] =
     scope[NP, S] {
@@ -195,7 +191,7 @@ trait Statements extends Syntax with SpeakerDSL with ScopeDSL with ImplicatureDS
 
   val stmt9: S using Speaker = scoped {
     accommodate {
-      (john which isMyBestFriend) loves every(woman)
+      (john who isMyBestFriend) loves every(woman)
     }
   }
   //> ForAll(Var(x5), Implies(
