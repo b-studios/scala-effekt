@@ -21,7 +21,14 @@ trait Logical[Individual, Stmt] {
   def and(first: Stmt, second: Stmt): Control[Stmt]
 }
 
-trait Syntax { self: SpeakerDSL with ScopeDSL with ImplicatureDSL =>
+
+trait DSLBase {
+  // here we override the definition of using to allow simpler aliasing and better errors
+  type using[A, R] = implicit R => Control[A]
+  type and[A, B] = implicit B => A
+}
+
+trait Syntax extends DSLBase { self: SpeakerDSL with ScopeDSL with ImplicatureDSL =>
 
   type NP
   type S
@@ -31,31 +38,38 @@ trait Syntax { self: SpeakerDSL with ScopeDSL with ImplicatureDSL =>
   def man(implicit alg: Sentences[NP, S]): NP => Control[S] = p => alg.man(p)
   def woman(implicit alg: Sentences[NP, S]): NP => Control[S] = p => alg.woman(p)
 
-  def love(person: NP, target: NP)(implicit alg: Sentences[NP, S]): Control[S] = alg.love(person, target)
-  def bestFriend(person: NP, friend: NP)(implicit alg: Sentences[NP, S]): Control[S] = alg.bestFriend(person, friend)
-  def say(person: NP, sentence: S)(implicit alg: Sentences[NP, S]): Control[S] = alg.say(person, sentence)
+  def love(person: Control[NP], target: Control[NP])(implicit alg: Sentences[NP, S]): Control[S] = for {
+    x   <- person
+    y   <- target
+    res <- alg.love(x, y)
+  } yield res
 
+  def bestFriend(person: Control[NP], friend: Control[NP])(implicit alg: Sentences[NP, S]): Control[S] = for {
+    p   <- person
+    f   <- friend
+    res <- alg.bestFriend(p, f)
+  } yield res
+
+  def say(person: Control[NP], sentence: Control[S])(implicit alg: Sentences[NP, S]): Control[S] = for {
+    p   <- person
+    s   <- sentence
+    res <- alg.say(p, s)
+  } yield res
+
+  def and(first: Control[S], second: Control[S])(implicit alg: Logical[NP, S]): Control[S] = for {
+      x   <- first
+      y   <- second
+      res <- alg.and(x, y)
+    } yield res
 
   implicit class LiftedPersonOps(p: Control[NP])(implicit alg: Sentences[NP, S]) {
-    def loves(other: Control[NP]) = for {
-      first  <- p
-      second <- other
-      res    <- love(first, second)
-    } yield res
+    def loves(other: Control[NP]) = love(p, other)
 
-    def said(t: Control[S]) = for {
-      speaker  <- p
-      sentence <- t
-      res      <- say(speaker, sentence)
-    } yield res
+    def said(s: Control[S]) = say(p, s)
 
-    def said(t: Cap[Speaker] => Control[S]) = for {
-      s        <- p
-      sentence <- withSpeaker(s) { t(implicitly) }
-      res      <- say(s, sentence)
-    } yield res
+    def said(t: Speaker => Control[S]) = say(p, withSpeaker(p) { t(implicitly) })
 
-    def who(f: NP => Control[S]): NP using Implicature =
+    def whoIs(f: NP => Control[S]): NP using Implicature =
       for {
         person <- p
         y      <- f(person)
@@ -63,10 +77,13 @@ trait Syntax { self: SpeakerDSL with ScopeDSL with ImplicatureDSL =>
       } yield person
   }
 
-  def quote(f: S using Speaker): Cap[Speaker] => Control[S] = f
+  implicit class LiftedSentenceOps(s: Control[S]) {
+    def and(other: Control[S]): S using Logical[NP, S] = self.and(s, other)
+  }
 
-  implicit def lift(t: NP)(implicit alg: Sentences[NP, _]): Control[NP] =
-    pure(t)
+  def quote(f: S using Speaker): Speaker => Control[S] = f
+
+  implicit def lift(t: NP): Control[NP] = pure(t)
 
   implicit def liftOps(t: NP)(implicit alg: Sentences[NP, S]): LiftedPersonOps =
     new LiftedPersonOps(pure(t))
@@ -97,55 +114,69 @@ trait Syntax { self: SpeakerDSL with ScopeDSL with ImplicatureDSL =>
 //
 //
 //// First effect: The contextual speaker
-trait SpeakerDSL {
+trait SpeakerDSL extends DSLBase {
 
   type NP
   type S
 
-  trait Speaker extends Eff {
+
+  @annotation.implicitNotFound("Cannot find a speaker, which is required here.\nSpeakers can be introduces using `p said quote { s }` or using `withSpeaker(p) { s }`")
+  case class Speaker(cap: Cap[SpeakerEff])
+
+  trait SpeakerEff extends Eff {
     def speaker(): Op[NP]
   }
 
-  def withSpeaker[R](p: NP)(f: R using Speaker) =
-    handle(new Speaker with Id[R] {
-      def speaker() = resume(p)
-    })(f)
+  def withSpeaker[R](p: NP)(f: R using Speaker): Control[R] = withSpeaker(pure(p))(f)
+
+  def withSpeaker[R](p: Control[NP])(f: R using Speaker): Control[R] =
+    p flatMap { person =>
+      handle(new SpeakerEff with Id[R] {
+        def speaker() = resume(person)
+      })(implicit cap => f(Speaker(cap)))
+    }
 
   def me: NP using Speaker =
-    implicit s => use(s)(s.effect.speaker())
+    implicit s => use(s.cap)(s.cap.effect.speaker())
 }
 
-trait ScopeDSL {
+trait ScopeDSL { self: DSLBase =>
 
-  trait Scope[R] extends Eff {
+  @annotation.implicitNotFound("This expression is scoped and requires a delimiter with type ${R}.\nDelimiters can be introduced using `scoped[${R}] { ... }`")
+  case class Scope[R](cap: Cap[ScopeEff[R]])
+
+  trait ScopeEff[R] extends Eff {
     def scope[A](k: CPS[A, R]): Op[A]
   }
 
   def scoped[R](f: R using Scope[R]): Control[R] =
-    handle(new Scope[R] with Id[R] {
+    handle(new ScopeEff[R] with Id[R] {
       def scope[A](k: CPS[A, R]) = implicit k2 => k(a => k2(a))
-    })(f)
+    })(implicit cap => f(Scope(cap)))
 
   def scope[A, R](k: CPS[A, R]): A using Scope[R] =
-    implicit s => use(s)(s.effect.scope[A](k))
+    implicit s => use(s.cap)(s.cap.effect.scope[A](k))
 }
 
 // Third effect: Conventional implicature
-trait ImplicatureDSL {
+trait ImplicatureDSL { self: DSLBase =>
+
+  @annotation.implicitNotFound("This expression needs to be accommodated.\nThis can be achieved by wrapping it into a call to `accommodate` or by bringing an implicit\ninstance of Implicature into scope.")
+  case class Implicature(cap: Cap[ImplicatureEff])
 
   type S
 
-  trait Implicature extends Eff {
+  trait ImplicatureEff extends Eff {
     def implicate(s: S): Op[Unit]
   }
 
   def accommodate(f: S using Implicature)(implicit alg: Logical[_, S]) =
-    handle(new Implicature with Id[S] {
+    handle(new ImplicatureEff with Id[S] {
       def implicate(s: S) = resume(()) flatMap { x => alg.and(s, x) }
-    })(f)
+    })(implicit cap => f(Implicature(cap)))
 
   def imply(s: S): Unit using Implicature =
-    implicit i => use(i)(i.effect.implicate(s))
+    implicit i => use(i.cap)(i.cap.effect.implicate(s))
 
 }
 
@@ -186,12 +217,11 @@ trait Statements extends Syntax with SpeakerDSL with ScopeDSL with ImplicatureDS
   //> Say(Person(John),ForAll(Var(x4),Implies(Woman(Var(x4)),Love(Var(x4),Person(Pete)))))
 
 
-  def isMyBestFriend: implicit Cap[Speaker] => (NP => Control[S]) =
-    other => me flatMap { i => bestFriend(i, other) }
+  def myBestFriend: implicit Speaker => (NP => Control[S]) = bestFriend(me, _)
 
   val stmt9: S using Speaker = scoped {
-    accommodate {
-      (john who isMyBestFriend) loves every(woman)
+     accommodate {
+      (john whoIs myBestFriend) loves every(woman)
     }
   }
   //> ForAll(Var(x5), Implies(
