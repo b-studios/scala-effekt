@@ -18,6 +18,9 @@ case class ForAll(individual: Var, a: Sentence) extends Sentence
 case class Exists(individual: Var, a: Sentence) extends Sentence
 case class Implies(a: Sentence, b: Sentence) extends Sentence
 case class And(a: Sentence, b: Sentence) extends Sentence
+case class Or(a: Sentence, b: Sentence) extends Sentence
+case class Not(s: Sentence) extends Sentence
+case class Equals(a: NominalPhrase, b: NominalPhrase) extends Sentence
 
 
 

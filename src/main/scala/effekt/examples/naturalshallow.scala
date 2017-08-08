@@ -19,6 +19,9 @@ trait Logical[Individual, Stmt] {
 
   def implies(first: Stmt, second: Stmt): Control[Stmt]
   def and(first: Stmt, second: Stmt): Control[Stmt]
+  def or(first: Stmt, second: Stmt): Control[Stmt]
+  def not(s: Stmt): Control[Stmt]
+  def equals(first: Individual, second: Individual): Control[Stmt]
 }
 
 
@@ -28,7 +31,7 @@ trait DSLBase {
   type and[A, B] = implicit B => A
 }
 
-trait Syntax extends DSLBase { self: SpeakerDSL with ScopeDSL with ImplicatureDSL =>
+trait Syntax extends DSLBase { self: SpeakerDSL with ScopeDSL with ImplicatureDSL with SubjectDSL with FocusDSL =>
 
   type NP
   type S
@@ -62,19 +65,47 @@ trait Syntax extends DSLBase { self: SpeakerDSL with ScopeDSL with ImplicatureDS
       res <- alg.and(x, y)
     } yield res
 
+  def or(first: Control[S], second: Control[S])(implicit alg: Logical[NP, S]): Control[S] = for {
+      x   <- first
+      y   <- second
+      res <- alg.or(x, y)
+    } yield res
+
+  def equals(first: Control[NP], second: Control[NP])(implicit alg: Logical[NP, S]): Control[S] = for {
+      x   <- first
+      y   <- second
+      res <- alg.equals(x, y)
+    } yield res
+
   implicit class LiftedPersonOps(p: Control[NP])(implicit alg: Sentences[NP, S]) {
-    def loves(other: Control[NP]) = love(p, other)
+    def loves(other: Control[NP]) = self.love(p, other)
+    def love(other: Control[NP]) = self.love(p, other)
 
     def said(s: Control[S]) = say(p, s)
 
     def said(t: Speaker => Control[S]) = say(p, withSpeaker(p) { t(implicitly) })
 
-    def whoIs(f: NP => Control[S]): NP using Implicature =
+    def bestFriendOf(other: Control[NP]) = bestFriend(other, p)
+
+    def whoIs(f: S using Subject): NP using Implicature =
       for {
         person <- p
-        y      <- f(person)
+        y      <- withSubject(person) { f }
         _      <- imply(y)
       } yield person
+
+    def focusing(f: S using Subject and Focus): S using Logical[NP, S] = for {
+      person <- p
+      y      <- withSubject(person) { withFocus { f } }
+    } yield y
+
+    // now combine whoIs and focusing
+    def who(f: S using Subject and Focus): NP using Implicature and Logical[NP, S] = for {
+      person <- p
+      y      <- withSubject(person) { withFocus { f } }
+      _      <- imply(y)
+    } yield person
+
   }
 
   implicit class LiftedSentenceOps(s: Control[S]) {
@@ -111,16 +142,23 @@ trait Syntax extends DSLBase { self: SpeakerDSL with ScopeDSL with ImplicatureDS
 
 // Effects
 
-//
-//
-//// First effect: The contextual speaker
-trait SpeakerDSL extends DSLBase {
-
+trait SpeakerDSL { self: DSLBase =>
   type NP
   type S
 
+  type Speaker
 
-  @annotation.implicitNotFound("Cannot find a speaker, which is required here.\nSpeakers can be introduces using `p said quote { s }` or using `withSpeaker(p) { s }`")
+  def withSpeaker[R](p: NP)(f: R using Speaker): Control[R]
+  def withSpeaker[R](p: Control[NP])(f: R using Speaker): Control[R]
+  def me: NP using Speaker
+}
+
+//
+//
+//// First effect: The contextual speaker
+trait SpeakerEffectDSL extends SpeakerDSL { self: DSLBase =>
+
+  @annotation.implicitNotFound("Cannot find a speaker, which is required here.\nSpeakers can be introduced using `p said quote { s }` or using `withSpeaker(p) { s }`")
   case class Speaker(cap: Cap[SpeakerEff])
 
   trait SpeakerEff extends Eff {
@@ -138,6 +176,21 @@ trait SpeakerDSL extends DSLBase {
 
   def me: NP using Speaker =
     implicit s => use(s.cap)(s.cap.effect.speaker())
+}
+
+// Simpler implementation since no continuations are actually needed
+trait SpeakerImplicitDSL extends SpeakerDSL { self: DSLBase =>
+
+  @annotation.implicitNotFound("Cannot find a speaker, which is required here.\nSpeakers can be introduced using `p said quote { s }` or using `withSpeaker(p) { s }`")
+  case class Speaker(person: NP)
+
+  def withSpeaker[R](p: NP)(f: R using Speaker): Control[R] = withSpeaker(pure(p))(f)
+
+  def withSpeaker[R](p: Control[NP])(f: R using Speaker): Control[R] =
+    p flatMap { person => f(Speaker(person)) }
+
+  def me: NP using Speaker = implicit s => pure(s.person)
+  def I: NP using Speaker = implicit s => pure(s.person)
 }
 
 trait ScopeDSL { self: DSLBase =>
@@ -180,8 +233,64 @@ trait ImplicatureDSL { self: DSLBase =>
 
 }
 
+// another anaphoric reference
+// XXX ask Julian whether subject makes sense here
+trait SubjectDSL { self: DSLBase =>
 
-trait Statements extends Syntax with SpeakerDSL with ScopeDSL with ImplicatureDSL {
+  type NP
+  type S
+
+  @annotation.implicitNotFound("Cannot find a subject, which is required here.")
+  case class Subject(person: NP)
+
+  def withSubject[R](p: NP)(f: R using Subject): Control[R] = withSubject(pure(p))(f)
+
+  def withSubject[R](p: Control[NP])(f: R using Subject): Control[R] =
+    p flatMap { person => f(Subject(person)) }
+
+  def he: NP using Subject = implicit s => pure(s.person)
+  def she: NP using Subject = implicit s => pure(s.person)
+}
+
+trait FocusDSL { self: DSLBase =>
+
+  type NP
+  type S
+
+  // Our universal quantification is not general enough to focus on
+  // arbitrary particles in the sentence.
+  // So for now we implement focusing on NPs
+
+  case class Focus(cap: Cap[FocusEff])
+
+  // handler for focus
+  // XXX change to use Syntax instead!
+  def withFocus(f: S using Focus)(implicit alg: Logical[NP, S]) =
+    handle(new FocusEff with Id[S] {
+      def focus(p: NP) = for {
+        x <- resume(p)
+        y <- alg forall { other =>
+          for {
+            s1  <- resume(other)
+            eq  <- alg.equals(p, other)
+            neg <- alg.not(s1)
+            s2  <- alg.or(eq, neg)
+          } yield s2
+        }
+        res <- alg.and(x, y)
+      } yield res
+    })(implicit p => f(Focus(p)))
+
+  //
+  trait FocusEff extends Eff {
+    def focus(a: NP): Op[NP]
+  }
+  def only(p: Control[NP]): NP using Focus =
+    implicit f => p.flatMap { person => use(f.cap)(f.cap.effect.focus(person)) }
+  
+}
+
+trait Statements extends Syntax with SpeakerImplicitDSL with ScopeDSL with ImplicatureDSL with SubjectDSL with FocusDSL {
 
   type NP
   type S
@@ -217,11 +326,11 @@ trait Statements extends Syntax with SpeakerDSL with ScopeDSL with ImplicatureDS
   //> Say(Person(John),ForAll(Var(x4),Implies(Woman(Var(x4)),Love(Var(x4),Person(Pete)))))
 
 
-  def myBestFriend: implicit Speaker => (NP => Control[S]) = bestFriend(me, _)
+  def myBestFriend: S using Speaker and Subject = bestFriend(me, he)
 
   val stmt9: S using Speaker = scoped {
      accommodate {
-      (john whoIs myBestFriend) loves every(woman)
+      john whoIs { he bestFriendOf me } loves every { woman }
     }
   }
   //> ForAll(Var(x5), Implies(
@@ -229,6 +338,32 @@ trait Statements extends Syntax with SpeakerDSL with ScopeDSL with ImplicatureDS
   //    And( BestFriend(Person(Pete), Person(John)),
   //         Love(Person(John),Var(x5)))))
 
+  val stmt10: S using Speaker = mary focusing { she loves only(me) }
+  //> And(Love(Person(Mary), Person(Pete)),
+  //    ForAll(Var(x6),
+  //      Or(Equals(Person(Pete),Var(x6)),
+  //      Not(Love(Person(Mary),Var(x6))))))
+
+  val stmt11: S using Speaker = mary focusing { only(she) loves me }
+  //> And(Love(Person(Mary), Person(Pete)),
+  //    ForAll(Var(x7),
+  //      Or(Equals(Person(Mary),Var(x7)),
+  //      Not(Love(Var(x7),Person(Pete))))))
+
+
+  val stmt12: S using Speaker = accommodate {
+    mary who { she loves only(me) } said quote { I love john }
+  }
+  //> And(
+  //    And(Love(Person(Mary), Person(Pete)),
+  //        ForAll(Var(x8),
+  //          Or(Equals(Person(Pete), Var(x8)),
+  //             Not(Love(Person(Mary), Var(x8)))))),
+  //    And(And(Love(Person(Mary), Person(Pete)),
+  //            ForAll(Var(x9),
+  //              Or(Equals(Person(Pete),Var(x9)),
+  //                 Not(Love(Person(Mary),Var(x9)))))),
+  //        Say(Person(Mary), Love(Person(Mary), Person(John)))))
 
   // Run the examples
   println(run { stmt1 })
@@ -240,6 +375,9 @@ trait Statements extends Syntax with SpeakerDSL with ScopeDSL with ImplicatureDS
   println(run { stmt7 })
   println(run { pete said quote(stmt8) })
   println(run { pete said quote(stmt9) })
+  println(run { pete said quote(stmt10) })
+  println(run { pete said quote(stmt11) })
+  println(run { pete said quote(stmt12) })
 }
 
 object ReifySentences extends Sentences[NominalPhrase, Sentence] with Logical[NominalPhrase, Sentence] {
@@ -263,6 +401,9 @@ object ReifySentences extends Sentences[NominalPhrase, Sentence] with Logical[No
 
   def implies(first: Sentence, second: Sentence) = pure(Implies(first, second))
   def and(first: Sentence, second: Sentence) = pure(And(first, second))
+  def or(first: Sentence, second: Sentence) = pure(Or(first, second))
+  def not(s: Sentence) = pure(Not(s))
+  def equals(first: NominalPhrase, second: NominalPhrase) = pure(Equals(first, second))
 }
 
 object fluent extends Statements with App {
