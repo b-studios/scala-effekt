@@ -41,9 +41,15 @@ trait Eff extends Serializable {
 
   def unit[A]: (State, A) => Out[A]
 
+  // TODO figureout whether this type is sufficient.
+  def cleanup: () => Unit = Eff.noCleanup
+
   protected[this] implicit def noState[A, R](f: (A => Control[Out[R]]) => Control[Out[R]] ): A @@ R =
     s => resume => f(a => resume(a)(s))
 
   protected[this] implicit def just[A, R](a: A): A @@ R =
     s => resume => resume(a)(s)
+}
+object Eff {
+  val noCleanup = () => ()
 }

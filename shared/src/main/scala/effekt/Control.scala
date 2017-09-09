@@ -76,11 +76,25 @@ trait Handler extends Serializable { outer =>
   val state: prompt.effect.State
   type Res = prompt.Res
 
+  val cleanupActions: List[() => Unit]
+
+  final def cleanup() = for (c <- cleanupActions) { c() }
+
   def updateWith(s: prompt.effect.State): Handler {val prompt: outer.prompt.type} =
     new Handler {
       val prompt: outer.prompt.type = outer.prompt
       val state = s
+      val cleanupActions = outer.cleanupActions
     }
+  def updateWith(c: List[() => Unit]): Handler {val prompt: outer.prompt.type} =
+    new Handler {
+      val prompt: outer.prompt.type = outer.prompt
+      val state = outer.state
+      val cleanupActions = c
+    }
+  def removeCleanup: Handler {val prompt: outer.prompt.type} = updateWith(Nil)
+  def prependCleanup(c: List[() => Unit]): Handler {val prompt: outer.prompt.type} =
+    updateWith(c ::: cleanupActions)
 }
 
 object Control {
@@ -142,6 +156,7 @@ object Control {
     val h = new Handler {
       val prompt: p.type = p
       val state = init
+      val cleanupActions = List(e.cleanup)
     }
 
     new Control[e.Out[R]] {
@@ -153,7 +168,13 @@ object Control {
               (k: @unchecked) match {
                 // Invariant: The last continuation on the metacont stack is a HandlerCont for p
                 case HandlerCont(h2: H[p.type] @unchecked, k2) => {
-                  k2(e.unit[R](h2.state, a))
+                  // after lifting a into the result type of the handler, perform
+                  // a resource cleanup.
+                  val res = e.unit[R](h2.state, a)
+                  h2.cleanup()
+
+                  // now continue
+                  k2(res)
                 }
               }
             }

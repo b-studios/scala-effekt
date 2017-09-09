@@ -65,13 +65,25 @@ case class HandlerCont[R, A](h: Handler {type Res = R}, tail: MetaCont[R, A]) ex
   final def append[C](s: MetaCont[A, C]): MetaCont[R, C] = HandlerCont(h, tail append s)
 
   final def splitAt(c: Capability) =
-  // Here we deduce type equality from referential equality
+
+    // We found the corrsponding handler!
+    // ---
+    // Here we deduce type equality from referential equality
     if (h.prompt eq c) {
       val head = CastCont[R, c.Res]()
       val handler = h.asInstanceOf[H[c.type]]
       val rest = tail.asInstanceOf[MetaCont[c.Res, A]]
       (head, handler, rest)
+
+    // Not the right handler
+    // ---
+    // remove cleanup from this handler and prepend to found handler.
+    // this way we assert that the cleanup actions will be called, even
+    // if the continuation is discarded.
     } else tail.splitAt(c) match {
-      case (head, matched, tail) => (HandlerCont(h, head), matched, tail)
+      case (head, m, tail) =>
+      val handler = h.removeCleanup.asInstanceOf[Handler { type Res = R }]
+      val matched = m.prependCleanup(h.cleanupActions)
+      (HandlerCont(handler, head), matched, tail)
     }
 }
