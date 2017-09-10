@@ -62,6 +62,8 @@ sealed trait Control[+A] { outer =>
 
 private[effekt]
 final class Trivial[+A](a: A) extends Control[A] {
+  // XXX don't wrap this in a trampolining call, since this will
+  //     cause nontermination.
   def apply[R](k: MetaCont[A, R]): Result[R] = k(a)
 
   override def run(): A = a
