@@ -45,14 +45,16 @@ sealed trait Control[+A] { outer =>
    * Attention: It is unsafe to run control if not all effects have
    *            been handled!
    */
-  def run(): A = Result.trampoline(apply(ReturnCont(identity)))
+  def run(): A = Result.trampoline(Impure(this, ReturnCont(identity[A])))
 
   def map[B](f: A => B): Control[B] = new Control[B] {
-    def apply[R](k: MetaCont[B, R]): Result[R] = outer(k map f)
+    override def toString = s"Map"
+    def apply[R](k: MetaCont[B, R]): Result[R] = Impure(outer, k map f)
   }
 
   def flatMap[B](f: A => Control[B]): Control[B] = new Control[B] {
-    def apply[R](k: MetaCont[B, R]): Result[R] = outer(k flatMap f)
+    override def toString = s"Flatmap"
+    def apply[R](k: MetaCont[B, R]): Result[R] = Impure(outer, k flatMap f)
   }
 
   private[effekt] def apply[R](k: MetaCont[A, R]): Result[R]
@@ -62,11 +64,9 @@ private[effekt]
 final class Trivial[+A](a: A) extends Control[A] {
   def apply[R](k: MetaCont[A, R]): Result[R] = k(a)
 
-  override def map[B](f: A => B): Control[B] = new Trivial(f(a))
-
-  override def flatMap[B](f: A => Control[B]): Control[B] = f(a)
-
   override def run(): A = a
+
+  override def toString = s"Trivial($a)"
 }
 
 private[effekt]
@@ -114,6 +114,9 @@ object Control {
   private[effekt] final def use[A](c: Capability)(
     f: c.effect.State => (A => c.effect.State => Control[c.Res]) => Control[c.Res]
   ): Control[A] = new Control[A] {
+
+    override def toString = s"use($c, definition site)"
+
     def apply[R](k: MetaCont[A, R]): Result[R] = {
 
       // slice the meta continuation in three parts
@@ -121,6 +124,9 @@ object Control {
 
       val localCont: A => c.effect.State => Control[c.Res] =
         a => updatedState => new Control[c.Res] {
+
+          override def toString = s"use($c, $a, continued)"
+
           def apply[R2](k: MetaCont[c.Res, R2]): Result[R2] = {
 
             // create a copy of the handler with the very same prompt but
@@ -132,7 +138,9 @@ object Control {
             val repushedPrompt = init append HandlerCont(updatedHandler, k)
 
             // invoke assembled continuation
-            repushedPrompt(a)
+            // for now wrapped in Trivial to allow trampolining and
+            // ressource cleanup
+            Impure(pure(a), repushedPrompt)
           }
         }
 
@@ -160,10 +168,16 @@ object Control {
     }
 
     new Control[e.Out[R]] {
+
+      override def toString = s"handle($p, definition site)"
+
       def apply[R2](k: MetaCont[e.Out[R], R2]): Result[R2] = {
         // extract new state
-        val c = f(p).flatMap{ a =>
+        val c = f(p).flatMap { a =>
           new Control[e.Out[R]] {
+
+            override def toString = s"handle($p, $a, unit and updated state)"
+
             def apply[R3](k: MetaCont[e.Out[R], R3]): Result[R3] = {
               (k: @unchecked) match {
                 // Invariant: The last continuation on the metacont stack is a HandlerCont for p
@@ -174,7 +188,9 @@ object Control {
                   h2.cleanup()
 
                   // now continue
-                  k2(res)
+                  // for now wrapped in Trivial to allow trampolining and
+                  // ressource cleanup
+                  Impure(pure(res), k2)
                 }
               }
             }
