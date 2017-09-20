@@ -1,5 +1,8 @@
 package effekt
 
+private[effekt]
+sealed trait ω
+
 /**
  * The effect monad, implementing delimited control.
  *
@@ -47,28 +50,28 @@ sealed trait Control[+A] { outer =>
    */
   def run(): A = Result.trampoline(Impure(this, ReturnCont(identity[A])))
 
-  def map[B](f: A => B): Control[B] = new Control[B] {
-    override def toString = s"Map"
-    def apply[R](k: MetaCont[B, R]): Result[R] = Impure(outer, k map f)
-  }
+  def map[B](f: A => B): Control[B] = Computation { k => Impure(outer, k map f) }
 
-  def flatMap[B](f: A => Control[B]): Control[B] = new Control[B] {
-    override def toString = s"Flatmap"
-    def apply[R](k: MetaCont[B, R]): Result[R] = Impure(outer, k flatMap f)
-  }
+  def flatMap[B](f: A => Control[B]): Control[B] = Computation { k => Impure(outer, k flatMap f) }
 
   private[effekt] def apply[R](k: MetaCont[A, R]): Result[R]
 }
 
 private[effekt]
 final class Trivial[+A](a: A) extends Control[A] {
-  // XXX don't wrap this in a trampolining call, since this will
-  //     cause nontermination.
+  // NOTE don't wrap this in a trampolining call, since this will
+  //      cause nontermination.
   def apply[R](k: MetaCont[A, R]): Result[R] = k(a)
 
   override def run(): A = a
 
   override def toString = s"Trivial($a)"
+}
+
+private[effekt]
+final case class Computation[+A](body: MetaCont[A, ω] => Result[ω]) extends Control[A] {
+  def apply[R](k: MetaCont[A, R]): Result[R] =
+    body(k.asInstanceOf[MetaCont[A, ω]]).asInstanceOf[Result[R]]
 }
 
 private[effekt]
@@ -115,44 +118,34 @@ object Control {
   // (3) splices in k and pushes e3 as prompt
   private[effekt] final def use[A](c: Capability)(
     f: c.effect.State => (A => c.effect.State => Control[c.Res]) => Control[c.Res]
-  ): Control[A] = new Control[A] {
+  ): Control[A] = Computation { k =>
 
-    override def toString = s"use($c, definition site)"
+    // slice the meta continuation in three parts
+    val (init, h, tail) = k splitAt c
 
-    def apply[R](k: MetaCont[A, R]): Result[R] = {
+    val localCont: A => c.effect.State => Control[c.Res] =
+      a => updatedState => Computation[c.Res] { k =>
 
-      // slice the meta continuation in three parts
-      val (init, h, tail) = k splitAt c
+        // create a copy of the handler with the very same prompt but
+        // updated state
+        val updatedHandler = h updateWith updatedState
 
-      val localCont: A => c.effect.State => Control[c.Res] =
-        a => updatedState => new Control[c.Res] {
+        // as in shift and shift0 we repush the prompt, but here
+        // we also internally update the contained state.
+        val repushedPrompt = init append HandlerCont(updatedHandler, k)
 
-          override def toString = s"use($c, $a, continued)"
+        // invoke assembled continuation
+        // for now wrapped in Trivial to allow trampolining and
+        // ressource cleanup
+        Impure(pure(a), repushedPrompt)
+      }
 
-          def apply[R2](k: MetaCont[c.Res, R2]): Result[R2] = {
+    // run f with the current state to obtain a value of type A and an
+    // updated copy of the state.
+    val handled: Control[c.Res] = f(h.state)(localCont)
 
-            // create a copy of the handler with the very same prompt but
-            // updated state
-            val updatedHandler = h updateWith updatedState
-
-            // as in shift and shift0 we repush the prompt, but here
-            // we also internally update the contained state.
-            val repushedPrompt = init append HandlerCont(updatedHandler, k)
-
-            // invoke assembled continuation
-            // for now wrapped in Trivial to allow trampolining and
-            // ressource cleanup
-            Impure(pure(a), repushedPrompt)
-          }
-        }
-
-      // run f with the current state to obtain a value of type A and an
-      // updated copy of the state.
-      val handled: Control[c.Res] = f(h.state)(localCont)
-
-      // continue with tail
-      Impure(handled, tail)
-    }
+    // continue with tail
+    Impure(handled, tail)
   }
 
   private[effekt] final def handle[R](e: Eff)(init: e.State)(
@@ -169,37 +162,27 @@ object Control {
       val cleanupActions = List(e.cleanup)
     }
 
-    new Control[e.Out[R]] {
+    Computation { k =>
 
-      override def toString = s"handle($p, definition site)"
+      // extract new state
+      val c = f(p).flatMap { a =>
+        Computation[e.Out[R]] { k => (k: @unchecked) match {
+            // Invariant: The last continuation on the metacont stack is a HandlerCont for p
+            case HandlerCont(h2: H[p.type] @unchecked, k2) => {
+              // after lifting a into the result type of the handler, perform
+              // a resource cleanup.
+              val res = e.unit(h2.state, a)
+              h2.cleanup()
 
-      def apply[R2](k: MetaCont[e.Out[R], R2]): Result[R2] = {
-        // extract new state
-        val c = f(p).flatMap { a =>
-          new Control[e.Out[R]] {
-
-            override def toString = s"handle($p, $a, unit and updated state)"
-
-            def apply[R3](k: MetaCont[e.Out[R], R3]): Result[R3] = {
-              (k: @unchecked) match {
-                // Invariant: The last continuation on the metacont stack is a HandlerCont for p
-                case HandlerCont(h2: H[p.type] @unchecked, k2) => {
-                  // after lifting a into the result type of the handler, perform
-                  // a resource cleanup.
-                  val res = e.unit[R](h2.state, a)
-                  h2.cleanup()
-
-                  // now continue
-                  // for now wrapped in Trivial to allow trampolining and
-                  // ressource cleanup
-                  Impure(pure(res), k2)
-                }
-              }
+              // now continue
+              // for now wrapped in Trivial to allow trampolining and
+              // ressource cleanup
+              Impure(pure(res), k2)
             }
           }
         }
-        Impure(c, HandlerCont(h, k))
       }
+      Impure(c, HandlerCont(h, k))
     }
   }
 }
