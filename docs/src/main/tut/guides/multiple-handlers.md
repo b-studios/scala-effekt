@@ -24,19 +24,19 @@ import effekt._
 
 ```tut:book:silent
 trait Reader[S] extends Eff {
-  def read[R](): S @@ R
+  def read(): Op[S]
 }
 trait Writer[S] extends Eff {
-  def write[R](s: S): Unit @@ R
+  def write(s: S): Op[Unit]
 }
 ```
 
 ```tut:invisible
 object Reader {
-  def read[S]()(implicit u: Use[Reader[S]]) = use(u) { u.effect.read() }
+  def read[S]()(implicit u: Use[Reader[S]]) = use(u) { u.handler.read() }
 }
 object Writer {
-  def write[S](s: S)(implicit u: Use[Writer[S]]) = use(u) { u.effect.write(s) }
+  def write[S](s: S)(implicit u: Use[Writer[S]]) = use(u) { u.handler.write(s) }
 }
 ```
 (We omit the standard companion object definitions as seen in the
@@ -51,16 +51,15 @@ simple handler for `Reader` and `Writer` that uses a list to mediate
 between the two effects.
 
 ```tut:book:silent
-def rwHandler[S] = new Reader[S] with Writer[S] {
-  type State = List[S]
-  type Out[A] = (List[S], A)
-  def unit[A] = (s, a) => (s, a)
+def rwHandler[R, S] = new Reader[S] with Writer[S] with Handler.Stateful[R, R, List[S]] {
 
-  def read[R]() = {
+  def unit = a => a
+
+  def read() = {
     case s :: rest => resume => resume(s)(rest)
     case _ => sys error "Not enough elements written to perform read"
   }
-  def write[R](s: S) = rest => resume => resume(())(s :: rest)
+  def write(s: S) = rest => resume => resume(())(s :: rest)
 }
 ```
 
@@ -85,5 +84,6 @@ def example(implicit r: Use[Reader[Int]], w: Use[Writer[Int]]): Control[Int] =
 Handling the example with our combined handler, we get:
 
 ```tut
-handle(rwHandler[Int])(Nil) { implicit rw => example }.run()
+rwHandler(Nil) { implicit rw => example }.run()
 ```
+

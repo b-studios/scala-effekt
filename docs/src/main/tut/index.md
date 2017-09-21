@@ -35,17 +35,15 @@ case class Tweet(msg: String)
 **Effect signature**
 ```tut:book:silent
 trait Twitter extends Eff {
-  def userTweets[R](userId: Long): List[Tweet] @@ R
+  def userTweets(userId: Long): Op[List[Tweet]]
 }
 ```
 ```tut:invisible
 def userTweets(userId: Long)(implicit u: Use[Twitter]): Control[List[Tweet]] =
-  use(u)(u.effect.userTweets(userId))
-object twitterStub extends Twitter {
-  type State = Unit
-  type Out[A] = A
-  def unit[A] = (s, a) => a
-  def userTweets[R](userId: Long): List[Tweet] @@ R = state => resume =>
+  use(u)(u.handler.userTweets(userId))
+def twitterStub[R] = new Twitter with Handler.Basic[R, R] {
+  def unit = a => a
+  def userTweets(userId: Long): Op[List[Tweet]] = state => resume =>
     resume(List(Tweet("hi")))(state)
 }
 ```
@@ -57,7 +55,7 @@ def query(implicit u: Use[Twitter]): Control[List[Tweet]] =
     ts2 <- userTweets(111345)
   } yield ts1 ++ ts2
 
-val result = handle(twitterStub) { implicit u => query }
+val result = twitterStub { implicit u => query }
 ```
 </div>
 </div>

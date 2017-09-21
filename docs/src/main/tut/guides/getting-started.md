@@ -26,8 +26,8 @@ Then, to define our first effect, we specify the *effect signature*.
 import effekt._
 
 // The effect signature
-trait Amb extends Eff { self =>
-  def flip[R](): Boolean @@ R
+trait Amb extends Eff {
+  def flip(): Op[Boolean]
 }
 ```
 
@@ -37,14 +37,10 @@ which we will encounter when we implement a handler for our effect. It
 also comes with a few handy methods and type aliases that help us
 define our effect signatures and handlers.
 
-For effect signatures the most important type alias one is `A @@ R`
-(that is `@@[A, R]` written as infix type constructor). The desugaring
-of the type alias is given below. For now we only have to know that all
-*effect operations* like `flip` have to carry an additional type
-parameter `R`. That is, we can read `flip` as a non- deterministic
-coin-flipping operation that will locally return a `Boolean` to the
-caller, but the overall result of all computation following `flip` will
-result into something that contains an `R`.
+For effect signatures the most important type alias one is `Op`. The
+type alias is defined in the trait `Handler` and also given below.
+For now we only have to know that all
+*effect operations* like `flip` have to be marked as an `Op`-eration.
 
 ## Using the `Amb` effect
 
@@ -58,7 +54,7 @@ allowed to use the `Amb`-effect.
 
 ```tut:book:silent
 def prog1(amb: Use[Amb]): Control[Int] =
-  use(amb)(amb.effect.flip()) map { x => if (x) 2 else 3 }
+  use(amb)(amb.handler.flip()) map { x => if (x) 2 else 3 }
 ```
 
 The result type `Control[Int]` tells us that the integer-result will be
@@ -67,18 +63,18 @@ call to `use` shows us that we use the capability `Use[Amb]` in two ways:
 
 1. It serves as a proof, that we are allowed to use effect operations
    defined in the `Amb` signature.
-2. It carries the effect implementation (handler code) as member `amb.effect`.
+2. It carries the effect implementation (handler code) as member `amb.handler`.
 
 The `flip` method in the effect signature will turn out to be
 very convenient for handler implementations. However, writing
-`use(u)(u.effect.op())` for every use of `op` can be tiresome. Hence,
+`use(u)(u.handler.op())` for every use of `op` can be tiresome. Hence,
 we establish the convention to define a second variant for each effect
 operation as part of the effect signature's companion object:
 
 ```tut:book:silent
 // The effect companion object
 object Amb {
-  def flip()(implicit u: Use[Amb]) = use(u) { u.effect.flip() }
+  def flip()(implicit u: Use[Amb]) = use(u) { u.handler.flip() }
 }
 ```
 
@@ -95,43 +91,56 @@ def prog(implicit amb: Use[Amb]): Control[Int] =
 ## Defining Handlers
 Let us now define our own handler for the `Amb` effect. A handler is
 just an implementation of the effect interface. However, it also
-needs to give the type to interpret the effect into (`Out[A]`) and
-a function `unit` that lifts pure values into the effect interpretation.
+needs to give the type to interpret the effect into (`List[R]`) and
+a function `unit` that lifts pure values of type `R` into the effect interpretation.
 
 ```tut:book:silent
-object ambHandler extends Amb {
-  type Out[A] = List[A]
-  type State = Unit // We don't use the handler state, yet.
-  def flip[R]() = s => resume =>
-    for {
-      t <- resume(true)(s)
-      f <- resume(false)(s)
-    } yield t ++ f
-  def unit[A] = (s, a) => List(a)
+def ambList[R] = new Handler.Basic[R, List[R]] with Amb {
+  def unit = a => List(a)
+
+  def flip() = _ => resume => for {
+    ts <- resume(true)(())
+    fs <- resume(false)(())
+  } yield ts ++ fs
 }
 ```
 
+Notice how we use the trait `Handler.Basic` which helps us defining
+some abstract type members.
+
 In the handler code we now can see why we defined `flip` to return
-`Boolean @@ R` before. To implement `flip` we get access to the handler
+`Op[Boolean]` before. To implement `flip` we get access to the handler
 state and the continuation `resume` (the remaining program after the flip effect,
 up to the handler).
 
 ```
-type @@[A, R] =
-  State =>                             // the handler state
-  (A => State => Control[Out[R]]) =>   // the continuation
-  Control[Out[R]]                      // the result type
+type Op[A] =
+  State =>                          // the handler state
+  (A => State => Control[Res]) =>   // the continuation
+  Control[Res]                      // the result type
+```
+In `Handler.Basic` the type member `State` is set to `Unit` and `Res`
+is bound to the second type parameter, hence `List[R]`. In our example
+`Op` is defined to be:
+
+```
+type Op[A] = Unit => (A => Unit => Control[List[R]]) => Control[List[R]]
 ```
 
 ## Handling Effects
-To handle an effect we use the library function `handle(handler)(state)(prog)` which gives
-us a capability for the effect type that `handler` implements.
+To handle an effect we use the apply method that is defined on an
+instance of `handler`.
 
 ```tut:book:silent
-val handled: Control[List[Int]] = handle(ambHandler) { implicit h => prog }
+val handled: Control[List[Int]] = ambList { implicit h => prog }
 ```
 
-After all effects are handled, we can run the effectful computation:
+One way of thinking about algebraic effects and handlers is to think
+as (resumable) exceptions. In our example, the effect operation `flip`
+would correspond to `throw` and the handler `ambList` to a surrounding
+`try { ... }`.
+
+After all effects are handled, we can now run the effectful computation:
 
 ```tut
 handled.run()

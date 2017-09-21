@@ -22,40 +22,37 @@ import effekt._
 
 ```tut:book:silent
 trait Amb extends Eff {
-  def flip[R](): Boolean @@ R
+  def flip(): Op[Boolean]
 }
 ```
 
 ```tut:invisible
 object Amb {
-  def flip()(implicit u: Use[Amb]) = use(u) { u.effect.flip() }
+  def flip()(implicit u: Use[Amb]) = use(u) { u.handler.flip() }
 }
-object ambHandler extends Amb {
-  type Out[A] = List[A]
-  type State = Unit // We don't use the handler state, yet.
-  def unit[A] = (s, a) => List(a)
+def ambList[R] = new Handler.Basic[R, List[R]] with Amb {
+  def unit = a => List(a)
 
-  def flip[R]() = s => resume =>
-    for {
-      t <- resume(true)(s)
-      f <- resume(false)(s)
-    } yield t ++ f
+  def flip() = _ => resume => for {
+    ts <- resume(true)(())
+    fs <- resume(false)(())
+  } yield ts ++ fs
 }
 ```
 We also defined a handler for the ambiguity effect as an implementation
-of the `Amb` trait, called `ambHandler`. To see how to combine two
+of the `Amb` trait, called `ambList`. To see how to combine two
 different effects, we will now first define a second (quite standard)
 effect: Mutable state. As before we start with the effect signature
 and the corresponding companion object:
 
 ```tut:book:silent
 trait State[S] extends Eff {
-  def get[R](): S @@ R
-  def put[R](s: S): Unit @@ R
+  def get(): Op[S]
+  def put(s: S): Op[Unit]
 }
 object State {
-  def get[S]()(implicit u: Use[State[S]]) = use(u) { u.effect.get() }
-  def put[S](s: S)(implicit u: Use[State[S]]) = use(u) { u.effect.put(s) }
+  def get[S]()(implicit u: Use[State[S]]) = use(u) { u.handler.get() }
+  def put[S](s: S)(implicit u: Use[State[S]]) = use(u) { u.handler.put(s) }
 }
 ```
 Having defined the effect signature, we can implement a handler that,
@@ -67,13 +64,13 @@ through all handler calls.
 
 We simply need to define the type of the state by instantiating the
 type member `State`. Let us look again at the implementation of the
-type alias `A @@ R`:
+type alias `Op`:
 
 ```
-type @@[A, R] =
-  State =>                             // the handler state
-  (A => State => Control[Out[R]]) =>   // the continuation
-  Control[Out[R]]                      // the result type
+type Op[A] =
+  State =>                          // the handler state
+  (A => State => Control[Res]) =>   // the continuation
+  Control[Res]                      // the result type
 ```
 
 To handle an effect, we get hold to the current state as well as a
@@ -81,19 +78,12 @@ continuation which takes the return value and an updated state.
 Using this definition, we can implement a state handler as:
 
 ```tut:book:silent
-def stateHandler[S] = new State[S] {
-  type Out[A] = A
-  type State = S // we use the handler state for state passing
-  def unit[A] = (s, a) => a
-
-  def get[R]() = s => resume => resume(s)(s)
-  def put[R](s: S) = _ => resume => resume(())(s)
+def state[R, S] = new Handler.Stateful[R, R, S] with State[S] {
+  def unit = a => a
+  def put(s: S) = state => resume => resume(())(s)
+  def get()     = state => resume => resume(state)(state)
 }
 ```
-
-Please note, that it is important not to define the result type of
-`stateHandler` as `State[S]` since the result type is more
-special (`State[S] { type Out[A] = A; type State = S }`).
 
 ## Using `Amb` and `State` in one example
 Let us now use the two effects to write a program that combines them.
@@ -125,8 +115,8 @@ effects and handlers is that we can decide very late.
 Let's experiment with the two options:
 
 ```tut:book:silent
-val result1: Control[List[Int]] = handle(ambHandler) { implicit a =>
-  handle(stateHandler[Int])(0) { implicit s =>
+val result1: Control[List[Int]] = ambList { implicit a =>
+  state(0) { implicit s =>
     example
   }
 }
@@ -135,7 +125,7 @@ val result1: Control[List[Int]] = handle(ambHandler) { implicit a =>
 result1.run()
 ```
 
-In this variant, we first handle away the state effect (remember `stateHandler.Out[A] = A` in our case) and then handle ambiguity (here, `ambHandler.Out[A] = List[A]`).
+In this variant, we first handle away the state effect and then handle ambiguity.
 The ambiguity handler invokes the continuation twice, once with `true`
 and once with `false`. Since the state handler is nested in the
 ambiguity handler, it will be reset for the second invocation with `false`
@@ -144,8 +134,8 @@ and thus the second element in the resulting list is `0`.
 Commuting the two handlers, we get different results:
 
 ```tut:book:silent
-val result2 = handle(stateHandler[Int])(0) { implicit s =>
-  handle(ambHandler) { implicit a =>
+val result2 = state(0) { implicit s =>
+  ambList { implicit a =>
     example
   }
 }
