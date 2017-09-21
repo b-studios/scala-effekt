@@ -14,6 +14,9 @@ The key motivation behind **Effekt** is to bring
 effects with handlers to the Scala language. In consequence many
 design decisions are influenced by Koka.
 
+The design decisions behind Effekt are described in a bit more detail
+in this [paper](http://files.b-studios.de/effekt.pdf).
+
 ## Shallowly Embedded Effects
 Other libraries (like [Eff](https://github.com/atnos-org/eff)) use
 free monads to represent effectful operations and define interpreters
