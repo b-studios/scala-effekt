@@ -79,28 +79,28 @@ private[effekt]
 trait HandlerFrame extends Serializable { outer =>
 
   // used as prompt marker to identify the frame and to provide the types Res and State
-  val prompt: Capability
+  val cap: Capability
 
-  type Res   = prompt.Res
-  type State = prompt.effect.State
+  type Res   = cap.Res
+  type State = cap.handler.State
 
   val state: State
   val cleanupActions: List[() => Unit]
 
   final def cleanup() = for (c <- cleanupActions) { c() }
 
-  def updateWith(s: State) = HandlerFrame(prompt)(s, cleanupActions)
-  def updateWith(c: List[() => Unit]) = HandlerFrame(prompt)(state, c)
+  def updateWith(s: State) = HandlerFrame(cap)(s, cleanupActions)
+  def updateWith(c: List[() => Unit]) = HandlerFrame(cap)(state, c)
   def removeCleanup = updateWith(Nil)
   def prependCleanup(c: List[() => Unit]) = updateWith(c ::: cleanupActions)
 }
 
 private[effekt]
 object HandlerFrame {
-  type Aux[C <: Capability] = HandlerFrame { val prompt: C }
+  type Aux[C <: Capability] = HandlerFrame { val cap: C }
 
-  def apply(c: Capability)(st: c.effect.State, cl: List[() => Unit]): HandlerFrame { val prompt: c.type } =
-    new HandlerFrame { val prompt: c.type = c; val state = st; val cleanupActions = cl; }
+  def apply(c: Capability)(st: c.handler.State, cl: List[() => Unit]): HandlerFrame { val cap: c.type } =
+    new HandlerFrame { val cap: c.type = c; val state = st; val cleanupActions = cl; }
 }
 
 object Control {
@@ -108,13 +108,13 @@ object Control {
   private[effekt] def pure[A](a: A): Control[A] = new Trivial(a)
 
   private[effekt] final def use[A](c: Capability)(
-    f: c.effect.State => (A => c.effect.State => Control[c.Res]) => Control[c.Res]
+    f: c.handler.State => (A => c.handler.State => Control[c.Res]) => Control[c.Res]
   ): Control[A] = Computation { k =>
 
     // slice the meta continuation in three parts
     val (init, h, tail) = k splitAt c
 
-    val localCont: A => c.effect.State => Control[c.Res] =
+    val localCont: A => c.handler.State => Control[c.Res] =
       a => updatedState => Computation[c.Res] { k =>
 
         // create a copy of the handler with the very same prompt but
@@ -140,7 +140,7 @@ object Control {
   }
 
   private[effekt] final def handle(h: Handler)(init: h.State)(
-    f: Capability { val effect: h.type } => Control[h.R]
+    f: Capability { val handler: h.type } => Control[h.R]
   ): Control[h.Res] = {
 
     // produce a new capability

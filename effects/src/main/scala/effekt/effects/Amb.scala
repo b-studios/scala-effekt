@@ -6,7 +6,7 @@ trait Amb extends Eff {
 }
 object Amb {
   def flip()(implicit u: Use[Amb]): Control[Boolean] =
-    use(u)(u.effect.flip())
+    use(u)(u.handler.flip())
 
   def ambList[R] = new Handler.Basic[R, List[R]] with Amb {
     def unit = a => List(a)

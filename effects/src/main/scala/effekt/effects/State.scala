@@ -6,7 +6,7 @@ trait Reader[S] extends Eff {
 }
 trait ReaderSyntax {
   def ask[S]()(implicit u: Use[Reader[S]]): Control[S] =
-    use(u)(u.effect.ask())
+    use(u)(u.handler.ask())
 }
 object Reader extends ReaderSyntax
 
@@ -15,7 +15,7 @@ trait Writer[S] extends Eff {
 }
 trait WriterSyntax {
   def tell[S](s: S)(implicit u: Use[Writer[S]]): Control[Unit] =
-    use(u)(u.effect.tell(s))
+    use(u)(u.handler.tell(s))
 }
 object Writer extends WriterSyntax
 
@@ -43,10 +43,10 @@ trait State[S] extends Reader[S] with Writer[S] {
 }
 object State extends ReaderSyntax with WriterSyntax {
   def get[S]()(implicit u: Use[State[S]]): Control[S] =
-    use(u)(u.effect.get())
+    use(u)(u.handler.get())
 
   def put[S](s: S)(implicit u: Use[State[S]]): Control[Unit] =
-    use(u)(u.effect.put(s))
+    use(u)(u.handler.put(s))
 
   implicit class StateOps[S](val u: Use[State[S]]) extends AnyVal {
     def value: Control[S] = get[S]()(u)

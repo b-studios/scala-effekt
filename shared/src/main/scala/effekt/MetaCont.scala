@@ -84,7 +84,7 @@ case class HandlerCont[R, A](h: HandlerFrame { type Res = R }, tail: MetaCont[R,
     // We found the corrsponding handler!
     // ---
     // Here we deduce type equality from referential equality
-    if (h.prompt eq c) {
+    if (h.cap eq c) {
       val head = CastCont[R, c.Res]()
       val handler = h.asInstanceOf[HandlerFrame.Aux[c.type]]
       val rest = tail.asInstanceOf[MetaCont[c.Res, A]]
@@ -107,5 +107,5 @@ case class HandlerCont[R, A](h: HandlerFrame { type Res = R }, tail: MetaCont[R,
     tail.unwind()
   }
 
-  override def toString = s"${h.prompt} :: ${tail}"
+  override def toString = s"${h.cap} :: ${tail}"
 }

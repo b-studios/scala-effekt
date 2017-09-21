@@ -7,7 +7,7 @@ trait Select[A] extends Eff {
 object Select {
 
   def select[A](as: List[A])(implicit u: Use[Select[A]]): Control[A] =
-    use(u)(u.effect.select(as))
+    use(u)(u.handler.select(as))
 
   class SelectOption[R, A] extends Select[A] with Handler.Basic[R, Option[R]] {
 
