@@ -15,8 +15,10 @@ libraryDependencies += "de.b-studios" %% "effekt" % "0.2-SNAPSHOT"
 Alternatively, to play around with **Effekt** in your browser, you can
 also use Scastie. We prepared two different Scasties for you
 
-- [Scala 2.12](https://scastie.scala-lang.org/3pVyLtGKTeKCisNHZAtLXw)
-- [Dotty](https://scastie.scala-lang.org/pS36lNr6SPmjm4iwcyR4vw) -- Here you can also play around with implicit function types.
+- [Scala 2.12](https://scastie.scala-lang.org/o2IcM13UTt60YKlcyNtv7g)
+- [Dotty](https://scastie.scala-lang.org/Ilonelw2QgGDXh1pg4yXkg) -- Here
+  you can also play around with implicit function types. The interface
+  is slightly different at the moment.
 
 ## Define your first effect
 First we import all the necessary types and functions.

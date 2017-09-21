@@ -9,7 +9,7 @@ After having defined a single effect in [Getting Started](./getting-started), th
 
 Again, we prepared Scasties to follow along with this tutorial.
 
-- [Scala 2.12](https://scastie.scala-lang.org/14UuWNqvSvu0g4seLZ4iug) ([full solution](https://scastie.scala-lang.org/3VsqIjFNTYeQ4HBc44wEpQ))
+- [Scala 2.12](https://scastie.scala-lang.org/y2xwgsrNT5iKXk0ghfbHJg) ([full solution](https://scastie.scala-lang.org/8z6r2243S02DB50zbetshQ))
 
 ## Defining a second effect
 In [Getting Started](./getting-started) we have defined ambiguity as our

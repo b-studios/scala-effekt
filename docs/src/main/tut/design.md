@@ -47,7 +47,7 @@ def prog: Int using Amb = flip() map { x => if (x) 2 else 3 }
 
 Pretty neat, isn't it?
 
-We prepared [this Scastie](https://scastie.scala-lang.org/3EiIE3pYSb27IbpGYmFdKQ) for
+We prepared [this Scastie](https://scastie.scala-lang.org/eIMWNq7aRty2YHRuFNQ2BQ) for
 you to play around with dotty and **effekt**.
 
 ## Delimited Control

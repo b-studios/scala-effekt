@@ -25,7 +25,7 @@ it could just return dummy tweets for testing purposes. We chose the
 latter for the implementation of `twitterStub` and thus running the
 result actually perform the side-effects always gives the same results.
 
-You can find the full sources for this example in [this Scastie](https://scastie.scala-lang.org/EkSl7ykzQqK3ZFuyoO3e2A).
+You can find the full sources for this example in [this Dotty Scastie](https://scastie.scala-lang.org/JplohyA1RWeE7ykU08BqwQ).
 </div>
 <div class="col-md-7" markdown="1">
 ```tut:invisible
