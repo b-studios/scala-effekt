@@ -9,7 +9,7 @@ Before you can get started with **Effekt** you need to set up your
 environment and add **Effekt** as a dependency to your `build.sbt` file:
 
 ```
-libraryDependencies += "de.b-studios" %% "effekt" % "0.1-SNAPSHOT"
+libraryDependencies += "de.b-studios" %% "effekt" % "0.2-SNAPSHOT"
 ```
 
 Alternatively, to play around with **Effekt** in your browser, you can

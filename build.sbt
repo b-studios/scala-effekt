@@ -2,7 +2,7 @@ import org.scalajs.sbtplugin.cross.CrossProject
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.2",
-  version := "0.1-SNAPSHOT",
+  version := "0.2-SNAPSHOT",
   organization := "de.b-studios",
   crossScalaVersions := Seq("2.11.8", "2.12.1"),
   scalacOptions ++= Seq(
