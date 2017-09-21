@@ -2,20 +2,18 @@ package effekt
 package effects
 
 trait Amb extends Eff {
-  def flip[R](): Boolean @@ R
+  def flip(): Op[Boolean]
 }
 object Amb {
   def flip()(implicit u: Use[Amb]): Control[Boolean] =
     use(u)(u.effect.flip())
 
-  object ambList extends Amb {
-    type State  = Unit
-    type Out[A] = List[A]
-    def unit[A] = (s, a) => List(a)
+  def ambList[R] = new Handler.Basic[R, List[R]] with Amb {
+    def unit = a => List(a)
 
-    def flip[R]() = state => resume => for {
-      ts <- resume(true)(state)
-      fs <- resume(false)(state)
+    def flip() = _ => resume => for {
+      ts <- resume(true)(())
+      fs <- resume(false)(())
     } yield ts ++ fs
   }
 }

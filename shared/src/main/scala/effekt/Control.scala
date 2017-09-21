@@ -1,8 +1,5 @@
 package effekt
 
-private[effekt]
-sealed trait ω
-
 /**
  * The effect monad, implementing delimited control.
  *
@@ -69,53 +66,47 @@ final class Trivial[+A](a: A) extends Control[A] {
 }
 
 private[effekt]
+sealed trait ω
+
+private[effekt]
 final case class Computation[+A](body: MetaCont[A, ω] => Result[ω]) extends Control[A] {
   def apply[R](k: MetaCont[A, R]): Result[R] =
     body(k.asInstanceOf[MetaCont[A, ω]]).asInstanceOf[Result[R]]
 }
 
+
 private[effekt]
-trait Handler extends Serializable { outer =>
+trait HandlerFrame extends Serializable { outer =>
 
+  // used as prompt marker to identify the frame and to provide the types Res and State
   val prompt: Capability
-  val state: prompt.effect.State
-  type Res = prompt.Res
 
+  type Res   = prompt.Res
+  type State = prompt.effect.State
+
+  val state: State
   val cleanupActions: List[() => Unit]
 
   final def cleanup() = for (c <- cleanupActions) { c() }
 
-  def updateWith(s: prompt.effect.State): Handler {val prompt: outer.prompt.type} =
-    new Handler {
-      val prompt: outer.prompt.type = outer.prompt
-      val state = s
-      val cleanupActions = outer.cleanupActions
-    }
-  def updateWith(c: List[() => Unit]): Handler {val prompt: outer.prompt.type} =
-    new Handler {
-      val prompt: outer.prompt.type = outer.prompt
-      val state = outer.state
-      val cleanupActions = c
-    }
-  def removeCleanup: Handler {val prompt: outer.prompt.type} = updateWith(Nil)
-  def prependCleanup(c: List[() => Unit]): Handler {val prompt: outer.prompt.type} =
-    updateWith(c ::: cleanupActions)
+  def updateWith(s: State) = HandlerFrame(prompt)(s, cleanupActions)
+  def updateWith(c: List[() => Unit]) = HandlerFrame(prompt)(state, c)
+  def removeCleanup = updateWith(Nil)
+  def prependCleanup(c: List[() => Unit]) = updateWith(c ::: cleanupActions)
+}
+
+private[effekt]
+object HandlerFrame {
+  type Aux[C <: Capability] = HandlerFrame { val prompt: C }
+
+  def apply(c: Capability)(st: c.effect.State, cl: List[() => Unit]): HandlerFrame { val prompt: c.type } =
+    new HandlerFrame { val prompt: c.type = c; val state = st; val cleanupActions = cl; }
 }
 
 object Control {
 
   private[effekt] def pure[A](a: A): Control[A] = new Trivial(a)
 
-  // f receives an updated copy of E, reflecting the new state of the
-  // parametrized handler and a continuation that takes both the
-  // next value and again an updated handler.
-  //
-  // Operationally, it
-  // (1) slices the meta continuation at point E, obtaining cont k up to E and
-  //     the current version e2 of E
-  // (2) calls f with the current version of E to obtain an A and yet a new version
-  //     e3 of E.
-  // (3) splices in k and pushes e3 as prompt
   private[effekt] final def use[A](c: Capability)(
     f: c.effect.State => (A => c.effect.State => Control[c.Res]) => Control[c.Res]
   ): Control[A] = Computation { k =>
@@ -148,41 +139,37 @@ object Control {
     Impure(handled, tail)
   }
 
-  private[effekt] final def handle[R](e: Eff)(init: e.State)(
-    f: Capability { val effect: e.type } => Control[R]
-  ): Control[e.Out[R]] = {
+  private[effekt] final def handle(h: Handler)(init: h.State)(
+    f: Capability { val effect: h.type } => Control[h.R]
+  ): Control[h.Res] = {
 
-    // produce a new prompt
-    val p = Capability[R](e)
-
-    // construct handler from prompt and initial state
-    val h = new Handler {
-      val prompt: p.type = p
-      val state = init
-      val cleanupActions = List(e.cleanup)
-    }
+    // produce a new capability
+    val p = Capability(h)
 
     Computation { k =>
 
       // extract new state
       val c = f(p).flatMap { a =>
-        Computation[e.Out[R]] { k => (k: @unchecked) match {
+        Computation[h.Res] { k => (k: @unchecked) match {
             // Invariant: The last continuation on the metacont stack is a HandlerCont for p
-            case HandlerCont(h2: H[p.type] @unchecked, k2) => {
+            case HandlerCont(h2: HandlerFrame.Aux[p.type] @unchecked, k2) => {
               // after lifting a into the result type of the handler, perform
               // a resource cleanup.
-              val res = e.unit(h2.state, a)
               h2.cleanup()
 
               // now continue
               // for now wrapped in Trivial to allow trampolining and
               // ressource cleanup
-              Impure(pure(res), k2)
+              Impure(pure(h.unit(a)), k2)
             }
           }
         }
       }
-      Impure(c, HandlerCont(h, k))
+
+      // initial handler frame
+      val hf = HandlerFrame(p)(init, List(h.cleanup))
+
+      Impure(c, HandlerCont(hf, k))
     }
   }
 }

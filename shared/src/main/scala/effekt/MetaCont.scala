@@ -6,7 +6,7 @@ sealed trait MetaCont[-A, +B] extends Serializable {
 
   def append[C](s: MetaCont[B, C]): MetaCont[A, C]
 
-  def splitAt(c: Capability): (MetaCont[A, c.Res], H[c.type], MetaCont[c.Res, B])
+  def splitAt(c: Capability): (MetaCont[A, c.Res], HandlerFrame.Aux[c.type], MetaCont[c.Res, B])
 
   def map[C](f: C => A): MetaCont[C, B] = flatMap(f andThen pure)
 
@@ -72,8 +72,9 @@ case class FramesCont[-A, B, +C](frames: List[Frame[_, _]], tail: MetaCont[B, C]
   override def toString = s"fs :: ${tail}"
 }
 
+
 private[effekt]
-case class HandlerCont[R, A](h: Handler {type Res = R}, tail: MetaCont[R, A]) extends MetaCont[R, A] {
+case class HandlerCont[R, A](h: HandlerFrame { type Res = R }, tail: MetaCont[R, A]) extends MetaCont[R, A] {
   final def apply(r: R): Result[A] = tail(r)
 
   final def append[C](s: MetaCont[A, C]): MetaCont[R, C] = HandlerCont(h, tail append s)
@@ -85,7 +86,7 @@ case class HandlerCont[R, A](h: Handler {type Res = R}, tail: MetaCont[R, A]) ex
     // Here we deduce type equality from referential equality
     if (h.prompt eq c) {
       val head = CastCont[R, c.Res]()
-      val handler = h.asInstanceOf[H[c.type]]
+      val handler = h.asInstanceOf[HandlerFrame.Aux[c.type]]
       val rest = tail.asInstanceOf[MetaCont[c.Res, A]]
       (head, handler, rest)
 
@@ -96,7 +97,7 @@ case class HandlerCont[R, A](h: Handler {type Res = R}, tail: MetaCont[R, A]) ex
     // if the continuation is discarded.
     } else tail.splitAt(c) match {
       case (head, m, tail) =>
-      val handler = h.removeCleanup.asInstanceOf[Handler { type Res = R }]
+      val handler = h.removeCleanup.asInstanceOf[HandlerFrame { type Res = R }]
       val matched = m.prependCleanup(h.cleanupActions)
       (HandlerCont(handler, head), matched, tail)
     }

@@ -5,7 +5,7 @@ package effekt
  *
  * Effectful operations are grouped within a effect signature
  * which inherits from `Eff`. Typically when defining the
- * effect signature the abstract types [[Out Out[A]]] and [[State]]
+ * effect signature the abstract types [[Res]] and [[State]]
  * are left abstract.
  *
  * Effect operations with arguments of type `A`, `B` and result
@@ -19,11 +19,8 @@ package effekt
  * need to be implemented. That is, a handler is an instance
  * of the effect signature.
  *
- * Handlers can instantiate the type constructor [[Out Out[A]]] to the
- * functor or monad the handler interprets the effect operation into.
- * For pure terms, that is those that don't use the effect, the
- * handler also needs to implement the function `unit` to define
- * how to lift them into [[Out]].
+ * Handlers can instantiate the type member [[Res]] to the
+ * the type the handler interprets the effect operation into.
  *
  * Handlers can be stateful, that is, they can carry state across
  * several handled operations. To do so, handlers need to
@@ -35,21 +32,5 @@ package effekt
  *      [[http://b-studios.de/scala-effekt/guides/getting-started.html getting started guide]].
  */
 trait Eff extends Serializable {
-  type Out[A]
-  type State
-  type @@[A, R] = State => (A => State => Control[Out[R]]) => Control[Out[R]]
-
-  def unit[A]: (State, A) => Out[A]
-
-  // TODO figureout whether this type is sufficient.
-  def cleanup: () => Unit = Eff.noCleanup
-
-  protected[this] implicit def noState[A, R](f: (A => Control[Out[R]]) => Control[Out[R]] ): A @@ R =
-    s => resume => f(a => resume(a)(s))
-
-  protected[this] implicit def just[A, R](a: A): A @@ R =
-    s => resume => resume(a)(s)
-}
-object Eff {
-  val noCleanup = () => ()
+  type Op[A]
 }

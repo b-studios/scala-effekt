@@ -2,7 +2,7 @@ package effekt
 package effects
 
 trait Reader[S] extends Eff {
-  def ask[R](): S @@ R
+  def ask(): Op[S]
 }
 trait ReaderSyntax {
   def ask[S]()(implicit u: Use[Reader[S]]): Control[S] =
@@ -11,7 +11,7 @@ trait ReaderSyntax {
 object Reader extends ReaderSyntax
 
 trait Writer[S] extends Eff {
-  def tell[R](s: S): Unit @@ R
+  def tell(s: S): Op[Unit]
 }
 trait WriterSyntax {
   def tell[S](s: S)(implicit u: Use[Writer[S]]): Control[Unit] =
@@ -36,10 +36,10 @@ object Writer extends WriterSyntax
  * }}}
  */
 trait State[S] extends Reader[S] with Writer[S] {
-  def put[R](s: S): Unit @@ R
-  def get[R](): S @@ R
-  def ask[R]() = get()
-  def tell[R](s: S) = put(s)
+  def put(s: S): Op[Unit]
+  def get(): Op[S]
+  def ask() = get()
+  def tell(s: S) = put(s)
 }
 object State extends ReaderSyntax with WriterSyntax {
   def get[S]()(implicit u: Use[State[S]]): Control[S] =
@@ -53,12 +53,9 @@ object State extends ReaderSyntax with WriterSyntax {
     def value_=(s: S): Control[Unit] = put[S](s)(u)
   }
 
-  def state[S] = new State[S] {
-    type State = S
-    type Out[A] = (State, A)
-    def unit[A] = (s, a) => (s, a)
-
-    def put[R](s: S) = state => resume => resume(())(s)
-    def get[R]() = state => resume => resume(state)(state)
+  def state[R, S] = new Handler.Stateful[R, R, S] with State[S] {
+    def unit = a => a
+    def put(s: S) = state => resume => resume(())(s)
+    def get() = state => resume => resume(state)(state)
   }
 }
