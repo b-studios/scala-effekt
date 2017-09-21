@@ -94,7 +94,7 @@ case class HandlerCont[R, A](h: HandlerFrame { type Res = R }, tail: MetaCont[R,
     // ---
     // remove cleanup from this handler and prepend to found handler.
     // this way we assert that the cleanup actions will be called, even
-    // if the continuation is discarded.
+    // if the continuation is discarded in the handler implementation.
     } else tail.splitAt(c) match {
       case (head, m, tail) =>
       val handler = h.removeCleanup.asInstanceOf[HandlerFrame { type Res = R }]

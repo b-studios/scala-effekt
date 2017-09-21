@@ -4,28 +4,22 @@ package effekt
  * Base class for all effect signatures.
  *
  * Effectful operations are grouped within a effect signature
- * which inherits from `Eff`. Typically when defining the
- * effect signature the abstract types [[Res]] and [[State]]
- * are left abstract.
+ * which inherits from `Eff`.
  *
- * Effect operations with arguments of type `A`, `B` and result
- * type `C` have the form:
+ * Effect operations are marked with the abstract type constructor
+ * [[Op]] which is defined in [[Handler]].
+ *
+ * Thus an operation with arguments of type `A`, `B` and result
+ * type `C` has the form:
  *
  * {{{
- *    def op[R](x1: A, x2: B): C @@ R
+ *    def op(x1: A, x2: B): Op[C]
  * }}}
  *
  * To handle an effect, the effect operations of the signature
- * need to be implemented. That is, a handler is an instance
- * of the effect signature.
- *
- * Handlers can instantiate the type member [[Res]] to the
- * the type the handler interprets the effect operation into.
- *
- * Handlers can be stateful, that is, they can carry state across
- * several handled operations. To do so, handlers need to
- * instantiate the abstract type member `State` to the desired type
- * of state or `Unit` if unused.
+ * need to be implemented. Typically this is achieved by defining
+ * a trait/class that inherits from both, the effect signature
+ * and [[Handler.Basic]] or [[Handler.Stateful]].
  *
  * @see An example of an effect signature and the corresponding
  *      handler implementation can be found in the

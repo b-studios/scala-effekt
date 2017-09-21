@@ -32,7 +32,7 @@ object Writer extends WriterSyntax
  *     y <- s.value
  *   } yield (x, y)
  *
- *   handle(state[Int])(0) { implicit s => prog }
+ *   handle(state)(0) { implicit s => prog }
  * }}}
  */
 trait State[S] extends Reader[S] with Writer[S] {

@@ -11,7 +11,7 @@ package effekt
  * }}}
  *
  * Given the capability to use the effect `E`, the result of
- * type `A` is interpreted in the `Control` and can be obtained
+ * type `A` is interpreted in `Control` and can be obtained
  * using the method `run()`. It is important to know that calling
  * `run` before all effects have been handled will lead to a
  * runtime exception.
@@ -121,12 +121,12 @@ object Control {
         // updated state
         val updatedHandler = h updateWith updatedState
 
-        // as in shift and shift0 we repush the prompt, but here
+        // as in shift we repush the prompt, but here
         // we also internally update the contained state.
         val repushedPrompt = init append HandlerCont(updatedHandler, k)
 
         // invoke assembled continuation
-        // for now wrapped in Trivial to allow trampolining and
+        // for now wrapped in pure to allow trampolining and
         // ressource cleanup
         Impure(pure(a), repushedPrompt)
       }
@@ -155,12 +155,13 @@ object Control {
             case HandlerCont(h2: HandlerFrame.Aux[p.type] @unchecked, k2) => {
               // after lifting a into the result type of the handler, perform
               // a resource cleanup.
+              val res = h.unit(a)
               h2.cleanup()
 
               // now continue
               // for now wrapped in Trivial to allow trampolining and
               // ressource cleanup
-              Impure(pure(h.unit(a)), k2)
+              Impure(pure(res), k2)
             }
           }
         }
