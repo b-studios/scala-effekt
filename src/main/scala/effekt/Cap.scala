@@ -10,13 +10,13 @@ sealed trait Cap[+E] {
   /**
    * the handler implementation
    */
-  val effect: Handler[_, _] with E
+  val effect: Handler with E
 
   type Res = effect.Res
 }
 
 object Cap {
   // only Control.handle is allowed to create new capabilities
-  private[effekt] def apply(h: Handler[_, _]): Cap[h.type] =
+  private[effekt] def apply[Res0](h: Handler): Cap[h.type] =
     new Cap[h.type] { override val effect: h.type = h }
 }

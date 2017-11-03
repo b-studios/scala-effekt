@@ -36,7 +36,7 @@ object Var {
 
 // Effects
 
-trait Id[R] extends Handler[R, R] {
+trait Id[R] extends Handler.Basic[R, R] {
   def unit = a => a
 }
 

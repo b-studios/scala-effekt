@@ -20,7 +20,7 @@ package object effekt {
   final def use[A](c: Cap[_])(f: CPS[A, c.Res]): Control[A] =
     Control.use[A](c)(f)
 
-  final def handle(h: Handler[_, _])(f: Cap[h.type] => Control[h.R]): Control[h.Res] =
+  final def handle(h: Handler)(f: Cap[h.type] => Control[h.R]): Control[h.Res] =
     Control.handle(h)(f)
 
   final def resume[A, Res](a: A): CPS[A, Res] = implicit k => k(a)

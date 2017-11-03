@@ -59,16 +59,16 @@ case class FramesCont[-A, B, +C](frames: List[Frame[Nothing, Any]], tail: MetaCo
 }
 
 private[effekt]
-case class HandlerCont[Res, +A](h: Cap[Handler[_, Res]])(tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
-  final def apply(r: h.Res): Result[A] = tail(r)
+case class HandlerCont[Res, +A](h: Cap[_])(tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+  final def apply(r: Res): Result[A] = tail(r)
 
-  final def append[C](s: MetaCont[A, C]): MetaCont[h.Res, C] = HandlerCont(h)(tail append s)
+  final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = HandlerCont(h)(tail append s)
 
   final def splitAt(c: Capability) =
   // Here we deduce type equality from referential equality
     if (h eq c) {
       // R0 == c.Res
-      val head = HandlerCont(h)(CastCont[h.Res, c.Res]())
+      val head = HandlerCont(h)(CastCont[Res, c.Res]())
       val rest = tail.asInstanceOf[MetaCont[c.Res, A]]
       (head, rest)
     } else tail.splitAt(c) match {

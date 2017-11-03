@@ -102,7 +102,7 @@ object Control {
       }
     }
 
-  private[effekt] final def handle(h: Handler[_, _])(f: Cap[h.type] => Control[h.R]): Control[h.Res] = {
+  private[effekt] final def handle(h: Handler)(f: Cap[h.type] => Control[h.R]): Control[h.Res] = {
 
     // produce a new prompt
     val p = Cap(h)

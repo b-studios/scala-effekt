@@ -24,7 +24,7 @@ object DottyTest extends App {
   def raise[A](msg: String): A using Exc =
     implicit e => use(e)(e.effect.raise(msg))
 
-  trait Maybe[R] extends Exc with Handler[R,  Option[R]] {
+  trait Maybe[R] extends Exc with Handler.Basic[R,  Option[R]] {
     def unit = r => Some(r)
     def raise[A](msg: String) = pure(None)
   }
@@ -34,7 +34,7 @@ object DottyTest extends App {
     def flip(): Op[Boolean]
   }
 
-  trait AmbList[R] extends Amb with Handler[R,  List[R]] {
+  trait AmbList[R] extends Amb with Handler.Basic[R,  List[R]] {
     def unit = r => List(r)
     def flip() = for { xs <- resume(true);  ys <- resume(false) }
       yield xs ++ ys
