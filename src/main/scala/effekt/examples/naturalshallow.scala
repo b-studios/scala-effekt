@@ -175,7 +175,7 @@ trait SpeakerEffectDSL extends SpeakerDSL { self: DSLBase =>
     }
 
   def me: NP using Speaker =
-    implicit s => use(s.cap)(s.cap.effect.speaker())
+    implicit s => use(s.cap)(s.cap.handler.speaker())
 }
 
 // Simpler implementation since no continuations are actually needed
@@ -208,7 +208,7 @@ trait ScopeDSL { self: DSLBase =>
     })(implicit cap => f(Scope(cap)))
 
   def scope[A, R](k: CPS[A, R]): A using Scope[R] =
-    implicit s => use(s.cap)(s.cap.effect.scope[A](k))
+    implicit s => use(s.cap)(s.cap.handler.scope[A](k))
 }
 
 // Third effect: Conventional implicature
@@ -229,7 +229,7 @@ trait ImplicatureDSL { self: DSLBase =>
     })(implicit cap => f(Implicature(cap)))
 
   def imply(s: S): Unit using Implicature =
-    implicit i => use(i.cap)(i.cap.effect.implicate(s))
+    implicit i => use(i.cap)(i.cap.handler.implicate(s))
 
 }
 
@@ -286,7 +286,7 @@ trait FocusDSL { self: DSLBase =>
     def focus(a: NP): Op[NP]
   }
   def only(p: Control[NP]): NP using Focus =
-    implicit f => p.flatMap { person => use(f.cap)(f.cap.effect.focus(person)) }
+    implicit f => p.flatMap { person => use(f.cap)(f.cap.handler.focus(person)) }
   
 }
 

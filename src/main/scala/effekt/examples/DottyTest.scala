@@ -22,7 +22,7 @@ object DottyTest extends App {
   }
 
   def raise[A](msg: String): A using Exc =
-    implicit e => use(e)(e.effect.raise(msg))
+    implicit e => use(e)(e.handler.raise(msg))
 
   trait Maybe[R] extends Exc with Handler.Basic[R,  Option[R]] {
     def unit = r => Some(r)
@@ -40,7 +40,7 @@ object DottyTest extends App {
       yield xs ++ ys
   }
   def flip(): Boolean using Amb =
-    implicit a => use(a)(a.effect.flip())
+    implicit a => use(a)(a.handler.flip())
 
   def AmbList[R](f: R using Amb) = handle(new AmbList[R] {})(f)
 

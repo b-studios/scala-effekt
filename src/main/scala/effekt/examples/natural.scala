@@ -52,7 +52,7 @@ object Speaker {
     })(f)
 
   def me: NominalPhrase using Speaker =
-    implicit s => use(s)(s.effect.speaker())
+    implicit s => use(s)(s.handler.speaker())
 }
 
 // Second effect: Scoped sentences
@@ -66,7 +66,7 @@ object Scope {
     })(f)
 
   def scope[A, R](k: CPS[A, R]): A using Scope[R] =
-    implicit s => use(s)(s.effect.scope[A](k))
+    implicit s => use(s)(s.handler.scope[A](k))
 }
 
 // Third effect: Conventional implicature
@@ -80,7 +80,7 @@ object Implicature {
     })(f)
 
   def implicate(s: Sentence): Unit using Implicature =
-    implicit i => use(i)(i.effect.implicate(s))
+    implicit i => use(i)(i.handler.implicate(s))
 }
 
 
