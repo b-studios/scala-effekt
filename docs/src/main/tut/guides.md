@@ -1,10 +1,10 @@
 ---
 layout: docs
-title:  "Guides"
+title:  "Guides & Examples"
 section: "guides"
 position: 2
 ---
-# Guides
+# Guides & Examples
 
 {% for x in site.pages %}
   {% if x.section == 'guides' and x.title != page.title %}

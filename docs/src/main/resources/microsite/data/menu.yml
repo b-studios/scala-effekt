@@ -20,3 +20,7 @@ options:
   - title: Multiple Handlers at Once
     url: guides/multiple-handlers.html
     menu_type: guides
+
+  - title: "Example: ANF Transformation"
+    url: guides/a-normal-form.html
+    menu_type: guides
