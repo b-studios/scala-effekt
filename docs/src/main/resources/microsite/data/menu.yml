@@ -24,3 +24,7 @@ options:
   - title: "Example: ANF Transformation"
     url: guides/a-normal-form.html
     menu_type: guides
+
+  - title: "Example: Piping"
+    url: guides/piping.html
+    menu_type: guides
