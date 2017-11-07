@@ -37,6 +37,8 @@ lazy val micrositeSettings = Seq(
   // micrositePushSiteWith := GitHub4s,
   includeFilter in makeSite := "*.html" | "*.css" | "*.png" | "*.jpg" | "*.gif" | "*.js" | "*.swf" | "*.md",
   micrositePalette := greenTheme,
+  micrositeCssDirectory := (resourceDirectory in Compile).value / "microsite" / "styles",
+  micrositeJsDirectory := (resourceDirectory in Compile).value / "microsite" / "js",
   fork in tut := true,
   git.remoteRepo := "git@github.com:b-studios/scala-effekt.git"
 )

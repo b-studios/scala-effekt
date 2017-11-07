@@ -18,11 +18,9 @@ effect signatures for `Reader` and `Writer`.
 You can play around with the full source code for this example at this
 [Scastie (Scala 2.12)](https://scastie.scala-lang.org/xsU2asSTQNiEI93ocjHpSg).
 
-```tut:invisible
-import effekt._
-```
-
 ```tut:book:silent
+import effekt._
+
 trait Reader[S] extends Eff {
   def read(): Op[S]
 }
@@ -31,13 +29,14 @@ trait Writer[S] extends Eff {
 }
 ```
 
-```tut:invisible
+```tut:book:silent:decorate(.boilerplate)
 object Reader {
   def read[S]()(implicit u: Use[Reader[S]]) = use(u) { u.handler.read() }
 }
 object Writer {
   def write[S](s: S)(implicit u: Use[Writer[S]]) = use(u) { u.handler.write(s) }
 }
+import Reader._, Writer._
 ```
 (We omit the standard companion object definitions as seen in the
 earlier tutorials.)
@@ -67,9 +66,6 @@ def rwHandler[R, S] = new Reader[S] with Writer[S] with Handler.Stateful[R, R, L
 
 To show the usage of the combined handler, let's first define a
 simple example program.
-```tut:invisible
-import Reader._, Writer._
-```
 ```tut:book:silent
 def example(implicit r: Use[Reader[Int]], w: Use[Writer[Int]]): Control[Int] =
   for {

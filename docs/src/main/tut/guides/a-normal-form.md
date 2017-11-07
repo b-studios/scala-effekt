@@ -56,7 +56,7 @@ trait Transform extends Eff {
   def computation(e: Exp): Op[Exp]
 }
 ```
-```tut:invisible
+```tut:book:silent:decorate(.boilerplate)
 object Transform {
   def value(e: Exp)(implicit c: Use[Transform]): Control[Exp] =
     use(c) { c.handler.value(e) }
@@ -106,7 +106,7 @@ trait SymGen extends Eff {
   def fresh(): Op[String]
 }
 ```
-```tut:invisible
+```tut:book:silent:decorate(.boilerplate)
 object SymGen {
   def fresh()(implicit c: Use[SymGen]): Control[String] =
     use(c) { c.handler.fresh() }
@@ -123,7 +123,7 @@ class SymState[R] extends SymGen with Handler.Stateful[R, R, Int] {
   def fresh() = state => resume => resume("x" + state)(state + 1)
 }
 ```
-```tut:invisible
+```tut:book:silent:decorate(.boilerplate)
 def SymState[R](init: Int)(b: Use[SymGen] => Control[R]): Control[R] =
     (new SymState).apply(init)(b)
 ```
@@ -142,7 +142,7 @@ class ANF(implicit symGen: Use[SymGen]) extends Transform with Handler.Basic[Exp
   } yield Let(x, e, body)
 }
 ```
-```tut:invisible
+```tut:book:silent:decorate(.boilerplate)
 def ANF(b: Use[Transform] => Control[Exp])(implicit c: Use[SymGen]): Control[Exp] =
     (new ANF).apply(b)
 ```

@@ -26,7 +26,8 @@ trait Receive extends Eff {
   def receive(): Op[Int]
 }
 ```
-```tut:book:silent:invisible
+
+```tut:book:silent:decorate(.boilerplate)
 object Send {
   def send(n: Int)(implicit u: Use[Send]) = use(u) { u.handler.send(n) }
 }
@@ -36,6 +37,7 @@ object Receive {
 }
 import Send._, Receive._
 ```
+
 Now, using these effect signatures we can define an example producer and
 a corresponding example consumer:
 

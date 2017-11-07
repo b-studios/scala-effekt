@@ -1,0 +1,12 @@
+div.language-scala.boilerplate {
+  display: none;
+}
+
+details.language-scala.boilerplate {
+  margin-top: 0.5em;
+  margin-bottom: 1em;
+}
+
+details.language-scala.boilerplate summary {
+  cursor: pointer;
+}

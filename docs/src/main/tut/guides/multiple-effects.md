@@ -16,17 +16,15 @@ In [Getting Started](./getting-started) we have defined ambiguity as our
 first effect. The ambiguity effect signature had one effect operation
 and looked like this:
 
-```tut:invisible
-import effekt._
-```
-
 ```tut:book:silent
+import effekt._
+
 trait Amb extends Eff {
   def flip(): Op[Boolean]
 }
 ```
 
-```tut:invisible
+```tut:book:silent:decorate(.boilerplate)
 object Amb {
   def flip()(implicit u: Use[Amb]) = use(u) { u.handler.flip() }
 }
