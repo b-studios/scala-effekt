@@ -24,7 +24,7 @@ object Result {
     while (!res.isPure) {
       val imp = res.asInstanceOf[Impure[A, Any]]
       try { res = imp.c(imp.k) } catch {
-        case e: Throwable => imp.k.unwind(); throw e
+        case e: Throwable => res = imp.k.unwind(e)
       }
     }
     res.asInstanceOf[Pure[A]].value
