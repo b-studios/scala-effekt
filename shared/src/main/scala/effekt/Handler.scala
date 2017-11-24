@@ -28,10 +28,12 @@ trait Handler extends Eff { outer =>
 
   def unit: R => Res
 
+  def _catch: PartialFunction[Throwable, Control[Res]] = PartialFunction.empty
+
   /**
    * Handlers may perform cleanup actions (similar to finally-clauses).
    */
-  def cleanup: () => Unit = Handler.noCleanup
+  def _finally: () => Unit = Handler.noCleanup
 
   def apply(init: State)(f: Capability { val handler: outer.type } => Control[R]): Control[Res] =
     effekt.handle(this)(init)(f)

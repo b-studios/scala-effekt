@@ -12,7 +12,7 @@ sealed trait MetaCont[-A, +B] extends Serializable {
 
   def flatMap[C](f: Frame[C, A]): MetaCont[C, B] = FramesCont(List(f), this)
 
-  def unwind(): Unit
+  def unwind(t: Throwable): Result[B]
 }
 
 private[effekt]
@@ -23,7 +23,7 @@ case class ReturnCont[-A, +B](f: A => B) extends MetaCont[A, B] {
 
   final def splitAt(c: Capability) = sys error s"Prompt $c not found on the stack."
 
-  final def unwind() = ()
+  final def unwind(t: Throwable) = throw t
 
   override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(g andThen f)
 
@@ -39,7 +39,7 @@ case class CastCont[-A, +B]() extends MetaCont[A, B] {
 
   final def splitAt(c: Capability) = sys error s"Prompt $c not found on the stack."
 
-  final def unwind() = ()
+  final def unwind(t: Throwable) = throw t
 
   override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(x => g(x).asInstanceOf[B])
 
@@ -67,7 +67,7 @@ case class FramesCont[-A, B, +C](frames: List[Frame[_, _]], tail: MetaCont[B, C]
 
   override def flatMap[D](f: Frame[D, A]): MetaCont[D, C] = FramesCont(f :: frames, tail)
 
-  final def unwind() = tail.unwind()
+  final def unwind(t: Throwable) = tail.unwind(t)
 
   override def toString = s"fs :: ${tail}"
 }
@@ -102,9 +102,17 @@ case class HandlerCont[R, A](h: HandlerFrame { type Res = R }, tail: MetaCont[R,
       (HandlerCont(handler, head), matched, tail)
     }
 
-  final def unwind() = {
-    h.cleanup();
-    tail.unwind()
+  final def unwind(t: Throwable) = {
+    val handler = h.cap.handler
+
+    if (handler._catch.isDefinedAt(t)) {
+      val fixed = handler._catch(t)
+      h.cleanup()
+      fixed(tail.asInstanceOf[MetaCont[handler.Res, A]])
+    } else {
+      h.cleanup()
+      tail.unwind(t)
+    }
   }
 
   override def toString = s"${h.cap} :: ${tail}"

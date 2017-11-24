@@ -168,7 +168,7 @@ object Control {
       }
 
       // initial handler frame
-      val hf = HandlerFrame(p)(init, List(h.cleanup))
+      val hf = HandlerFrame(p)(init, List(h._finally))
 
       Impure(c, HandlerCont(hf, k))
     }
