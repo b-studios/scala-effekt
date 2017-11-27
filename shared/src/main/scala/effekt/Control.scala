@@ -51,6 +51,12 @@ sealed trait Control[+A] { outer =>
 
   def flatMap[B](f: A => Control[B]): Control[B] = Computation { k => Impure(outer, k flatMap f) }
 
+  def andThen[B](f: Control[B]): Control[B] = flatMap(_ => f)
+
+  def >>=[B](f: A => Control[B]): Control[B] = flatMap(f)
+
+  def >>[B](f: Control[B]): Control[B] = andThen(f)
+
   private[effekt] def apply[R](k: MetaCont[A, R]): Result[R]
 }
 
