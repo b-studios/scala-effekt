@@ -155,13 +155,13 @@ object Control {
             case HandlerCont(h2: HandlerFrame.Aux[p.type] @unchecked, k2) => {
               // after lifting a into the result type of the handler, perform
               // a resource cleanup.
-              val res = h.unit(a)
+              val res = h.unitState(h2.state)(a)
               h2.cleanup()
 
               // now continue
               // for now wrapped in Trivial to allow trampolining and
               // ressource cleanup
-              Impure(pure(res), k2)
+              Impure(res, k2)
             }
           }
         }
