@@ -28,6 +28,8 @@ trait Handler extends Eff { outer =>
 
   def unit: R => Res
 
+  def unitState: State => R => Control[Res] = _ => r => pure(unit(r))
+
   def _catch: PartialFunction[Throwable, Control[Res]] = PartialFunction.empty
 
   /**
