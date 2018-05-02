@@ -69,9 +69,8 @@ final class Trivial[+A](a: A) extends Control[A] {
   override def run(): A = a
 }
 
-object Control {
 
-  private[effekt] def pure[A](a: A): Control[A] = new Trivial(a)
+object Control {
 
   // f receives an updated copy of E, reflecting the new state of the
   // parametrized handler and a continuation that takes both the
@@ -83,7 +82,7 @@ object Control {
   // (2) calls f with the current version of E to obtain an A and yet a new version
   //     e3 of E.
   // (3) splices in k and pushes e3 as prompt
-  private[effekt] final def use[A](c: Capability)(f: CPS[A, c.Res]): Control[A] =
+  private[effekt] final def use[A](c: Handler)(f: CPS[A, c.Res]): Control[A] =
     new Control[A] {
       def apply[R](k: MetaCont[A, R]): Result[R] = {
 
@@ -102,15 +101,10 @@ object Control {
       }
     }
 
-  private[effekt] final def handle(h: Handler)(f: Cap[h.type] => Control[h.R]): Control[h.Res] = {
-
-    // produce a new prompt
-    val p = Cap(h)
-
+  private[effekt] final def handle(h: Handler)(f: h.R using h.type): Control[h.Res] =
     new Control[h.Res] {
       def apply[R2](k: MetaCont[h.Res, R2]): Result[R2] = {
-        Impure(f(p).map { h.unit }, HandlerCont[h.Res, R2](p)(k))
+        Impure(f(h).map { h.unit }, HandlerCont[h.Res, R2](h)(k))
       }
     }
-  }
 }

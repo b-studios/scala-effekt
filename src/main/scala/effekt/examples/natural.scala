@@ -42,45 +42,42 @@ trait Id[R] extends Handler.Basic[R, R] {
 
 
 // First effect: The contextual speaker
-trait Speaker extends Eff {
-  def speaker(): Op[NominalPhrase]
+trait Speaker {
+  def speaker(): Control[NominalPhrase]
 }
 object Speaker {
   def apply[R](p: NominalPhrase)(f: R using Speaker) =
     handle(new Speaker with Id[R] {
-      def speaker() = resume(p)
+      def speaker() = pure(p)
     })(f)
 
-  def me: NominalPhrase using Speaker =
-    implicit s => use(s)(s.handler.speaker())
+  def me: NominalPhrase using Speaker = implicit s => s.speaker()
 }
 
 // Second effect: Scoped sentences
-trait Scope[R] extends Eff {
-  def scope[A](k: CPS[A, R]): Op[A]
+trait Scope[R] {
+  def scope[A](k: CPS[A, R]): Control[A]
 }
 object Scope {
   def apply[R](f: R using Scope[R]): Control[R] =
     handle(new Scope[R] with Id[R] {
-      def scope[A](k: CPS[A, R]) = implicit k2 => k(a => k2(a))
+      def scope[A](k: CPS[A, R]) = use { k(resume) }
     })(f)
 
-  def scope[A, R](k: CPS[A, R]): A using Scope[R] =
-    implicit s => use(s)(s.handler.scope[A](k))
+  def scope[A, R](k: CPS[A, R]): A using Scope[R] = implicit s => s.scope[A](k)
 }
 
 // Third effect: Conventional implicature
-trait Implicature extends Eff {
-  def implicate(s: Sentence): Op[Unit]
+trait Implicature {
+  def implicate(s: Sentence): Control[Unit]
 }
 object Implicature {
   def accommodate(f: Sentence using Implicature) =
     handle(new Implicature with Id[Sentence] {
-      def implicate(s: Sentence) = resume(()).map { x => And(s, x) }
+      def implicate(s: Sentence) = use { resume(()).map { x => And(s, x) } }
     })(f)
 
-  def implicate(s: Sentence): Unit using Implicature =
-    implicit i => use(i)(i.handler.implicate(s))
+  def implicate(s: Sentence): Unit using Implicature = implicit i => i.implicate(s)
 }
 
 
@@ -158,7 +155,7 @@ object syntax {
     } yield Say(speaker, sentence)
 
     // In Dotty we could use implicit function types here
-    def said(t: Cap[Speaker] => Control[Sentence]) = for {
+    def said(t: Speaker => Control[Sentence]) = for {
       s <- p
       sentence <- Speaker(s) { t(implicitly) }
     } yield Say(s, sentence)
@@ -174,7 +171,7 @@ object syntax {
   implicit def autoLift(t: NominalPhrase): LiftedPersonOps = pure(t)
 
   //  @inline // crashes the dotty compiler
-  def quote(f: Sentence using Speaker): Cap[Speaker] => Control[Sentence] = f
+  def quote(f: Sentence using Speaker): Speaker => Control[Sentence] = f
 
   def every(pred: NominalPhrase => Sentence): NominalPhrase using Scope[Sentence]
     = every(pure(pred))

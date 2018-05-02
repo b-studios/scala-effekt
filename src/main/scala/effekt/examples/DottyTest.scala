@@ -17,30 +17,30 @@ object DottyTest extends App {
   def div(x: Int, y: Int): Int using Exc =
     if (y == 0) raise("y is zero") else pure(x / y)
 
-  trait Exc extends Eff {
-    def raise[A](msg: String): Op[A]
+  trait Exc {
+    def raise[A](msg: String): Control[A]
   }
 
-  def raise[A](msg: String): A using Exc =
-    implicit e => use(e)(e.handler.raise(msg))
+  def raise[A](msg: String): A using Exc = implicit e => e.raise(msg)
 
   trait Maybe[R] extends Exc with Handler.Basic[R,  Option[R]] {
     def unit = r => Some(r)
-    def raise[A](msg: String) = pure(None)
+    def raise[A](msg: String) = use { pure(None) }
   }
-  def Maybe[R](f: R using Exc) = handle(new Maybe[R] {  })(f)
+  def Maybe[R](f: R using Exc) = handle(new Maybe[R] {})(f)
 
-  trait Amb extends Eff {
-    def flip(): Op[Boolean]
+  trait Amb {
+    def flip(): Control[Boolean]
   }
 
   trait AmbList[R] extends Amb with Handler.Basic[R,  List[R]] {
     def unit = r => List(r)
-    def flip() = for { xs <- resume(true);  ys <- resume(false) }
-      yield xs ++ ys
+    def flip() = use {
+      for {xs <- resume(true); ys <- resume(false)}
+        yield xs ++ ys
+    }
   }
-  def flip(): Boolean using Amb =
-    implicit a => use(a)(a.handler.flip())
+  def flip(): Boolean using Amb = implicit a => a.flip()
 
   def AmbList[R](f: R using Amb) = handle(new AmbList[R] {})(f)
 

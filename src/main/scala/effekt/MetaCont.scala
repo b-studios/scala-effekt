@@ -6,7 +6,7 @@ sealed trait MetaCont[-A, +B] extends Serializable {
 
   def append[C](s: MetaCont[B, C]): MetaCont[A, C]
 
-  def splitAt(c: Capability): (MetaCont[A, c.Res], MetaCont[c.Res, B])
+  def splitAt(c: Handler): (MetaCont[A, c.Res], MetaCont[c.Res, B])
 
   def map[C](f: C => A): MetaCont[C, B] = flatMap(x => pure(f(x)))
 
@@ -20,7 +20,7 @@ case class CastCont[-A, +B]() extends MetaCont[A, B] {
 
   final def append[C](s: MetaCont[B, C]): MetaCont[A, C] = s.asInstanceOf[MetaCont[A, C]]
 
-  final def splitAt(c: Capability) = sys error s"Prompt $c not found on the stack."
+  final def splitAt(c: Handler) = sys error s"Prompt $c not found on the stack."
 
   override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(x => g(x).asInstanceOf[B])
 }
@@ -31,7 +31,7 @@ case class ReturnCont[-A, +B](f: A => B) extends MetaCont[A, B] {
 
   final def append[C](s: MetaCont[B, C]): MetaCont[A, C] = s map f
 
-  final def splitAt(c: Capability) = sys error s"Prompt $c not found on the stack."
+  final def splitAt(c: Handler) = sys error s"Prompt $c not found on the stack."
 
   override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(x => f(g(x)))
 }
@@ -51,7 +51,7 @@ case class FramesCont[-A, B, +C](frames: List[Frame[Nothing, Any]], tail: MetaCo
 
   final def append[D](s: MetaCont[C, D]): MetaCont[A, D] = FramesCont(frames, tail append s)
 
-  final def splitAt(c: Capability) = tail.splitAt(c) match {
+  final def splitAt(c: Handler) = tail.splitAt(c) match {
     case (head, tail) => (FramesCont(frames, head), tail)
   }
 
@@ -59,12 +59,12 @@ case class FramesCont[-A, B, +C](frames: List[Frame[Nothing, Any]], tail: MetaCo
 }
 
 private[effekt]
-case class HandlerCont[Res, +A](h: Cap[_])(tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+case class HandlerCont[Res, +A](h: Handler)(tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
   final def apply(r: Res): Result[A] = tail(r)
 
   final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = HandlerCont(h)(tail append s)
 
-  final def splitAt(c: Capability) =
+  final def splitAt(c: Handler) =
   // Here we deduce type equality from referential equality
     if (h eq c) {
       // R0 == c.Res
