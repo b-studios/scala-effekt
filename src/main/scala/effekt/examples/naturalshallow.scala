@@ -107,8 +107,6 @@ trait Syntax { self: SpeakerDSL with ScopeDSL with ImplicatureDSL with SubjectDS
 
   def quote(f: S using Speaker): Speaker => Control[S] = f
 
-  implicit def lift(t: NP): Control[NP] = pure(t)
-
   implicit def liftOps(t: NP)(implicit alg: Sentences[NP, S]): LiftedPersonOps =
     new LiftedPersonOps(pure(t))
 
@@ -160,21 +158,7 @@ trait SpeakerEffectDSL extends SpeakerDSL {
   def withSpeaker[R](p: Control[NP])(f: R using Speaker): Control[R] = p flatMap { p => f(() => p) }
 
   def me: NP using Speaker = implicit s => s.speaker()
-}
-
-// Simpler implementation since no continuations are actually needed
-trait SpeakerImplicitDSL extends SpeakerDSL {
-
-  @annotation.implicitNotFound("Cannot find a speaker, which is required here.\nSpeakers can be introduced using `p said quote { s }` or using `withSpeaker(p) { s }`")
-  case class Speaker(person: NP)
-
-  def withSpeaker[R](p: NP)(f: R using Speaker): Control[R] = withSpeaker(pure(p))(f)
-
-  def withSpeaker[R](p: Control[NP])(f: R using Speaker): Control[R] =
-    p flatMap { person => f(Speaker(person)) }
-
-  def me: NP using Speaker = implicit s => pure(s.person)
-  def I: NP using Speaker = implicit s => pure(s.person)
+  def I: NP using Speaker = me
 }
 
 trait ScopeDSL {
@@ -267,7 +251,7 @@ trait FocusDSL {
 
 }
 
-trait Statements extends Syntax with SpeakerImplicitDSL with ScopeDSL with ImplicatureDSL with SubjectDSL with FocusDSL {
+trait Statements extends Syntax with SpeakerEffectDSL with ScopeDSL with ImplicatureDSL with SubjectDSL with FocusDSL {
 
   type NP
   type S

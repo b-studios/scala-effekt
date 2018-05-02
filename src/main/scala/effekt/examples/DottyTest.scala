@@ -36,7 +36,7 @@ object DottyTest extends App {
   trait AmbList[R] extends Amb with Handler.Basic[R,  List[R]] {
     def unit = r => List(r)
     def flip() = use {
-      for {xs <- resume(true); ys <- resume(false)}
+      for { xs <- resume(true); ys <- resume(false) }
         yield xs ++ ys
     }
   }
