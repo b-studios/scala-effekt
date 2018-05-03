@@ -7,7 +7,9 @@ trait Handler { h =>
 
   def use[A](body: CPS[A, Res]): Control[A] = Control.use(this)(body)
 
-  def apply(f: R using h.type): Control[Res] = Control.handle(this)(f)
+  def handle(f: R using h.type): Control[Res] = Control.handle(this)(f)
+
+  def apply(f: R using h.type): Control[Res] = handle(f)
 }
 object Handler {
 

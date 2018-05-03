@@ -22,7 +22,7 @@ case class CastCont[-A, +B]() extends MetaCont[A, B] {
 
   final def splitAt(c: Handler) = sys error s"Prompt $c not found on the stack."
 
-  override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(x => g(x).asInstanceOf[B])
+//  override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(x => g(x).asInstanceOf[B])
 }
 
 private[effekt]
@@ -33,7 +33,7 @@ case class ReturnCont[-A, +B](f: A => B) extends MetaCont[A, B] {
 
   final def splitAt(c: Handler) = sys error s"Prompt $c not found on the stack."
 
-  override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(x => f(g(x)))
+//  override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(x => f(g(x)))
 }
 
 private[effekt]

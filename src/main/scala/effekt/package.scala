@@ -16,7 +16,7 @@ package object effekt {
 
   final def handle(h: Handler)(f: h.R using h.type): Control[h.Res] = Control.handle(h)(f)
 
-  implicit final def pure[A](a: A): Control[A] = new Trivial(a)
+  implicit final def pure[A](a: => A): Control[A] = new Trivial(a)
 
   final def resume[A, Res](a: A): CPS[A, Res] = implicit k => k(a)
 }

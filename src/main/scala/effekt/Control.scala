@@ -59,12 +59,13 @@ sealed trait Control[+A] { outer =>
 }
 
 private[effekt]
-final class Trivial[+A](a: A) extends Control[A] {
+final class Trivial[+A](a: => A) extends Control[A] {
   def apply[R](k: MetaCont[A, R]): Result[R] = k(a)
 
   override def map[B](f: A => B): Control[B] = new Trivial(f(a))
 
-  override def flatMap[B](f: A => Control[B]): Control[B] = f(a)
+  // !!! this affects side effects raised by f !!!
+//  override def flatMap[B](f: A => Control[B]): Control[B] = f(a)
 
   override def run(): A = a
 }
