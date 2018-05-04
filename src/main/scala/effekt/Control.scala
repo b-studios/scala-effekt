@@ -73,21 +73,10 @@ final class Trivial[+A](a: => A) extends Control[A] {
 
 object Control {
 
-  // f receives an updated copy of E, reflecting the new state of the
-  // parametrized handler and a continuation that takes both the
-  // next value and again an updated handler.
-  //
-  // Operationally, it
-  // (1) slices the meta continuation at point E, obtaining cont k up to E and
-  //     the current version e2 of E
-  // (2) calls f with the current version of E to obtain an A and yet a new version
-  //     e3 of E.
-  // (3) splices in k and pushes e3 as prompt
-  private[effekt] final def use[A](c: Handler)(f: CPS[A, c.Res]): Control[A] =
+  private[effekt] final def use[A](c: Prompt)(f: CPS[A, c.Res]): Control[A] =
     new Control[A] {
       def apply[R](k: MetaCont[A, R]): Result[R] = {
 
-        // slice the meta continuation in three parts
         val (init, tail) = k splitAt c
 
         val handled: Control[c.Res] = f { a =>
@@ -102,10 +91,17 @@ object Control {
       }
     }
 
-  private[effekt] final def handle(h: Handler)(f: h.R using h.type): Control[h.Res] =
+  private[effekt] final def handle(h: Prompt)(f: h.Res using h.type): Control[h.Res] =
     new Control[h.Res] {
       def apply[R2](k: MetaCont[h.Res, R2]): Result[R2] = {
-        Impure(f(h).map { h.unit }, HandlerCont[h.Res, R2](h)(k))
+        Impure(f(h), HandlerCont[h.Res, R2](h)(k))
+      }
+    }
+
+  private[effekt] final def stateful[S, R](s: Stateful[S])(f: s.type => Control[R]): Control[R] =
+    new Control[R] {
+      def apply[R2](k: MetaCont[R, R2]): Result[R2] = {
+        Impure(f(s), StateCont(s, null.asInstanceOf[S], k))
       }
     }
 }
