@@ -3,12 +3,12 @@ package effekt
 trait Handler extends Prompt { h =>
   type R
   type Res
-  def unit: R => Res
+  def unit: R => Control[Res]
 
   def use[A](body: CPS[A, Res]): Control[A] = Control.use(this) { body }
 
   def handle(f: R using this.type): Control[Res] =
-    Control.handle(this) { f(this) map unit }
+    Control.handle(this) { f(this) flatMap unit }
 
   def apply(f: R using this.type): Control[Res] = handle(f)
 }
