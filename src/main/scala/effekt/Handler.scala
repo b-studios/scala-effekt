@@ -21,6 +21,9 @@ object Handler {
 }
 
 trait Stateful[S] {
-  def onSave(): S
-  def onLoad(s: S): Unit
+  def get(): S
+  def put(s: S): Unit
+
+  def value: S = get()
+  def value_=(s: S): Unit = put(s)
 }

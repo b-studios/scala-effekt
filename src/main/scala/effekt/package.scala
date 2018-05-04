@@ -26,11 +26,13 @@ package object effekt {
   // capture continuations
   // ===
   // TODO rename Prompt to Delimiter?
+  @scala.annotation.implicitNotFound("No prompt found for 'use'. Maybe you forgot to handle the effect?")
   trait Prompt { type Res }
   def use[A](implicit p: Prompt) = ContinuationScope[A, p.type](p)
 
   // this complication is only necessary since we can't write `use {}` and have p inferred
   // as `use(p) {}`. So we write `use in {}` to mean `use(p) in {}`
+  // In summary, we use value inference to guide type inference.
   case class ContinuationScope[A, P <: Prompt](p: P) {
     def in(body: CPS[A, p.Res]): Control[A] = Control.use(p) { body }
     def apply(body: CPS[A, p.Res]): Control[A] = in(body)
@@ -38,14 +40,11 @@ package object effekt {
 
   // ambient state
   // ===
-  trait State[S] { def get(): Control[S]; def put(s: S): Control[Unit] }
-  def stateful[S, R](init: S)(body: State[S] => Control[R]): Control[R] = {
-    val state = new State[S] with Stateful[S] {
+  def stateful[S, R](init: S)(body: Stateful[S] => Control[R]): Control[R] = {
+    val state = new Stateful[S] {
       private var state: S = init
-      def get(): Control[S] = state
-      def put(s: S): Control[Unit] = state = s
-      def onSave(): S = state
-      def onLoad(s: S): Unit = state = s
+      def get(): S = state
+      def put(s: S): Unit = state = s
     }
 
     Control.stateful(state) { body }

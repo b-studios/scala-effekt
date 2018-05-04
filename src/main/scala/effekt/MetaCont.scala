@@ -83,11 +83,11 @@ case class StateCont[Res, S, +A](h: Stateful[S], state: S, tail: MetaCont[Res, A
   final def apply(r: Res): Result[A] = tail(r)
 
   final def append[C](rest: MetaCont[A, C]): MetaCont[Res, C] = {
-    h onLoad state
+    h put state
     StateCont(h, state, tail append rest)
   }
 
   final def splitAt(c: Prompt) = tail.splitAt(c) match {
-    case (head, tail) => (StateCont(h, h.onSave(), head), tail)
+    case (head, tail) => (StateCont(h, h.get(), head), tail)
   }
 }
