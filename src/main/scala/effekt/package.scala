@@ -12,6 +12,8 @@ package object effekt {
 
   type CPS[A, E] = implicit (A => Control[E]) => Control[E]
 
+  type StatefulCPS[A, E, S] = implicit ((A, S) => Control[E]) => S => Control[E]
+
   final def run[A](c: Control[A]): A = c.run()
 
   final def handle(h: Handler)(f: h.R using h.type): Control[h.Res] = h.handle(f)
@@ -22,6 +24,7 @@ package object effekt {
   implicit final def pure[A](a: => A): Control[A] = new Trivial(a)
 
   final def resume[A, Res](a: A): CPS[A, Res] = implicit k => k(a)
+  final def resume[A, Res, S](a: A, s: S)(implicit k: ((A, S) => Control[Res])): Control[Res] = k(a, s)
 
   // capture continuations
   // ===
