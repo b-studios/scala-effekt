@@ -18,8 +18,3 @@ install:
 - gem install jekyll -v 3.2.1
 script:
 - sbt ++$TRAVIS_SCALA_VERSION test
-after_success:
-- if [ "$TRAVIS_BRANCH" = "master" -a "$TRAVIS_PULL_REQUEST" = "false" ]; then bash
-  scripts/publishMicrosite.sh; fi
-- if [ "$TRAVIS_PULL_REQUEST" = "true" ]; then echo "Not in master branch, skipping
-  deploy and release"; fi
