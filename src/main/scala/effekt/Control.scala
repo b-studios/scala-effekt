@@ -55,6 +55,11 @@ sealed trait Control[+A] { outer =>
     def apply[R](k: MetaCont[B, R]): Result[R] = outer(k flatMap f)
   }
 
+  def withFilter(p: A => Boolean): Control[A] = flatMap {
+    case a if p(a) => pure(a)
+    case a => new Error(new Throwable("Could not match " + a))
+  }
+
   private[effekt] def apply[R](k: MetaCont[A, R]): Result[R]
 }
 
@@ -68,6 +73,15 @@ final class Trivial[+A](a: => A) extends Control[A] {
 //  override def flatMap[B](f: A => Control[B]): Control[B] = f(a)
 
   override def run(): A = a
+}
+
+private[effekt]
+final class Error(t: Throwable) extends Control[Nothing] {
+  def apply[R](k: MetaCont[Nothing, R]): Result[R] = Abort(t)
+
+  override def map[B](f: Nothing => B): Control[B] = this
+
+  override def flatMap[B](f: Nothing => Control[B]): Control[B] = this
 }
 
 
