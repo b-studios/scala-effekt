@@ -1,55 +1,58 @@
 package object effekt {
 
-  /**
-   * Type alias for convenient use of capabilities
-   *
-   * @tparam E the effect signature to use
-   */
-  private[effekt] type Frame[-A, +B] = A => Control[B]
+  // we use intersection types to track effects, so Pure = Top
+  type Pure = Any
 
-  type using[+A, -E] = implicit E => Control[A]
-  type and[+A, -E] = implicit E => A
+  // A type DSL to construct implicit, dependent function types
+  // Currently effectively blocked by https://github.com/lampepfl/dotty/issues/5288
+  type /[+A, -E] = Control[A] { type Effects >: E }
+  type using[+A, H]  = [-Effects] => implicit (h: H) => A / (h.type & Effects)
+  type and[C[-_], H] = [-Effects] => implicit (h: H) => C[h.type & Effects]
+  type Prog[C[-_]] = C[Any]
 
-  type CPS[A, E] = implicit (A => Control[E]) => Control[E]
+  type CPS[A, R] = implicit (A => R) => R
 
-  type StatefulCPS[A, E, S] = implicit ((A, S) => Control[E]) => S => Control[E]
+  final def run[A](c: A / Pure): A = c.run
 
-  final def run[A](c: Control[A]): A = c.run()
+//  final def handle(h: Handler)(f: h.R using h.type): Control[h.Res] = ??? //h.handle(f)
 
-  final def handle(h: Handler)(f: h.R using h.type): Control[h.Res] = h.handle(f)
+  final def handling[R, E](f: implicit (p: Handler.Type[R, E]) => R / (p.type & E)): R / E = {
+    val p = new Handler { type Res = R; type Effects = E }
+    // TODO fix this cast later
+    Control.handle(p)(f.asInstanceOf[implicit p.type => p.Res / (p.type & p.Effects)])
+  }
 
-  final def handling[R0](f: R0 using Prompt { type Res = R0 }): Control[R0] =
-    Control.handle(new Prompt { type Res = R0 })(f)
+  final def pure[A](a: => A): A / Pure = new Trivial(a)
 
-  implicit final def pure[A](a: => A): Control[A] = new Trivial(a)
-
-  final def resume[A, Res](a: A): CPS[A, Res] = implicit k => k(a)
-  final def resume[A, Res, S](a: A, s: S)(implicit k: ((A, S) => Control[Res])): Control[Res] = k(a, s)
+  final def resume[A, R](a: A): CPS[A, R] = implicit k => k(a)
 
   // capture continuations
   // ===
-  // TODO rename Prompt to Delimiter?
   @scala.annotation.implicitNotFound("No prompt found for 'use'. Maybe you forgot to handle the effect?")
-  trait Prompt { type Res }
-  def use[A](implicit p: Prompt) = ContinuationScope[A, p.type](p)
+  trait Handler {
+    type Res
+    type Effects
+
+    def use[A](body: CPS[A, Res / Effects]): A / this.type = Control.use(this) { body }
+
+    def handle(f: implicit this.type => Res / (this.type & Effects)): Res / Effects  =
+      Control.handle(this) { f(this) }
+
+    def apply(f: implicit this.type => Res / (this.type & Effects)): Res / Effects = handle(f)
+  }
+  object Handler {
+    type Type[R, E] = Handler { type Res = R; type Effects = E }
+  }
+  def use[A](implicit p: Handler) = ContinuationScope[A, p.type](p)
 
   // this complication is only necessary since we can't write `use {}` and have p inferred
   // as `use(p) {}`. So we write `use in {}` to mean `use(p) in {}`
   // In summary, we use value inference to guide type inference.
-  case class ContinuationScope[A, P <: Prompt](p: P) {
-    def in(body: CPS[A, p.Res]): Control[A] = Control.use(p) { body }
-    def apply(body: CPS[A, p.Res]): Control[A] = in(body)
+  case class ContinuationScope[A, P <: Handler](p: P) {
+    def in(body: CPS[A, p.Res / p.Effects]): A / p.type = Control.use(p) { body }
+    def apply(body: CPS[A, p.Res / p.Effects]): A / p.type = in(body)
   }
 
-  // ambient state
-  // ===
-  def stateful[S, R](init: S)(body: Stateful[S] => Control[R]): Control[R] = {
-    val state = new Stateful[S] {
-      private var state: S = init
-      def get(): S = state
-      def put(s: S): Unit = state = s
-    }
-
-    Control.stateful(state) { body }
-  }
+  // internally we ignore the effects
+  private[effekt] type Frame[-A, +R] = A => Control[R]
 }

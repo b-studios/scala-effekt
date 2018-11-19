@@ -39,23 +39,28 @@ package effekt
  */
 sealed trait Control[+A] { outer =>
 
+  type Effects >: Nothing
+
   /**
    * Runs the computation to yield an A
    *
    * Attention: It is unsafe to run control if not all effects have
    *            been handled!
    */
-  def run(): A = Result.trampoline(apply(ReturnCont(identity)))
+  def run[E <: Effects](implicit erased ev: E =:= Pure): A =
+    Result.trampoline(apply(ReturnCont(identity)))
 
-  def map[B](f: A => B): Control[B] = new Control[B] {
+  def map[B](f: A => B): B / Effects = new Control[B] {
+    type Effects = outer.Effects
     def apply[R](k: MetaCont[B, R]): Result[R] = outer(k map f)
   }
 
-  def flatMap[B](f: A => Control[B]): Control[B] = new Control[B] {
+  def flatMap[B, E](f: A => B / E): B / (E & Effects) = new Control[B] {
+    type Effects = E & outer.Effects
     def apply[R](k: MetaCont[B, R]): Result[R] = outer(k flatMap f)
   }
 
-  def withFilter(p: A => Boolean): Control[A] = flatMap {
+  def withFilter(p: A => Boolean): A / Effects = flatMap {
     case a if p(a) => pure(a)
     case a => new Error(new Throwable("Could not match " + a))
   }
@@ -65,57 +70,58 @@ sealed trait Control[+A] { outer =>
 
 private[effekt]
 final class Trivial[+A](a: => A) extends Control[A] {
+  type Effects = Pure
+
   def apply[R](k: MetaCont[A, R]): Result[R] = k(a)
 
-  override def map[B](f: A => B): Control[B] = new Trivial(f(a))
+  override def map[B](f: A => B): B / Pure = new Trivial(f(a))
 
-  // !!! this affects side effects raised by f !!!
-//  override def flatMap[B](f: A => Control[B]): Control[B] = f(a)
-
-  override def run(): A = a
+  override def run[E <: Effects](implicit erased ev: E =:= Pure): A = a
 }
 
 private[effekt]
 final class Error(t: Throwable) extends Control[Nothing] {
+  type Effects = Any
   def apply[R](k: MetaCont[Nothing, R]): Result[R] = Abort(t)
-
-  override def map[B](f: Nothing => B): Control[B] = this
-
-  override def flatMap[B](f: Nothing => Control[B]): Control[B] = this
+  override def map[B](f: Nothing => B): B / Effects = this.asInstanceOf[B / Effects]
+  override def flatMap[B, E](f: Nothing => B / E): B / (E & Effects) = this.asInstanceOf[B / Effects]
 }
 
 
 object Control {
 
-  private[effekt] final def use[A](c: Prompt)(f: CPS[A, c.Res]): Control[A] =
+  private[effekt] final def use[A](c: Handler)(f: CPS[A, c.Res / c.Effects]): A / c.type =
     new Control[A] {
+      type Effects = c.type
       def apply[R](k: MetaCont[A, R]): Result[R] = {
 
         val (init, tail) = k splitAt c
 
         val handled: Control[c.Res] = f { a =>
           new Control[c.Res] {
+            type Effects = c.Effects
             def apply[R2](k: MetaCont[c.Res, R2]): Result[R2] =
               (init append k).apply(a)
           }
         }
 
         // continue with tail
-        Impure(handled, tail)
+        Computation(handled, tail)
       }
     }
 
-  private[effekt] final def handle(h: Prompt)(f: h.Res using h.type): Control[h.Res] =
+  private[effekt] final def handle(h: Handler)(f: implicit h.type => h.Res / (h.type & h.Effects)): h.Res / h.Effects =
     new Control[h.Res] {
+      type Effects = h.Effects
       def apply[R2](k: MetaCont[h.Res, R2]): Result[R2] = {
-        Impure(f(h), HandlerCont[h.Res, R2](h)(k))
+        Computation(f(h), HandlerCont[h.Res, R2](h)(k))
       }
     }
 
-  private[effekt] final def stateful[S, R](s: Stateful[S])(f: s.type => Control[R]): Control[R] =
-    new Control[R] {
-      def apply[R2](k: MetaCont[R, R2]): Result[R2] = {
-        Impure(f(s), StateCont(s, null.asInstanceOf[S], k))
-      }
-    }
+//  private[effekt] final def stateful[S, R](s: Stateful[S])(f: s.type => Control[R]): Control[R] =
+//    new Control[R] {
+//      def apply[R2](k: MetaCont[R, R2]): Result[R2] = {
+//        Computation(f(s), StateCont(s, null.asInstanceOf[S], k))
+//      }
+//    }
 }
