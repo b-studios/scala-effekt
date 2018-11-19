@@ -1,18 +1,18 @@
 lazy val commonSettings = Seq(
-  scalaVersion := "0.8.0-RC1",
+  scalaVersion := dottyLatestNightlyBuild.get,
   version := "0.2-SNAPSHOT",
   organization := "de.b-studios",
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding", "UTF-8",
     "-feature",
-    "-unchecked"
+    "-unchecked",
+    "-language:implicitConversions"
   ),
   fork in test := true,
   parallelExecution in Test := false,
-  mainClass in (Compile, run) := Some("effekt.examples.shallow.fluent")
+  mainClass in (Compile, run) := Some("effekt.examples.DottyTest")
 )
-
 
 lazy val effektSettings = commonSettings ++ publishSettings
 
