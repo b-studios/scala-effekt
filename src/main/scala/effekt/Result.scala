@@ -7,7 +7,7 @@ private[effekt]
 case class Value[+A](value: A) extends Result[A]
 
 private[effekt]
-case class Computation[+A, R](c: Control[R], k: MetaCont[R, A]) extends Result[A]
+case class Computation[+A, R](c: Control[R, _], k: MetaCont[R, A]) extends Result[A]
 
 private[effekt]
 case class Abort(t: Throwable) extends Result[Nothing]

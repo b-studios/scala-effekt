@@ -15,7 +15,7 @@ object DottyTest extends App {
 
   lazy val prog: implicit (a: Amb) => implicit (e: Exc) => Boolean / (a.type & e.type) =
     implicit (a: Amb) => implicit (e: Exc) =>
-      if (x <= 0) Amb.flip[a.type & e.type]() else Exc.raise("too big")
+      if (x <= 0) Amb.flip() else Exc.raise("too big")
 //
 //  lazy val res_1: Control[List[Option[Boolean]]] = AmbList { Maybe { prog } }
 //  lazy val res_2: Control[Option[List[Boolean]]] = Maybe { AmbList { prog } }

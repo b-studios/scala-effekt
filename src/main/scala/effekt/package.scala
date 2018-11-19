@@ -5,7 +5,7 @@ package object effekt {
 
   // A type DSL to construct implicit, dependent function types
   // Currently effectively blocked by https://github.com/lampepfl/dotty/issues/5288
-  type /[+A, -E] = Control[A] { type Effects >: E }
+  type /[+A, -E] = Control[A, E]
   type using[+A, H]  = [-Effects] => implicit (h: H) => A / (h.type & Effects)
   type and[C[-_], H] = [-Effects] => implicit (h: H) => C[h.type & Effects]
   type Prog[C[-_]] = C[Any]
@@ -54,5 +54,5 @@ package object effekt {
   }
 
   // internally we ignore the effects
-  private[effekt] type Frame[-A, +R] = A => Control[R]
+  private[effekt] type Frame[-A, +R] = A => Control[R, _]
 }

@@ -37,9 +37,7 @@ package effekt
  * @tparam A the type of the resulting value which is eventually
  *           computed within the control monad.
  */
-sealed trait Control[+A] { outer =>
-
-  type Effects >: Nothing
+sealed trait Control[+A, -Effects] { outer =>
 
   /**
    * Runs the computation to yield an A
@@ -50,13 +48,11 @@ sealed trait Control[+A] { outer =>
   def run[E <: Effects](implicit erased ev: E =:= Pure): A =
     Result.trampoline(apply(ReturnCont(identity)))
 
-  def map[B](f: A => B): B / Effects = new Control[B] {
-    type Effects = outer.Effects
+  def map[B](f: A => B): B / Effects = new Control[B, Effects] {
     def apply[R](k: MetaCont[B, R]): Result[R] = outer(k map f)
   }
 
-  def flatMap[B, E](f: A => B / E): B / (E & Effects) = new Control[B] {
-    type Effects = E & outer.Effects
+  def flatMap[B, E](f: A => B / E): B / (E & Effects) = new Control[B, E & Effects] {
     def apply[R](k: MetaCont[B, R]): Result[R] = outer(k flatMap f)
   }
 
@@ -69,37 +65,33 @@ sealed trait Control[+A] { outer =>
 }
 
 private[effekt]
-final class Trivial[+A](a: => A) extends Control[A] {
-  type Effects = Pure
-
+final class Trivial[+A](a: => A) extends Control[A, Pure] {
   def apply[R](k: MetaCont[A, R]): Result[R] = k(a)
 
   override def map[B](f: A => B): B / Pure = new Trivial(f(a))
 
-  override def run[E <: Effects](implicit erased ev: E =:= Pure): A = a
+  override def run[E <: Pure](implicit erased ev: E =:= Pure): A = a
 }
 
 private[effekt]
-final class Error(t: Throwable) extends Control[Nothing] {
-  type Effects = Any
+final class Error(t: Throwable) extends Control[Nothing, Pure] {
   def apply[R](k: MetaCont[Nothing, R]): Result[R] = Abort(t)
-  override def map[B](f: Nothing => B): B / Effects = this.asInstanceOf[B / Effects]
-  override def flatMap[B, E](f: Nothing => B / E): B / (E & Effects) = this.asInstanceOf[B / Effects]
+  override def map[B](f: Nothing => B): B / Pure = this.asInstanceOf[B / Pure]
+  override def flatMap[B, E](f: Nothing => B / E): B / (E & Pure) = this.asInstanceOf[B / Pure]
 }
 
 
 object Control {
 
   private[effekt] final def use[A](c: Handler)(f: CPS[A, c.Res / c.Effects]): A / c.type =
-    new Control[A] {
+    new Control[A, c.type] {
       type Effects = c.type
       def apply[R](k: MetaCont[A, R]): Result[R] = {
 
         val (init, tail) = k splitAt c
 
-        val handled: Control[c.Res] = f { a =>
-          new Control[c.Res] {
-            type Effects = c.Effects
+        val handled: Control[c.Res, c.Effects] = f { a =>
+          new Control[c.Res, c.Effects] {
             def apply[R2](k: MetaCont[c.Res, R2]): Result[R2] =
               (init append k).apply(a)
           }
@@ -111,8 +103,7 @@ object Control {
     }
 
   private[effekt] final def handle(h: Handler)(f: implicit h.type => h.Res / (h.type & h.Effects)): h.Res / h.Effects =
-    new Control[h.Res] {
-      type Effects = h.Effects
+    new Control[h.Res, h.Effects] {
       def apply[R2](k: MetaCont[h.Res, R2]): Result[R2] = {
         Computation(f(h), HandlerCont[h.Res, R2](h)(k))
       }
