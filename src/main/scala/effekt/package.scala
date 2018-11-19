@@ -7,8 +7,8 @@ package object effekt {
    */
   private[effekt] type Frame[-A, +B] = A => Control[B]
 
-  type using[-A, +E] = implicit E => Control[A]
-  type and[-A, +E] = implicit E => A
+  type using[+A, -E] = implicit E => Control[A]
+  type and[+A, -E] = implicit E => A
 
   type CPS[A, E] = implicit (A => Control[E]) => Control[E]
 
