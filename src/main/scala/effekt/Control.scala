@@ -102,7 +102,7 @@ object Control {
     }
 
   // TODO this needs simplification
-  private[effekt] final def handle(h: Handler)(f: implicit h.type => h.Res / (h.type & h.Effects)): h.Res / h.Effects =
+  private[effekt] final def handle(h: Handler)(f: h.type => h.Res / (h.type & h.Effects)): h.Res / h.Effects =
     new Control[h.Res, h.Effects] {
       def apply[R2](k: MetaCont[h.Res, R2]): Result[R2] = {
         Computation(f(h), HandlerCont[h.Res, R2](h)(k))

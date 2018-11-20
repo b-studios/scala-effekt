@@ -6,8 +6,10 @@ package object effekt {
   // A type DSL to construct implicit, dependent function types
   // Currently effectively blocked by https://github.com/lampepfl/dotty/issues/5288
   type /[+A, -E] = Control[A, E]
-  type using[+A, -H]  = [-Effects] => implicit (h: H) => A / (h.type & Effects)
-  type and[C[-_], -H] = [-Effects] => implicit (h: H) => C[h.type & Effects]
+
+  // we drop implicit from the function types to improve type inference for now.
+  type using[+A, -H]  = [-Effects] => (h: H) => A / (h.type & Effects)
+  type and[C[-_], -H] = [-Effects] => (h: H) => C[h.type & Effects]
   type also[C[-_], -E] = [-Effects] => C[E & Effects]
   type Prog[C[-_]] = C[Any]
 
@@ -17,13 +19,12 @@ package object effekt {
 
   // that is Prog[h.Res using h.type also h.Effects] but the syntactic sugar impedes
   // type inference with implicit function types
-  final def handle(h: Handler)(f: implicit h.type => h.Res / (h.type & h.Effects)): h.Res / h.Effects =
+  final def handle(h: Handler)(f: h.type => h.Res / (h.type & h.Effects)): h.Res / h.Effects =
     h.handle(f)
 
-  final def handling[R, E](f: implicit (p: Handler.Type[R, E]) => R / (p.type & E)): R / E = {
+  final def handling[R, E](f: (p: Handler.Type[R, E]) => R / (p.type & E)): R / E = {
     val p = new Handler { type Res = R; type Effects = E }
-    // TODO fix this cast later
-    Control.handle(p)(f.asInstanceOf[implicit p.type => p.Res / (p.type & p.Effects)])
+    Control.handle(p)(h => f(h))
   }
 
   final def pure[A](a: => A): A / Pure = new Trivial(a)
@@ -41,10 +42,10 @@ package object effekt {
 
     def use[A](body: CPS[A, Res / Effects]): A / this.type = Control.use(this) { body }
 
-    def handle(f: implicit this.type => this.Res / (this.type & this.Effects)): this.Res / this.Effects  =
-      Control.handle(this) { f(this) }
+    def handle(f: this.type => this.Res / (this.type & this.Effects)): this.Res / this.Effects  =
+      Control.handle(this) { h => f(h) }
 
-    def apply(f: implicit this.type => Res / (this.type & Effects)): Res / Effects = handle(f)
+    def apply(f: this.type => Res / (this.type & Effects)): Res / Effects = handle(f)
   }
   object Handler {
     trait Base[R, E] extends Handler { type Res = R; type Effects = E }

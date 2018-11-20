@@ -1,8 +1,6 @@
 package effekt
 package examples
 
-import effekt._
-
 object DottyTest extends App {
 
   // Effect Signatures
@@ -14,26 +12,21 @@ object DottyTest extends App {
     def flip(): Boolean / this.type
   }
 
-  // Some Boilerplate
-  def Exc(implicit exc: Exc): exc.type = exc
-  def Amb(implicit amb: Amb): amb.type = amb
-
-
   // Effect Usage
 
   lazy val x = 0
 
-  val flipTwice: Prog[Boolean using Amb] =
+  def flipTwice(amb: Amb) =
     for {
-      x <- Amb.flip()
-      y <- Amb.flip()
+      x <- amb.flip()
+      y <- amb.flip()
     } yield x || y
 
-  lazy val prog: Prog[Boolean using Exc and Amb] = implicit (a: Amb) => implicit (e: Exc) =>
-    if (x <= 0) Amb.flip() else Exc.raise("too big")
+  def prog(exc: Exc, amb: Amb) =
+    if (x <= 0) amb.flip() else exc.raise("too big")
 
-  def div(x: Int, y: Int): Prog[Int using Exc] =
-    if (y == 0) Exc.raise("y is zero") else pure(x / y)
+  def div(x: Int, y: Int)(exc: Exc) =
+    if (y == 0) exc.raise("y is zero") else pure(x / y)
 
 
   // Effect Handlers
@@ -41,63 +34,62 @@ object DottyTest extends App {
     def raise[A](msg: String): A / this.type = use { pure(None) }
   }
 
-  def Maybe[R, E](f: Prog[R using Exc also E]): Option[R] / E = handle(new Maybe[R, E] {}) { implicit exc =>
-    f(exc).map { r => Some(r) }
-  }
+  def Maybe[R, E](action: (exc: Exc) => R / (exc.type & E)): Option[R] / E =
+    handle(new Maybe[R, E] {}) { exc => action(exc).map { r => Some(r) } }
 
   trait AmbList[R, E] extends Amb with Handler.Base[List[R], E] {
     def flip(): Boolean / this.type = use {
-      for { xs <- resume(true); ys <- resume(false) }
+      for {xs <- resume(true); ys <- resume(false)}
         yield xs ++ ys
     }
   }
-  def AmbList[R, E](f: Prog[R using Amb also E]): List[R] / E = handle(new AmbList[R, E] {}) { implicit amb =>
-    f(amb).map { x => List(x) }
-  }
+
+  def AmbList[R, E](action: (amb: Amb) => R / (amb.type & E)): List[R] / E =
+    handle(new AmbList[R, E] {}) { amb => action(amb).map { x => List(x) } }
 
   // Handling of Effects
 
-  val res = handle(new Maybe[Int, Pure] {}) {
+  val res = handle(new Maybe[Int, Pure] {}) { exc =>
     for {
-      r <- div(1, 0)(implicitly)
+      r <- div(1, 0)(exc)
     } yield Some(r)
   }.run
 
   println(res)
 
-  // un-eta-expanding gives "unspecified error"
-  val res2 = AmbList { implicit (amb: Amb) => flipTwice(amb) }.run
+  // removing the type annotations gives "unspecified error"
+  val res2 = AmbList [Boolean, Pure] { amb => flipTwice(amb) }.run
 
   println(res2)
 
-  val res3 = AmbList { implicit (amb: Amb) =>
-    Maybe { implicit (exc: Exc) =>
-      prog(amb)(exc)
+  val res3 = AmbList [Option[Boolean], Pure] { amb =>
+    Maybe [Boolean, amb.type] { exc =>
+      prog(exc, amb)
     }
   }.run
 
   println(res3)
 
-  val res4 = Maybe { implicit (exc: Exc) =>
-    AmbList { implicit (amb: Amb) =>
-      prog(amb)(exc)
+  val res4 = run {
+    Maybe [List[Boolean], Pure] { exc =>
+      AmbList [Boolean, exc.type] {
+        amb => prog(exc, amb)
+      }
     }
-  }.run
+  }
 
   println(res4)
 
-  var escaped: Amb = null
+//  var escaped: Amb = null
 
   // this should not typecheck...
-//  val res5 = Maybe { implicit (exc: Exc) =>
+//  val res5 = Maybe { exc =>
 //    for {
-//      _ <- AmbList {
-//        implicit (amb: Amb) =>
+//      _ <- AmbList { amb =>
 //          escaped = amb
 //          pure(true)
 //      }
-//      res <- AmbList {
-//        implicit (amb2: Amb) =>
+//      res <- AmbList { amb2 =>
 //          prog(escaped)(exc)
 //      }
 //    } yield res
