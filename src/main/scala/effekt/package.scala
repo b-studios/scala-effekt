@@ -6,15 +6,17 @@ package object effekt {
   // A type DSL to construct implicit, dependent function types
   // Currently effectively blocked by https://github.com/lampepfl/dotty/issues/5288
   type /[+A, -E] = Control[A, E]
-  type using[+A, H]  = [-Effects] => implicit (h: H) => A / (h.type & Effects)
-  type and[C[-_], H] = [-Effects] => implicit (h: H) => C[h.type & Effects]
-  type also[C[-_], E] = [-Effects] => C[E & Effects]
+  type using[+A, -H]  = [-Effects] => implicit (h: H) => A / (h.type & Effects)
+  type and[C[-_], -H] = [-Effects] => implicit (h: H) => C[h.type & Effects]
+  type also[C[-_], -E] = [-Effects] => C[E & Effects]
   type Prog[C[-_]] = C[Any]
 
   type CPS[A, R] = implicit (A => R) => R
 
   final def run[A](c: A / Pure): A = c.run
 
+  // that is Prog[h.Res using h.type also h.Effects] but the syntactic sugar impedes
+  // type inference with implicit function types
   final def handle(h: Handler)(f: implicit h.type => h.Res / (h.type & h.Effects)): h.Res / h.Effects =
     h.handle(f)
 
@@ -39,12 +41,13 @@ package object effekt {
 
     def use[A](body: CPS[A, Res / Effects]): A / this.type = Control.use(this) { body }
 
-    def handle(f: implicit this.type => Res / (this.type & Effects)): Res / Effects  =
+    def handle(f: implicit this.type => this.Res / (this.type & this.Effects)): this.Res / this.Effects  =
       Control.handle(this) { f(this) }
 
     def apply(f: implicit this.type => Res / (this.type & Effects)): Res / Effects = handle(f)
   }
   object Handler {
+    trait Base[R, E] extends Handler { type Res = R; type Effects = E }
     type Type[+R, -E] = Handler { type Res <: R; type Effects >: E }
   }
   def use[A](implicit p: Handler) = ContinuationScope[A, p.type](p)

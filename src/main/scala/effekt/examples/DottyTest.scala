@@ -5,6 +5,22 @@ import effekt._
 
 object DottyTest extends App {
 
+  // Effect Signatures
+  trait Exc {
+    def raise[A](msg: String): A / this.type
+  }
+
+  trait Amb {
+    def flip(): Boolean / this.type
+  }
+
+  // Some Boilerplate
+  def Exc(implicit exc: Exc): exc.type = exc
+  def Amb(implicit amb: Amb): amb.type = amb
+
+
+  // Effect Usage
+
   lazy val x = 0
 
   val flipTwice: Prog[Boolean using Amb] =
@@ -15,48 +31,33 @@ object DottyTest extends App {
 
   lazy val prog: Prog[Boolean using Exc and Amb] = implicit (a: Amb) => implicit (e: Exc) =>
     if (x <= 0) Amb.flip() else Exc.raise("too big")
-//
-//  lazy val res_1: Control[List[Option[Boolean]]] = AmbList { Maybe { prog } }
-//  lazy val res_2: Control[Option[List[Boolean]]] = Maybe { AmbList { prog } }
-//
-//
+
   def div(x: Int, y: Int): Prog[Int using Exc] =
     if (y == 0) Exc.raise("y is zero") else pure(x / y)
 
 
-
-  trait Exc {
-    def raise[A](msg: String): A / this.type
-  }
-  def Exc(implicit exc: Exc): exc.type = exc
-
-  trait Maybe[R] extends Exc with Handler {
-    type Res = Option[R]
+  // Effect Handlers
+  trait Maybe[R, E] extends Exc with Handler.Base[Option[R], E] {
     def raise[A](msg: String): A / this.type = use { pure(None) }
   }
 
-  def Maybe[R, E](f: Prog[R using Exc also E]): Option[R] / E = handle(new Maybe[R] { type Effects = E }) { implicit exc =>
+  def Maybe[R, E](f: Prog[R using Exc also E]): Option[R] / E = handle(new Maybe[R, E] {}) { implicit exc =>
     f(exc).map { r => Some(r) }
   }
 
-  trait Amb {
-    def flip(): Boolean / this.type
-  }
-  def Amb(implicit amb: Amb): amb.type = amb
-
-  trait AmbList[R] extends Amb with Handler {
-    type Res = List[R]
-
+  trait AmbList[R, E] extends Amb with Handler.Base[List[R], E] {
     def flip(): Boolean / this.type = use {
       for { xs <- resume(true); ys <- resume(false) }
         yield xs ++ ys
     }
   }
-  def AmbList[R, E](f: Prog[R using Amb also E]): List[R] / E = handle(new AmbList[R] { type Effects = E })(implicit amb =>
+  def AmbList[R, E](f: Prog[R using Amb also E]): List[R] / E = handle(new AmbList[R, E] {}) { implicit amb =>
     f(amb).map { x => List(x) }
-  )
+  }
 
-  val res = handle(new Maybe[Int] { type Effects = Pure }) {
+  // Handling of Effects
+
+  val res = handle(new Maybe[Int, Pure] {}) {
     for {
       r <- div(1, 0)(implicitly)
     } yield Some(r)
