@@ -85,7 +85,6 @@ object Control {
 
   private[effekt] final def use[A](c: Handler)(f: CPS[A, c.Res / c.Effects]): A / c.type =
     new Control[A, c.type] {
-      type Effects = c.type
       def apply[R](k: MetaCont[A, R]): Result[R] = {
 
         val (init, tail) = k splitAt c
@@ -102,6 +101,7 @@ object Control {
       }
     }
 
+  // TODO this needs simplification
   private[effekt] final def handle(h: Handler)(f: implicit h.type => h.Res / (h.type & h.Effects)): h.Res / h.Effects =
     new Control[h.Res, h.Effects] {
       def apply[R2](k: MetaCont[h.Res, R2]): Result[R2] = {

@@ -8,13 +8,15 @@ package object effekt {
   type /[+A, -E] = Control[A, E]
   type using[+A, H]  = [-Effects] => implicit (h: H) => A / (h.type & Effects)
   type and[C[-_], H] = [-Effects] => implicit (h: H) => C[h.type & Effects]
+  type also[C[-_], E] = [-Effects] => C[E & Effects]
   type Prog[C[-_]] = C[Any]
 
   type CPS[A, R] = implicit (A => R) => R
 
   final def run[A](c: A / Pure): A = c.run
 
-//  final def handle(h: Handler)(f: h.R using h.type): Control[h.Res] = ??? //h.handle(f)
+  final def handle(h: Handler)(f: implicit h.type => h.Res / (h.type & h.Effects)): h.Res / h.Effects =
+    h.handle(f)
 
   final def handling[R, E](f: implicit (p: Handler.Type[R, E]) => R / (p.type & E)): R / E = {
     val p = new Handler { type Res = R; type Effects = E }
@@ -25,6 +27,8 @@ package object effekt {
   final def pure[A](a: => A): A / Pure = new Trivial(a)
 
   final def resume[A, R](a: A): CPS[A, R] = implicit k => k(a)
+
+  // also add type parameters to Handler to help contravariant type inference
 
   // capture continuations
   // ===
@@ -41,7 +45,7 @@ package object effekt {
     def apply(f: implicit this.type => Res / (this.type & Effects)): Res / Effects = handle(f)
   }
   object Handler {
-    type Type[R, E] = Handler { type Res = R; type Effects = E }
+    type Type[+R, -E] = Handler { type Res <: R; type Effects >: E }
   }
   def use[A](implicit p: Handler) = ContinuationScope[A, p.type](p)
 
