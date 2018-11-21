@@ -30,14 +30,14 @@ object DottyTest extends App {
 
 
   // Effect Handlers
-  trait Maybe[R, E] extends Exc with Handler.Base[Option[R], E] {
+  trait Maybe[R, E] extends Exc with Handler[Option[R], E] {
     def raise[A](msg: String): A / this.type = use { pure(None) }
   }
 
   def Maybe[R, E](action: (exc: Exc) => R / (exc.type & E)): Option[R] / E =
     handle(new Maybe[R, E] {}) { exc => action(exc).map { r => Some(r) } }
 
-  trait AmbList[R, E] extends Amb with Handler.Base[List[R], E] {
+  trait AmbList[R, E] extends Amb with Handler[List[R], E] {
     def flip(): Boolean / this.type = use {
       for {xs <- resume(true); ys <- resume(false)}
         yield xs ++ ys

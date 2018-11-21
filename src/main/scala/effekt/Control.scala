@@ -83,15 +83,15 @@ final class Error(t: Throwable) extends Control[Nothing, Pure] {
 
 object Control {
 
-  private[effekt] final def use[A](c: Handler)(f: CPS[A, c.Res / c.Effects]): A / c.type =
-    new Control[A, c.type] {
+  private[effekt] final def use[A](p: Prompt)(f: CPS[A, p.Res / p.Effects]): A / p.type =
+    new Control[A, p.type] {
       def apply[R](k: MetaCont[A, R]): Result[R] = {
 
-        val (init, tail) = k splitAt c
+        val (init, tail) = k splitAt p
 
-        val handled: Control[c.Res, c.Effects] = f { a =>
-          new Control[c.Res, c.Effects] {
-            def apply[R2](k: MetaCont[c.Res, R2]): Result[R2] =
+        val handled: Control[p.Res, p.Effects] = f { a =>
+          new Control[p.Res, p.Effects] {
+            def apply[R2](k: MetaCont[p.Res, R2]): Result[R2] =
               (init append k).apply(a)
           }
         }
@@ -101,11 +101,10 @@ object Control {
       }
     }
 
-  // TODO this needs simplification
-  private[effekt] final def handle(h: Handler)(f: h.type => h.Res / (h.type & h.Effects)): h.Res / h.Effects =
-    new Control[h.Res, h.Effects] {
-      def apply[R2](k: MetaCont[h.Res, R2]): Result[R2] = {
-        Computation(f(h), HandlerCont[h.Res, R2](h)(k))
+  private[effekt] final def handle(p: Prompt)(f: p.type => p.Res / (p.type & p.Effects)): p.Res / p.Effects =
+    new Control[p.Res, p.Effects] {
+      def apply[R2](k: MetaCont[p.Res, R2]): Result[R2] = {
+        Computation(f(p), HandlerCont[p.Res, R2](p)(k))
       }
     }
 
