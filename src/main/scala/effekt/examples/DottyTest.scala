@@ -94,4 +94,39 @@ object DottyTest extends App {
 //      }
 //    } yield res
 //  }.run
+
+
+  // Alternative, not fixing the effect to this.type. Fixing the type
+  // forces handler implementors to use inheritance instead of composition.
+  object alternative {
+
+    trait Eff { type effect }
+
+    type @@[A, E] = A & Eff { type effect = E }
+
+    trait Amb extends Eff { def flip(): Boolean / effect }
+
+    // helper for precise typing
+    def effect[E <: Eff](p: Prompt)(impl: E { type effect = p.type }): E { type effect = p.type } = impl
+
+    val res: Amb / Pure = handling { implicit p =>
+      // here we need to teach Dotty the refinement that amb.effect = p.type
+      val amb: Amb { type effect = p.type } = () => use in { resume(true) }
+
+      // while
+      implicitly[Amb { type effect = p.type } =:= (Amb @@ p.type)]
+
+      // we can't use
+      // that's a bug in Dotty. Probably to little dealiasing
+      //   val amb2: Amb @@ p.type = () => use(p) in { resume(true) }
+
+      val amb3 = effect[Amb](p) { () => use in { resume(true) } }
+
+      amb.flip()
+      pure(amb3)
+    }
+
+    // does not typecheck since `Boolean / Pure` != `Boolean / amb.effect`
+//    val escaped: Boolean / Pure = res flatMap { amb => amb.flip() }
+  }
 }
