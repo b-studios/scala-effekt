@@ -3,25 +3,25 @@ package effekt
 /**
  * The effect monad, implementing delimited control.
  *
- * Effectful programs that use the effect `E <: Eff` and return
+ * Effectful programs that use the effect `E` and return
  * `A` typically have the type
  *
  * {{{
- *    implicit Use[E] => Control[A]
+ *    implicit (e: E) => Control[A, e.type]
  * }}}
  *
  * Given the capability to use the effect `E`, the result of
  * type `A` is interpreted in the `Control` and can be obtained
- * using the method `run()`. It is important to know that calling
- * `run` before all effects have been handled will lead to a
- * runtime exception.
+ * using the method `run()`.
+ * `run` can only be called after all effects are handled, that is
+ * when Effects = Pure.
  *
  * {{{
  *  // safe use of `run`
- *  handle(ambHandler) { implicit a => flip() }.run()
+ *  handle(ambHandler) { amb => amb.flip() }.run()
  *
- *  // unsafe use of `run`
- *  handle(ambHandler) { implicit a => flip().run() }
+ *  // will cause a type error
+ *  handle(ambHandler) { amb => amb.flip().run() }
  * }}}
  *
  * =Implementation Details=
@@ -36,6 +36,9 @@ package effekt
  *
  * @tparam A the type of the resulting value which is eventually
  *           computed within the control monad.
+ *
+ * @tparam Effects an intersection type tracking all effects that
+ *                 still need to be handled.
  */
 sealed trait Control[+A, -Effects] { outer =>
 
