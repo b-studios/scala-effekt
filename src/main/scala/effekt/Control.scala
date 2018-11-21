@@ -41,9 +41,6 @@ sealed trait Control[+A, -Effects] { outer =>
 
   /**
    * Runs the computation to yield an A
-   *
-   * Attention: It is unsafe to run control if not all effects have
-   *            been handled!
    */
   def run[E <: Effects](implicit erased ev: E =:= Pure): A =
     Result.trampoline(apply(ReturnCont(identity)))
