@@ -6,7 +6,7 @@ sealed trait MetaCont[-A, +B] extends Serializable {
 
   def append[C](s: MetaCont[B, C]): MetaCont[A, C]
 
-  def splitAt(c: Prompt): (MetaCont[A, c.Res], MetaCont[c.Res, B])
+  def splitAt(c: Prompt): (MetaCont[A, c.Result], MetaCont[c.Result, B])
 
   def map[C](f: C => A): MetaCont[C, B] = flatMap(x => pure(f(x)))
 
@@ -64,12 +64,13 @@ case class HandlerCont[Res, +A](h: Prompt)(tail: MetaCont[Res, A]) extends MetaC
 
   final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = HandlerCont(h)(tail append s)
 
+  // Here we can see that our semantics is closer to spawn/controller than delimCC
   final def splitAt(c: Prompt) =
   // Here we deduce type equality from referential equality
     if (h eq c) {
       // Res == c.Res
-      val head = HandlerCont(h)(CastCont[Res, c.Res]())
-      val rest = tail.asInstanceOf[MetaCont[c.Res, A]]
+      val head = HandlerCont(h)(CastCont[Res, c.Result]())
+      val rest = tail.asInstanceOf[MetaCont[c.Result, A]]
       (head, rest)
     } else tail.splitAt(c) match {
       case (head, tail) => (HandlerCont(h)(head), tail)

@@ -19,7 +19,7 @@ package object effekt {
 
   // that is Prog[h.Res using h.type also h.Effects] but the syntactic sugar impedes
   // type inference with implicit function types
-  final def handle(p: Prompt)(f: p.type => p.Res / (p.type & p.Effects)): p.Res / p.Effects =
+  final def handle(p: Prompt)(f: p.type => p.Result / (p.type & p.Effects)): p.Result / p.Effects =
     Control.handle(p)(h => f(h))
 
   final def handling[R, E](f: (p: Handler[R, E]) => R / (p.type & E)): R / E = {
@@ -31,29 +31,26 @@ package object effekt {
 
   final def resume[A, R](a: A): CPS[A, R] = implicit k => k(a)
 
-  // also add type parameters to Handler to help contravariant type inference
-
-
 
   // capture continuations
   // ===
   @scala.annotation.implicitNotFound("No prompt found for 'use'. Maybe you forgot to handle the effect?")
   trait Prompt {
-    type Res
+    type Result
     type Effects
   }
 
   trait Handler[R, E] extends Prompt {
-    type Res = R
+    type Result = R
     type Effects = E
     type effect = this.type
 
-    def use[A](body: CPS[A, Res / Effects]): A / this.type = Control.use(this) { body }
+    def use[A](body: CPS[A, Result / Effects]): A / this.type = Control.use(this) { body }
 
-    def handle(f: this.type => Res / (effect & Effects)): Res / Effects  =
+    def handle(f: this.type => Result / (effect & Effects)): Result / Effects  =
       Control.handle(this) { h => f(h) }
 
-    def apply(f: this.type => Res / (effect & Effects)): Res / Effects = handle(f)
+    def apply(f: this.type => Result / (effect & Effects)): Result / Effects = handle(f)
   }
 
   def use[A](implicit p: Prompt) = ContinuationScope[A, p.type](p)
@@ -62,8 +59,8 @@ package object effekt {
   // as `use(p) {}`. So we write `use in {}` to mean `use(p) in {}`
   // In summary, we use value inference to guide type inference.
   case class ContinuationScope[A, P <: Prompt](p: P) {
-    def in(body: CPS[A, p.Res / p.Effects]): A / p.type = Control.use(p) { body }
-    def apply(body: CPS[A, p.Res / p.Effects]): A / p.type = in(body)
+    def in(body: CPS[A, p.Result / p.Effects]): A / p.type = Control.use(p) { body }
+    def apply(body: CPS[A, p.Result / p.Effects]): A / p.type = in(body)
   }
 
   // internally we ignore the effects

@@ -14,6 +14,12 @@ object DottyTest extends App {
 
   // Effect Usage
 
+  def drunkFlip(amb: Amb, exc: Exc) = for {
+    caught <- amb.flip()
+    heads <- if (caught) amb.flip() else exc.raise("Too drunk")
+  } yield if (heads) "Heads" else "Tails"
+
+
   lazy val x = 0
 
   def flipTwice(amb: Amb) =
@@ -43,6 +49,7 @@ object DottyTest extends App {
         yield xs ++ ys
     }
   }
+
 
   def AmbList[R, E](action: (amb: Amb) => R / (amb.type & E)): List[R] / E =
     handle(new AmbList[R, E] {}) { amb => action(amb).map { x => List(x) } }
@@ -79,6 +86,26 @@ object DottyTest extends App {
   }
 
   println(res4)
+
+  val res6: Option[List[String]] = run {
+    Maybe [List[String], Pure] { exc =>
+      AmbList [String, exc.type] { amb =>
+        drunkFlip(amb, exc)
+      }
+    }
+  }
+
+  println(res6)
+
+  val res7: List[Option[String]] = run {
+    AmbList [Option[String], Pure] { amb =>
+      Maybe [String, amb.type] { exc =>
+        drunkFlip(amb, exc)
+      }
+    }
+  }
+
+  println(res7)
 
 //  var escaped: Amb = null
 
