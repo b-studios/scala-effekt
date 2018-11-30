@@ -11,29 +11,22 @@ sealed trait MetaCont[-A, +B] extends Serializable {
   def map[C](f: C => A): MetaCont[C, B] = flatMap(x => pure(f(x)))
 
   def flatMap[C](f: Frame[C, A]): MetaCont[C, B] = FramesCont(List(f), this)
+
+  def bind(key: Key): MetaCont[A, B] = StateCont(Set(key), Set.empty, this)
 }
 
 private[effekt]
 case class CastCont[-A, +B]() extends MetaCont[A, B] {
-
   final def apply(a: A): Result[B] = Value(a.asInstanceOf[B])
-
   final def append[C](s: MetaCont[B, C]): MetaCont[A, C] = s.asInstanceOf[MetaCont[A, C]]
-
   final def splitAt(c: Prompt) = sys error s"Prompt $c not found on the stack."
-
-//  override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(x => g(x).asInstanceOf[B])
 }
 
 private[effekt]
 case class ReturnCont[-A, +B](f: A => B) extends MetaCont[A, B] {
   final def apply(a: A): Result[B] = Value(f(a))
-
   final def append[C](s: MetaCont[B, C]): MetaCont[A, C] = s map f
-
   final def splitAt(c: Prompt) = sys error s"Prompt $c not found on the stack."
-
-//  override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(x => f(g(x)))
 }
 
 private[effekt]
@@ -59,36 +52,40 @@ case class FramesCont[-A, B, +C](frames: List[Frame[Nothing, Any]], tail: MetaCo
 }
 
 private[effekt]
-case class HandlerCont[Res, +A](h: Prompt)(tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+case class PromptCont[Res, +A](h: Prompt)(tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
   final def apply(r: Res): Result[A] = tail(r)
 
-  final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = HandlerCont(h)(tail append s)
+  final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = PromptCont(h)(tail append s)
 
   // Here we can see that our semantics is closer to spawn/controller than delimCC
   final def splitAt(c: Prompt) =
   // Here we deduce type equality from referential equality
     if (h eq c) {
       // Res == c.Res
-      val head = HandlerCont(h)(CastCont[Res, c.Result]())
+      val head = PromptCont(h)(CastCont[Res, c.Result]())
       val rest = tail.asInstanceOf[MetaCont[c.Result, A]]
       (head, rest)
     } else tail.splitAt(c) match {
-      case (head, tail) => (HandlerCont(h)(head), tail)
+      case (head, tail) => (PromptCont(h)(head), tail)
     }
 }
 
-// we will NEVER split at a state cont. Instead a statecont
-// just calls into the Stateful interface on capture
-//private[effekt]
-//case class StateCont[Res, S, +A](h: Stateful[S], state: S, tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
-//  final def apply(r: Res): Result[A] = tail(r)
-//
-//  final def append[C](rest: MetaCont[A, C]): MetaCont[Res, C] = {
-//    h put state
-//    StateCont(h, state, tail append rest)
-//  }
-//
-//  final def splitAt(c: Prompt) = tail.splitAt(c) match {
-//    case (head, tail) => (StateCont(h, h.get(), head), tail)
-//  }
-//}
+private[effekt]
+case class StateCont[-A, +B](keys: Set[Key], bindings: Set[(Key, Any)], tail: MetaCont[A, B]) extends MetaCont[A, B] {
+  final def apply(a: A): Result[B] = tail(a)
+  final def append[C](s: MetaCont[B, C]): MetaCont[A, C] =
+    StateCont(keys, { restore(bindings); Set.empty }, tail append s)
+  final def splitAt(c: Prompt) = tail.splitAt(c) match {
+    case (head, tail) => (StateCont(keys, backup(keys), head), tail)
+  }
+
+  // the shadowed binding is unreachable, so we
+  // avoid unnecessary spilling of the heap with shadowed frames at
+  // the runtime cost of rebinding
+  //
+  // Also: Stateconts can be commuted if they don't shadow each other
+  final override def bind(key: Key): MetaCont[A, B] = StateCont(keys + key, bindings, tail)
+
+  def backup(keys: Set[Key]): Set[(Key, Any)] = keys.map { k => (k, k.get) }
+  def restore(bindings: Set[(Key, Any)]): Unit = bindings.foreach { (k, v) => k.set(v.asInstanceOf[Nothing]) }
+}

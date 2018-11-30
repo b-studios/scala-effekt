@@ -32,6 +32,32 @@ package object effekt {
   final def resume[A, R](a: A): CPS[A, R] = implicit k => k(a)
 
 
+  // delimited dynamic state
+  // ===
+  // optimize for fast getting and setting.
+  // Additional cost per continuation capture (for backup/restore).
+  // With the same public interface we could trade fast capture for slow lookup/write
+  trait Key {
+    type Value
+
+    private var _value: Value = _
+
+    def value: Value / this.type = pure(_value)
+    def value_=(v: Value): Unit / this.type = pure { _value = v }
+
+    private[effekt] def get: Value = _value
+    private[effekt] def set(v: Value) = _value = v
+  }
+  // not using this additional type crashes dotty, currently
+  trait State[V] extends Key { type Value = V }
+
+  def state[V, R, E](init: V)(prog: (key: State[V]) => R / (key.type & E)): R / E = {
+    val key = new State[V] {}
+    key.set(init)
+    Control.bind[R, E](key) { prog(key) }
+  }
+
+
   // capture continuations
   // ===
   @scala.annotation.implicitNotFound("No prompt found for 'use'. Maybe you forgot to handle the effect?")

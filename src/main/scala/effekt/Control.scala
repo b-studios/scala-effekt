@@ -108,14 +108,11 @@ object Control {
   private[effekt] final def handle(p: Prompt)(f: p.type => p.Result / (p.type & p.Effects)): p.Result / p.Effects =
     new Control[p.Result, p.Effects] {
       def apply[R2](k: MetaCont[p.Result, R2]): Result[R2] = {
-        Computation(f(p), HandlerCont[p.Result, R2](p)(k))
+        Computation(f(p), PromptCont[p.Result, R2](p)(k))
       }
     }
 
-//  private[effekt] final def stateful[S, R](s: Stateful[S])(f: s.type => Control[R]): Control[R] =
-//    new Control[R] {
-//      def apply[R2](k: MetaCont[R, R2]): Result[R2] = {
-//        Computation(f(s), StateCont(s, null.asInstanceOf[S], k))
-//      }
-//    }
+  private[effekt] final def bind[R, E](key: Key)(prog: R / (key.type & E)): R / E = new Control[R, E] {
+    def apply[R2](k: MetaCont[R, R2]): Result[R2] = Computation(prog, k.bind(key))
+  }
 }

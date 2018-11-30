@@ -134,6 +134,16 @@ object DottyTest extends App {
 
   println(res7)
 
+  val c: Int / Pure = state(42) { s => for {
+    v <- s.value
+    _ <- s.value = v + 1
+    v <- s.value
+    _ <- s.value = v + 1
+    v <- s.value
+  } yield v }
+
+  println { run { c } }
+
 
 //  var escaped: Amb = null
 
