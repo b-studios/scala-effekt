@@ -40,9 +40,7 @@ package object effekt {
     type Effects
   }
 
-  trait Handler[R, E] extends Prompt {
-    type Result = R
-    type Effects = E
+  trait H extends Prompt {
     type effect = this.type
 
     def use[A](body: CPS[A, Result / Effects]): A / this.type = Control.use(this) { body }
@@ -52,6 +50,13 @@ package object effekt {
 
     def apply(f: this.type => Result / (effect & Effects)): Result / Effects = handle(f)
   }
+
+  trait Handler[R, E] extends H {
+    type Result = R
+    type Effects = E
+  }
+
+  trait Eff { type effect }
 
   def use[A](implicit p: Prompt) = ContinuationScope[A, p.type](p)
 

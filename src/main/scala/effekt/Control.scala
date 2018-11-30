@@ -56,6 +56,8 @@ sealed trait Control[+A, -Effects] { outer =>
     def apply[R](k: MetaCont[B, R]): Result[R] = outer(k flatMap f)
   }
 
+  def foreach(f: A => Unit): Unit / Effects = map(f)
+
   def withFilter(p: A => Boolean): A / Effects = flatMap {
     case a if p(a) => pure(a)
     case a => new Error(new Throwable("Could not match " + a))
