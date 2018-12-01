@@ -64,17 +64,55 @@ package object effekt {
   trait Prompt {
     type Result
     type Effects
+
+    private[effekt] type State
+    private[effekt] def backup: State
+    private[effekt] def restore(value: State): Unit
   }
 
   trait H extends Prompt {
+
+    // we need to be careful not to confuse state.type with this.type
+    // hence the new reference
     type effect = this.type
+    type state = state.type
+    object state
 
-    def use[A](body: CPS[A, Result / Effects]): A / this.type = Control.use(this) { body }
+    private[effekt] type State = Map[Field[_], Any]
+    private[effekt] var data = Map.empty[Field[_], Any]
+    private[effekt] def backup: State = data
+    private[effekt] def restore(value: State): Unit = data = value
 
-    def handle(f: this.type => Result / (effect & Effects)): Result / Effects  =
-      Control.handle(this) { h => f(h) }
+    // all the field data is stored in `data`
+    class Field[T] private () {
+      def value: T / state = pure(data(this).asInstanceOf[T])
+      def value_=(value: T): Unit / state = pure {
+        data = data.updated(this, value)
+      }
+      def update(f: T => T): Unit / state = for {
+        old <- value
+        _   <- value_=(f(old))
+      } yield ()
+    }
+    object Field {
+      def apply[T](init: T): Field[T] = {
+        val field = new Field[T]()
+        data = data.updated(field, init)
+        field
+      }
+    }
 
-    def apply(f: this.type => Result / (effect & Effects)): Result / Effects = handle(f)
+    // that's all the effects the handler might use:
+    // - public effects `Effects`
+    // - own state effects `state`
+    //
+    // it would be nice if we could override this in handlers that don't use
+    // state to simplify the types.
+    type HandlerEffects = state & Effects
+    def use[A](body: CPS[A, Result / HandlerEffects]): A / this.type =
+      Control.use(this) { implicit k =>
+        body(k.asInstanceOf[A => Result / HandlerEffects]).asInstanceOf[Result / Effects]
+      }
   }
 
   trait Handler[R, E] extends H {

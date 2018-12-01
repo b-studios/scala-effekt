@@ -52,22 +52,31 @@ case class FramesCont[-A, B, +C](frames: List[Frame[Nothing, Any]], tail: MetaCo
 }
 
 private[effekt]
-case class PromptCont[Res, +A](h: Prompt)(tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+case class PromptCont[Res, +A](p: Prompt)(tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
   final def apply(r: Res): Result[A] = tail(r)
 
-  final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = PromptCont(h)(tail append s)
+  final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = PromptCont(p)(tail append s)
 
   // Here we can see that our semantics is closer to spawn/controller than delimCC
   final def splitAt(c: Prompt) =
   // Here we deduce type equality from referential equality
-    if (h eq c) {
+    if (p eq c) {
       // Res == c.Res
-      val head = PromptCont(h)(CastCont[Res, c.Result]())
+      val head = PromptCont(p)(CastCont[Res, c.Result]())
       val rest = tail.asInstanceOf[MetaCont[c.Result, A]]
       (head, rest)
     } else tail.splitAt(c) match {
-      case (head, tail) => (PromptCont(h)(head), tail)
+      case (head, tail) =>
+        (PromptStateCont(p)(p.backup, head), tail)
     }
+}
+
+private[effekt]
+case class PromptStateCont[Res, +A](p: Prompt)(state: p.State, tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+  final def apply(r: Res): Result[A] = ???
+  final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] =
+    PromptCont({ p restore state; p })(tail append s)
+  final def splitAt(c: Prompt) = ???
 }
 
 private[effekt]
