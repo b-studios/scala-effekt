@@ -46,7 +46,7 @@ sealed trait Control[+A, -Effects] { outer =>
    * Runs the computation to yield an A
    */
   def run[E <: Effects](implicit erased ev: E =:= Pure): A =
-    Result.trampoline(apply(ReturnCont(identity)))
+    Result.trampoline(apply(ReturnCont()))
 
   def map[B](f: A => B): B / Effects = new Control[B, Effects] {
     def apply[R](k: MetaCont[B, R]): Result[R] = outer(k map f)

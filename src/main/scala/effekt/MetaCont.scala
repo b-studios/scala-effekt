@@ -16,16 +16,9 @@ sealed trait MetaCont[-A, +B] extends Serializable {
 }
 
 private[effekt]
-case class CastCont[-A, +B]() extends MetaCont[A, B] {
-  final def apply(a: A): Result[B] = Value(a.asInstanceOf[B])
-  final def append[C](s: MetaCont[B, C]): MetaCont[A, C] = s.asInstanceOf[MetaCont[A, C]]
-  final def splitAt(c: Prompt) = sys error s"Prompt $c not found on the stack."
-}
-
-private[effekt]
-case class ReturnCont[-A, +B](f: A => B) extends MetaCont[A, B] {
-  final def apply(a: A): Result[B] = Value(f(a))
-  final def append[C](s: MetaCont[B, C]): MetaCont[A, C] = s map f
+case class ReturnCont[A]() extends MetaCont[A, A] {
+  final def apply(a: A): Result[A] = Value(a)
+  final def append[B](s: MetaCont[A, B]): MetaCont[A, B] = s
   final def splitAt(c: Prompt) = sys error s"Prompt $c not found on the stack."
 }
 
@@ -52,27 +45,28 @@ case class FramesCont[-A, B, +C](frames: List[Frame[Nothing, Any]], tail: MetaCo
 }
 
 private[effekt]
-case class PromptCont[Res, +A](p: Prompt)(tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+case class PromptCont[Res, +A](p: Prompt { type Result = Res })(tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
   final def apply(r: Res): Result[A] = tail(r)
 
   final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = PromptCont(p)(tail append s)
 
   // Here we can see that our semantics is closer to spawn/controller than delimCC
-  final def splitAt(c: Prompt) =
-  // Here we deduce type equality from referential equality
-    if (p eq c) {
-      // Res == c.Res
-      val head = PromptCont(p)(CastCont[Res, c.Result]())
+  final def splitAt(c: Prompt) = c match {
+    // Here we deduce type equality from referential equality
+    case _: p.type =>
+      val head = PromptCont(p)(ReturnCont[p.Result]()).asInstanceOf[MetaCont[Res, c.Result]]
       val rest = tail.asInstanceOf[MetaCont[c.Result, A]]
       (head, rest)
-    } else tail.splitAt(c) match {
+
+    case _ => tail.splitAt(c) match {
       case (head, tail) =>
         (PromptStateCont(p)(p.backup, head), tail)
     }
+  }
 }
 
 private[effekt]
-case class PromptStateCont[Res, +A](p: Prompt)(state: p.State, tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+case class PromptStateCont[Res, +A](p: Prompt { type Result = Res })(state: p.State, tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
   final def apply(r: Res): Result[A] = ???
   final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] =
     PromptCont({ p restore state; p })(tail append s)
