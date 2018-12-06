@@ -15,7 +15,7 @@ package object effekt {
 
   type CPS[A, R] = implicit (A => R) => R
 
-  final def run[A](c: A / Pure): A = c.run
+  final def run[A](c: A / Pure): A = Result.trampoline(c(ReturnCont()))
 
   // that is Prog[h.Res using h.type also h.Effects] but the syntactic sugar impedes
   // type inference with implicit function types

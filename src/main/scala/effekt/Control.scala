@@ -42,12 +42,6 @@ package effekt
  */
 sealed trait Control[+A, -Effects] { outer =>
 
-  /**
-   * Runs the computation to yield an A
-   */
-  def run[E <: Effects](implicit erased ev: E =:= Pure): A =
-    Result.trampoline(apply(ReturnCont()))
-
   def map[B](f: A => B): B / Effects = new Control[B, Effects] {
     def apply[R](k: MetaCont[B, R]): Result[R] = outer(k map f)
   }
@@ -71,10 +65,7 @@ sealed trait Control[+A, -Effects] { outer =>
 private[effekt]
 final class Trivial[+A](a: => A) extends Control[A, Pure] {
   def apply[R](k: MetaCont[A, R]): Result[R] = k(a)
-
   override def map[B](f: A => B): B / Pure = new Trivial(f(a))
-
-  override def run[E <: Pure](implicit erased ev: E =:= Pure): A = a
 }
 
 private[effekt]

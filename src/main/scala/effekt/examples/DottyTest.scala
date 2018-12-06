@@ -83,24 +83,28 @@ object DottyTest extends App {
 
   // Handling of Effects
 
-  val res = handle(new Maybe[Int, Pure] {}) { exc =>
-    for {
-      r <- div(1, 0)(exc)
-    } yield Some(r)
-  }.run
+  val res = run {
+    handle(new Maybe[Int, Pure] {}) { exc =>
+      for {
+        r <- div(1, 0)(exc)
+      } yield Some(r)
+    }
+  }
 
   println(res)
 
   // removing the type annotations gives "unspecified error"
-  val res2 = AmbList [Boolean, Pure] { amb => flipTwice(amb) }.run
+  val res2 = run { AmbList [Boolean, Pure] { amb => flipTwice(amb) } }
 
   println(res2)
 
-  val res3 = AmbList [Option[Boolean], Pure] { amb =>
-    Maybe { exc =>
-      prog(exc, amb)
+  val res3 = run {
+    AmbList [Option[Boolean], Pure] { amb =>
+      Maybe { exc =>
+        prog(exc, amb)
+      }
     }
-  }.run
+  }
 
   println(res3)
 
