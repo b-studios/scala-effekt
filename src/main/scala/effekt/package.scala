@@ -11,6 +11,11 @@ package object effekt {
 
   type CPS[A, R] = implicit (A => R) => R
 
+  // Trick described in https://github.com/lampepfl/dotty/issues/3920#issuecomment-360772033 to
+  // help infer singleton types. Also works on trait parameters.
+  type The[A] = A & Singleton
+  trait Use[E <: Singleton](val effect: E)
+
   final def run[A](c: A / Pure): A = Result.trampoline(c(ReturnCont()))
 
 
@@ -89,7 +94,7 @@ package object effekt {
   // to other effects, type members are better suited for this use case
   // (see Stateful, or parsers.BreadthFirst2)
 
-  // since path dependency on trait-parameters is currently buggy,
+  // since path dependency on trait-parameters is currently buggy (https://github.com/lampepfl/dotty/issues/5636),
   // we can't define the dependency on other effects via parameters. So, instead
   // of
   //    trait MyHandler[R, E](val exc: Exc) extends Handler[R, E & exc.effect] { ... }

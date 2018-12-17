@@ -59,15 +59,14 @@ object DottyTest extends App {
     override def flip(): Boolean / effect = raise("broken")
   }
   def Both[R, E](action: (exc: Exc, amb: Amb) => R / (amb.effect & exc.effect & E)): List[R] / E =
-    handler { e =>
-      val both = new Both[R, E] { val effect: e.type = e }
+    handler { effect =>
+      val both = new Both[R, E] with Use(effect)
       action(both, both).map { r => List(r) }
     }
 
   def Maybe[R, E](action: (exc: Exc) => R / (exc.effect & E)): Option[R] / E =
-    handler { e =>
-      val exc = new Maybe[R, E] { val effect: e.type = e }
-      action(exc).map { r => Some(r) }
+    handler { effect =>
+      action(new Maybe[R, E] with Use(effect)).map { r => Some(r) }
     }
 
 //  def Maybe2[R, E](action: (exc: Exc) => R / (exc.type & E)): Option[R] / E =
@@ -83,8 +82,8 @@ object DottyTest extends App {
   }
 
   def AmbList[R, E](action: (amb: Amb) => R / (amb.effect & E)): List[R] / E =
-    handler { e =>
-      val amb = new AmbList[R, E] { val effect: e.type = e }
+    handler { effect =>
+      val amb = new AmbList[R, E] with Use(effect) // { val effect: e.type = e }
       action(amb).map { x => List(x) }
     }
 
