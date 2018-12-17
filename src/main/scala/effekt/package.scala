@@ -1,5 +1,7 @@
 package object effekt {
 
+  trait Eff { type effect }
+
   // we use intersection types to track effects, so Pure = Top
   type Pure = Any
 
@@ -7,129 +9,155 @@ package object effekt {
   // Currently effectively blocked by https://github.com/lampepfl/dotty/issues/5288
   type /[+A, -E] = Control[A, E]
 
-  // we drop implicit from the function types to improve type inference for now.
-  type using[+A, -H]  = [-Effects] => (h: H) => A / (h.type & Effects)
-  type and[C[-_], -H] = [-Effects] => (h: H) => C[h.type & Effects]
-  type also[C[-_], -E] = [-Effects] => C[E & Effects]
-  type Prog[C[-_]] = C[Any]
-
   type CPS[A, R] = implicit (A => R) => R
 
   final def run[A](c: A / Pure): A = Result.trampoline(c(ReturnCont()))
 
-  // that is Prog[h.Res using h.type also h.Effects] but the syntactic sugar impedes
-  // type inference with implicit function types
-  final def handle(p: Prompt)(f: p.type => p.Result / (p.type & p.Effects)): p.Result / p.Effects =
-    Control.handle(p)(h => f(h))
 
-  final def handling[R, E](f: (p: Handler[R, E]) => R / (p.type & E)): R / E = {
-    val p = new Handler[R, E] { }
-    Control.handle(p)(h => f(h))
-  }
-
+  @forceInline
   final def pure[A](a: => A): A / Pure = new Trivial(a)
 
   final def resume[A, R](a: A): CPS[A, R] = implicit k => k(a)
 
-
-  // delimited dynamic state
-  // ===
-  // optimize for fast getting and setting.
-  // Additional cost per continuation capture (for backup/restore).
-  // With the same public interface we could trade fast capture for slow lookup/write
-  trait Key {
-    type Value
-
-    private var _value: Value = _
-
-    def value: Value / this.type = pure(_value)
-    def value_=(v: Value): Unit / this.type = pure { _value = v }
-
-    private[effekt] def get: Value = _value
-    private[effekt] def set(v: Value) = _value = v
-  }
-  // not using this additional type crashes dotty, currently
-  trait State[V] extends Key { type Value = V }
-
-  def state[V, R, E](init: V)(prog: (key: State[V]) => R / (key.type & E)): R / E = {
-    val key = new State[V] {}
-    key.set(init)
-    Control.bind[R, E](key) { prog(key) }
-  }
-
-
-  // capture continuations
-  // ===
-  @scala.annotation.implicitNotFound("No prompt found for 'use'. Maybe you forgot to handle the effect?")
+  // Just a marker trait used by the delimcc implementation
   trait Prompt {
     type Result
     type Effects
-
-    private[effekt] type State
-    private[effekt] def backup: State
-    private[effekt] def restore(value: State): Unit
+    type effect = this.type
   }
 
-  trait H extends Prompt {
+  // delimited continuations
+  // ===
+  @scala.annotation.implicitNotFound("No enclosing handler found. Maybe you forgot to handle the effect?")
+  trait Effect extends Prompt { effect =>
+    def apply[A](body: CPS[A, Result / Effects]): A / effect.type = Control.use(this) { implicit k => body(k) }
 
-    // we need to be careful not to confuse state.type with this.type
-    // hence the new reference
-    type effect = this.type
-    type state = state.type
-    object state
+    // for backwards compatability
+    def use[A](body: CPS[A, Result / Effects]): A / effect.type = apply { body }
+  }
 
-    private[effekt] type State = Map[Field[_], Any]
+  final def handler[R, E](f: (e: Effect { type Result = R; type Effects = E }) => R / (e.type & E)): R / E = {
+    val e = new Effect { type Result = R; type Effects = E }
+    Control.delimitCont(e) { f(e) }
+  }
+
+
+  // delimited dynamic state
+  // ===
+  // State is just a built-in version, optimized for fast getting and setting.
+  // Additional cost per continuation capture (for backup/restore).
+  // With the same public interface we could trade fast capture for slow lookup/write.
+  //
+  // The state interface is important since it separates the delimited from the type of
+  // state. This is not the case with the traditional `State[S]` interface. The separation
+  // is necessary to allow typing the scheduler example.
+  //
+  // The state effect is parametric in Result and Effects!
+  sealed trait State { state =>
+
+    def init[T](value: T): Field[T] = {
+      val field = new Field[T]()
+      data = data.updated(field, value)
+      field
+    }
+
+    private[effekt] type StateRep = Map[Field[_], Any]
     private[effekt] var data = Map.empty[Field[_], Any]
-    private[effekt] def backup: State = data
-    private[effekt] def restore(value: State): Unit = data = value
+    private[effekt] def backup: StateRep = data
+    private[effekt] def restore(value: StateRep): Unit = data = value
 
     // all the field data is stored in `data`
-    class Field[T] private () {
-      def value: T / state = pure(data(this).asInstanceOf[T])
-      def value_=(value: T): Unit / state = pure {
+    class Field[T] private[State] () {
+      def value: T / state.type = pure(data(this).asInstanceOf[T])
+      def value_=(value: T): Unit / state.type = pure {
         data = data.updated(this, value)
       }
-      def update(f: T => T): Unit / state = for {
+      def update(f: T => T): Unit / state.type = for {
         old <- value
         _   <- value_=(f(old))
       } yield ()
     }
-    object Field {
-      def apply[T](init: T): Field[T] = {
-        val field = new Field[T]()
-        data = data.updated(field, init)
-        field
-      }
+  }
+
+  def region[R, E](prog: (s: State) => R / (s.type & E)): R / E = {
+    val s = new State {}
+    Control.delimitState(s) { prog(s) }
+  }
+
+  // The preferred API: prompt composition
+  // While Handler[R, E] is nice for parsers that don't have dependencies
+  // to other effects, type members are better suited for this use case
+  // (see Stateful, or parsers.BreadthFirst2)
+
+  // since path dependency on trait-parameters is currently buggy,
+  // we can't define the dependency on other effects via parameters. So, instead
+  // of
+  //    trait MyHandler[R, E](val exc: Exc) extends Handler[R, E & exc.effect] { ... }
+  // we have to write
+  //    trait MyHandler[R, E] extends Effectful {
+  //      type Result  = R
+  //      type Effects = E & exc.effect
+  //    }
+  trait Effectful extends Eff { outer =>
+    type Result
+    type Effects
+
+    val effect: Effect { type Result = outer.Result; type Effects = outer.Effects }
+    type effect = effect.type
+  }
+
+  trait Handler[R, E] extends Effectful {
+    type Result = R; type Effects = E
+  }
+
+  trait Stateful[R, E] extends Eff {
+    val state: State
+    type state  = state.type
+
+    val effect: Effect { type Result = R; type Effects = state & E }
+    type effect = effect.type
+  }
+
+
+  // Here, handlers ARE prompt markers
+  // This is unsafe, since it does not guarantee encapsulation. It does guarantee
+  // effect safety, though (all effects are handled).
+  object unsafe {
+    trait Effectful extends Effect {
+      val effect: this.type = this
+      type effect = effect.type
     }
 
-    // that's all the effects the handler might use:
-    // - public effects `Effects`
-    // - own state effects `state`
-    //
-    // it would be nice if we could override this in handlers that don't use
-    // state to simplify the types.
-    type HandlerEffects = state & Effects
-    def use[A](body: CPS[A, Result / HandlerEffects]): A / this.type =
-      Control.use(this) { implicit k =>
-        body(k.asInstanceOf[A => Result / HandlerEffects]).asInstanceOf[Result / Effects]
+    trait Handler[R, E] extends Effectful {
+      type Result = R
+      type Effects = E
+    }
+
+    trait Stateful[R, E] extends Effectful with State {
+
+      type Result = R
+      type Effects = state.type & E
+
+      // we purposefully lose some type information by upcasting here to
+      // prevent including this.type in Effects.
+      // Otherwise, we might accidentally use `effect { effect { ... } }` which
+      // shouldn't be possible since we have -F+.
+      val state: State = this
+      type state = state.type
+    }
+
+    // This version is very convenient for handler-authors, since the handler instance can be the prompt
+    // itself. However, it might violate encapsulation by using the same handler instance multiple
+    // times.
+    def handle(e: Effectful)(prog: e.type => e.Result / (e.type & e.Effects)): e.Result / e.Effects =
+      Control.delimitCont(e) { prog(e) }
+
+    def handleStateful[R, E](e: Stateful[R, E])(prog: e.type => R / (e.type & E)): R / E =
+      Control.delimitState[R, E](e) {
+        Control.delimitCont(e) {
+          prog(e)
+        }.asInstanceOf[R / (e.type & E)]
       }
-  }
-
-  trait Handler[R, E] extends H {
-    type Result = R
-    type Effects = E
-  }
-
-  trait Eff { type effect }
-
-  def use[A](implicit p: Prompt) = ContinuationScope[A, p.type](p)
-
-  // this complication is only necessary since we can't write `use {}` and have p inferred
-  // as `use(p) {}`. So we write `use in {}` to mean `use(p) in {}`
-  // In summary, we use value inference to guide type inference.
-  case class ContinuationScope[A, P <: Prompt](p: P) {
-    def in(body: CPS[A, p.Result / p.Effects]): A / p.type = Control.use(p) { body }
-    def apply(body: CPS[A, p.Result / p.Effects]): A / p.type = in(body)
   }
 
   // internally we ignore the effects

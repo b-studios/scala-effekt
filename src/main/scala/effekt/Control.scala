@@ -96,14 +96,17 @@ object Control {
       }
     }
 
-  private[effekt] final def handle(p: Prompt)(f: p.type => p.Result / (p.type & p.Effects)): p.Result / p.Effects =
+  private[effekt] final def delimitCont(p: Prompt)(f: p.Result / (p.type & p.Effects)): p.Result / p.Effects =
     new Control[p.Result, p.Effects] {
       def apply[R2](k: MetaCont[p.Result, R2]): Result[R2] = {
-        Computation(f(p), PromptCont[p.Result, R2](p)(k))
+        Computation(f, PromptCont[p.Result, R2](p)(k))
       }
     }
 
-  private[effekt] final def bind[R, E](key: Key)(prog: R / (key.type & E)): R / E = new Control[R, E] {
-    def apply[R2](k: MetaCont[R, R2]): Result[R2] = Computation(prog, k.bind(key))
-  }
+  private[effekt] final def delimitState[R, E](state: State)(f: R / (state.type & E)): R / E =
+    new Control[R, E] {
+      def apply[R2](k: MetaCont[R, R2]): Result[R2] = {
+        Computation(f, StateCont[R, R2](state, k))
+      }
+    }
 }

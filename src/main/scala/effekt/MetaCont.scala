@@ -11,8 +11,6 @@ sealed trait MetaCont[-A, +B] extends Serializable {
   def map[C](f: C => A): MetaCont[C, B] = flatMap(x => pure(f(x)))
 
   def flatMap[C](f: Frame[C, A]): MetaCont[C, B] = FramesCont(List(f), this)
-
-  def bind(key: Key): MetaCont[A, B] = StateCont(Set(key), Set.empty, this)
 }
 
 private[effekt]
@@ -60,35 +58,25 @@ case class PromptCont[Res, +A](p: Prompt { type Result = Res })(tail: MetaCont[R
 
     case _ => tail.splitAt(c) match {
       case (head, tail) =>
-        (PromptStateCont(p)(p.backup, head), tail)
+        (PromptCont(p)(head), tail)
     }
   }
 }
 
 private[effekt]
-case class PromptStateCont[Res, +A](p: Prompt { type Result = Res })(state: p.State, tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
-  final def apply(r: Res): Result[A] = ???
-  final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] =
-    PromptCont({ p restore state; p })(tail append s)
-  final def splitAt(c: Prompt) = ???
+case class StateCont[Res, +A](p: State, tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+  final def apply(r: Res): Result[A] = tail(r)
+
+  final def append[C](k: MetaCont[A, C]): MetaCont[Res, C] = StateCont(p, tail append k)
+
+  final def splitAt(c: Prompt) = tail.splitAt(c) match {
+    case (head, tail) => (StateContCaptured(p, head)(p.backup), tail)
+  }
 }
 
 private[effekt]
-case class StateCont[-A, +B](keys: Set[Key], bindings: Set[(Key, Any)], tail: MetaCont[A, B]) extends MetaCont[A, B] {
-  final def apply(a: A): Result[B] = tail(a)
-  final def append[C](s: MetaCont[B, C]): MetaCont[A, C] =
-    StateCont(keys, { restore(bindings); Set.empty }, tail append s)
-  final def splitAt(c: Prompt) = tail.splitAt(c) match {
-    case (head, tail) => (StateCont(keys, backup(keys), head), tail)
-  }
-
-  // the shadowed binding is unreachable, so we
-  // avoid unnecessary spilling of the heap with shadowed frames at
-  // the runtime cost of rebinding
-  //
-  // Also: Stateconts can be commuted if they don't shadow each other
-  final override def bind(key: Key): MetaCont[A, B] = StateCont(keys + key, bindings, tail)
-
-  def backup(keys: Set[Key]): Set[(Key, Any)] = keys.map { k => (k, k.get) }
-  def restore(bindings: Set[(Key, Any)]): Unit = bindings.foreach { (k, v) => k.set(v.asInstanceOf[Nothing]) }
+case class StateContCaptured[Res, +A](p: State, tail: MetaCont[Res, A])(state: p.StateRep) extends MetaCont[Res, A] {
+  final def apply(r: Res): Result[A] = ???
+  final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = StateCont({ p restore state; p }, tail append s)
+  final def splitAt(c: Prompt) = ???
 }

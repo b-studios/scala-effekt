@@ -5,14 +5,14 @@ import utils._
 object DottyTest extends App {
 
   // Effect Signatures
-  trait Exc {
-    def raise(msg: String): Nothing / this.type
+  trait Exc extends Eff {
+    def raise(msg: String): Nothing / effect
   }
 
-  trait Amb {
-    def flip(): Boolean / this.type
+  trait Amb extends Eff {
+    def flip(): Boolean / effect
 
-    def choose[A, E](c1: A / E, c2: A / E): A / (this.type & E) = for {
+    def choose[A, E](c1: A / E, c2: A / E): A / (effect & E) = for {
       b   <- flip()
       res <- if (b) c1 else c2
     } yield res
@@ -20,7 +20,7 @@ object DottyTest extends App {
 
   // Effect Usage
 
-  def drunkFlip(amb: Amb, exc: Exc) = for {
+  def drunkFlip(amb: Amb, exc: Exc): String / (amb.effect & exc.effect) = for {
     caught <- amb.flip()
     heads <- if (caught) amb.flip() else exc.raise("Too drunk")
   } yield if (heads) "Heads" else "Tails"
@@ -48,23 +48,27 @@ object DottyTest extends App {
 
   // Effect Handlers
   trait Maybe[R, E] extends Exc with Handler[Option[R], E] {
-    def raise(msg: String): Nothing / this.type = use { pure(None) }
+    def raise(msg: String): Nothing / effect = effect { pure(None) }
   }
 
   trait ExcList[R, E] extends Exc with Handler[List[R], E] {
-    def raise(msg: String): Nothing / this.type = use { pure(Nil) }
+    def raise(msg: String): Nothing / effect = effect { pure(Nil) }
   }
 
   trait Both[R, E] extends ExcList[R, E] with AmbList[R, E] {
-    override def flip(): Boolean / this.type = raise("broken")
+    override def flip(): Boolean / effect = raise("broken")
   }
-  def Both[R, E](action: (exc: Exc, amb: Amb) => R / (amb.type & exc.type & E)): List[R] / E =
-    handle(new Both[R, E] {}) { both =>
+  def Both[R, E](action: (exc: Exc, amb: Amb) => R / (amb.effect & exc.effect & E)): List[R] / E =
+    handler { e =>
+      val both = new Both[R, E] { val effect: e.type = e }
       action(both, both).map { r => List(r) }
     }
 
-  def Maybe[R, E](action: (exc: Exc) => R / (exc.type & E)): Option[R] / E =
-    handle(new Maybe[R, E] {}) { exc => action(exc).map { r => Some(r) } }
+  def Maybe[R, E](action: (exc: Exc) => R / (exc.effect & E)): Option[R] / E =
+    handler { e =>
+      val exc = new Maybe[R, E] { val effect: e.type = e }
+      action(exc).map { r => Some(r) }
+    }
 
 //  def Maybe2[R, E](action: (exc: Exc) => R / (exc.type & E)): Option[R] / E =
 //    handling[Option[R], E] { p =>
@@ -72,26 +76,19 @@ object DottyTest extends App {
 //    }
 
   trait AmbList[R, E] extends Amb with Handler[List[R], E] {
-    def flip(): Boolean / this.type = use {
+    def flip(): Boolean / effect = effect {
       for {xs <- resume(true); ys <- resume(false)}
         yield xs ++ ys
     }
   }
 
-  def AmbList[R, E](action: (amb: Amb) => R / (amb.type & E)): List[R] / E =
-    handle(new AmbList[R, E] {}) { amb => action(amb).map { x => List(x) } }
+  def AmbList[R, E](action: (amb: Amb) => R / (amb.effect & E)): List[R] / E =
+    handler { e =>
+      val amb = new AmbList[R, E] { val effect: e.type = e }
+      action(amb).map { x => List(x) }
+    }
 
   // Handling of Effects
-
-  val res = run {
-    handle(new Maybe[Int, Pure] {}) { exc =>
-      for {
-        r <- div(1, 0)(exc)
-      } yield Some(r)
-    }
-  }
-
-  println(res)
 
   // removing the type annotations gives "unspecified error"
   val res2 = run { AmbList [Boolean, Pure] { amb => flipTwice(amb) } }
@@ -138,17 +135,6 @@ object DottyTest extends App {
 
   println(res7)
 
-  val c: Int / Pure = state(42) { s => for {
-    v <- s.value
-    _ <- s.value = v + 1
-    v <- s.value
-    _ <- s.value = v + 1
-    v <- s.value
-  } yield v }
-
-  println { run { c } }
-
-
 //  var escaped: Amb = null
 
   // this should not typecheck...
@@ -178,61 +164,4 @@ object DottyTest extends App {
 
   // E is invariant since it is used both on I and O
   trait Effectful[-I, +O, E] extends Binding[I / E, O / E]
-
-
-
-  // Alternative, not fixing the effect to this.type. Fixing the type
-  // forces handler implementors to use inheritance instead of composition.
-  object alternative {
-
-    type @@[A, E] = A & Eff { type effect = E }
-
-    // helper for precise typing
-    def effect[E <: Eff](p: Prompt)(impl: E { type effect = p.type }): E { type effect = p.type } = impl
-
-    trait Amb extends Eff { def flip(): Boolean / effect }
-    trait Exc extends Eff { def raise(msg: String): Nothing / effect }
-
-    def drunkFlip(amb: Amb, exc: Exc): String / (amb.effect & exc.effect) = for {
-        caught <- amb.flip()
-        heads <- if (caught) amb.flip() else exc.raise("Too drunk")
-      } yield if (heads) "Heads" else "Tails"
-
-    def handler[R, E](action: (amb: Amb, exc: Exc) => R / (amb.effect & exc.effect & E)): List[R] / E = handling { p =>
-      action(effect[Amb](p) { () => use(p) in {
-        for { xs <- resume(true); ys <- resume(false) }
-          yield xs ++ ys
-      }}, effect[Exc](p) { msg => use(p) in {
-        pure(List())
-      }}).map { List(_) }
-    }
-
-    run {
-      handler[String, Pure] { (amb, exc) =>
-        drunkFlip(amb, exc)
-      }
-    }
-
-
-
-    val res: Amb / Pure = handling { implicit p =>
-      // here we need to teach Dotty the refinement that amb.effect = p.type
-      val amb: Amb { type effect = p.type } = () => use(p) in { resume(true) }
-
-      // while
-      implicitly[Amb { type effect = p.type } =:= (Amb @@ p.type)]
-
-      // we can't use
-      // that's a bug in Dotty. Probably to little dealiasing
-      //   val amb2: Amb @@ p.type = () => use(p) in { resume(true) }
-
-      val amb3 = effect[Amb](p) { () => use in { resume(true) } }
-
-      amb.flip()
-      pure(amb3)
-    }
-
-    // does not typecheck since `Boolean / Pure` != `Boolean / amb.effect`
-//    val escaped: Boolean / Pure = res flatMap { amb => amb.flip() }
-  }
 }
