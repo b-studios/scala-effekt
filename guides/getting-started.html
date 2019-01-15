@@ -1,0 +1,157 @@
+<html><head><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><title>Scala Effekt</title><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="description" content="Extensible algebraic effects with handlers" /><meta name="author" content="Jonathan Brachthäuser (@b-studios)" /><meta name="og:image" content="/scala-effekt/img/poster.png" /><meta name="og:title" content="Scala Effekt" /><meta name="og:site_name" content="Scala Effekt" /><meta name="og:url" content="" /><meta name="og:type" content="website" /><meta name="og:description" content="Extensible algebraic effects with handlers" /><meta name="twitter:image" content="/scala-effekt/img/poster.png" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:site" content="" /><meta name="kazari-dependencies" content="" /><meta name="kazari-resolvers" content="" /><link rel="icon" type="image/png" href="/scala-effekt/img/favicon.png" /><link rel="icon" type="image/png" sizes="16x16" href="/scala-effekt/img/favicon16x16.png" /><link rel="icon" type="image/png" sizes="24x24" href="/scala-effekt/img/favicon24x24.png" /><link rel="icon" type="image/png" sizes="32x32" href="/scala-effekt/img/favicon32x32.png" /><link rel="icon" type="image/png" sizes="48x48" href="/scala-effekt/img/favicon48x48.png" /><link rel="icon" type="image/png" sizes="57x57" href="/scala-effekt/img/favicon57x57.png" /><link rel="icon" type="image/png" sizes="60x60" href="/scala-effekt/img/favicon60x60.png" /><link rel="icon" type="image/png" sizes="64x64" href="/scala-effekt/img/favicon64x64.png" /><link rel="icon" type="image/png" sizes="70x70" href="/scala-effekt/img/favicon70x70.png" /><link rel="icon" type="image/png" sizes="72x72" href="/scala-effekt/img/favicon72x72.png" /><link rel="icon" type="image/png" sizes="76x76" href="/scala-effekt/img/favicon76x76.png" /><link rel="icon" type="image/png" sizes="96x96" href="/scala-effekt/img/favicon96x96.png" /><link rel="icon" type="image/png" sizes="114x114" href="/scala-effekt/img/favicon114x114.png" /><link rel="icon" type="image/png" sizes="120x120" href="/scala-effekt/img/favicon120x120.png" /><link rel="icon" type="image/png" sizes="128x128" href="/scala-effekt/img/favicon128x128.png" /><link rel="icon" type="image/png" sizes="144x144" href="/scala-effekt/img/favicon144x144.png" /><link rel="icon" type="image/png" sizes="150x150" href="/scala-effekt/img/favicon150x150.png" /><link rel="icon" type="image/png" sizes="152x152" href="/scala-effekt/img/favicon152x152.png" /><link rel="icon" type="image/png" sizes="196x196" href="/scala-effekt/img/favicon196x196.png" /><link rel="icon" type="image/png" sizes="310x310" href="/scala-effekt/img/favicon310x310.png" /><link rel="icon" type="image/png" sizes="310x150" href="/scala-effekt/img/favicon310x150.png" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/scala-effekt/highlight/styles/atom-one-light.css" /><link rel="stylesheet" href="/scala-effekt/css/style.css" /><link rel="stylesheet" href="/scala-effekt/css/palette.css" /><link rel="stylesheet" href="/scala-effekt/css/codemirror.css" /><link rel="stylesheet" href="/scala-effekt/css/kazari-style.css" /><link rel="stylesheet" href="/scala-effekt/css/solarized-dark.css" /><link rel="stylesheet" href="/scala-effekt/css/boilerplate.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><ul id="sidebar" class="sidebar-nav"><li class="sidebar-brand"><a href="/scala-effekt/" class="brand"><div class="brand-wrapper"><span>Scala Effekt</span></div></a></li> <li><a href="/scala-effekt/guides.html" class="">Guides</a></li> <li><a href="/scala-effekt/guides/getting-started.html" class=" active ">Getting Started</a></li> <li><a href="/scala-effekt/guides/multiple-effects.html" class="">Multiple Effects</a></li> <li><a href="/scala-effekt/guides/multiple-handlers.html" class="">Multiple Handlers at Once</a></li> <li><a href="/scala-effekt/guides/a-normal-form.html" class="">Example: ANF Transformation</a></li> <li><a href="/scala-effekt/guides/piping.html" class="">Example: Piping</a></li></ul></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/b-studios/scala-effekt"><i class="fa fa-eye"></i><span>WATCH<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/b-studios/scala-effekt"><i class="fa fa-star-o"></i><span>STARS<span id="stars" class="label label-default">--</span></span></a></li><li><a href="#" onclick="shareSiteTwitter('Scala Effekt Extensible algebraic effects with handlers');"><i class="fa fa-twitter"></i></a></li><li><a href="#" onclick="shareSiteFacebook('Scala Effekt Extensible algebraic effects with handlers');"><i class="fa fa-facebook"></i></a></li><li><a href="#" onclick="shareSiteGoogle();"><i class="fa fa-google-plus"></i></a></li></ul></div></div></div></div><div id="content" data-github-owner="b-studios" data-github-repo="scala-effekt"><div class="content-wrapper"><section><h1 id="getting-started">Getting Started</h1>
+<p>Before you can get started with <strong>Effekt</strong> you need to set up your
+environment and add <strong>Effekt</strong> as a dependency to your <code class="highlighter-rouge">build.sbt</code> file:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>libraryDependencies += "de.b-studios" %% "effekt" % "0.3-SNAPSHOT"
+</code></pre>
+</div>
+
+<p>Alternatively, to play around with <strong>Effekt</strong> in your browser, you can
+also use Scastie. We prepared two different Scasties for you</p>
+
+<ul>
+  <li><a href="https://scastie.scala-lang.org/o2IcM13UTt60YKlcyNtv7g">Scala 2.12</a></li>
+  <li><a href="https://scastie.scala-lang.org/Ilonelw2QgGDXh1pg4yXkg">Dotty</a> – Here
+you can also play around with implicit function types. The interface
+is slightly different at the moment.</li>
+</ul>
+
+<h2 id="define-your-first-effect">Define your first effect</h2>
+<p>First we import all the necessary types and functions.
+Then, to define our first effect, we specify the <em>effect signature</em>.</p>
+
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">import</span> <span class="nn">effekt._</span>
+
+<span class="c1">// The effect signature
+</span><span class="k">trait</span> <span class="nc">Amb</span> <span class="k">extends</span> <span class="nc">Eff</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">flip</span><span class="o">()</span><span class="k">:</span> <span class="kt">Op</span><span class="o">[</span><span class="kt">Boolean</span><span class="o">]</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<p>Effect signatures in <strong>Effekt</strong> are ordinary Scala traits that extend
+from the library-trait <code class="highlighter-rouge">Eff</code>. The trait <code class="highlighter-rouge">Eff</code> has some abstract members
+which we will encounter when we implement a handler for our effect. It
+also comes with a few handy methods and type aliases that help us
+define our effect signatures and handlers.</p>
+
+<p>For effect signatures the most important type alias one is <code class="highlighter-rouge">Op</code>. The
+type alias is defined in the trait <code class="highlighter-rouge">Handler</code> and also given below.
+For now we only have to know that all
+<em>effect operations</em> like <code class="highlighter-rouge">flip</code> have to be marked as an <code class="highlighter-rouge">Op</code>-eration.</p>
+
+<h2 id="using-the-amb-effect">Using the <code class="highlighter-rouge">Amb</code> effect</h2>
+
+<p>To actually use the flip effect we need to get our hands on a
+capability that entitles us to do so. Since we don’t yet know where to
+get such capabilities from, we just define a function asking for it.
+We flip a coin once and then return 2 or 3 depending on the result.</p>
+
+<p>The type of the function argument <code class="highlighter-rouge">Use[Amb]</code> tells us, that we are
+allowed to use the <code class="highlighter-rouge">Amb</code>-effect.</p>
+
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">prog1</span><span class="o">(</span><span class="n">amb</span><span class="k">:</span> <span class="kt">Use</span><span class="o">[</span><span class="kt">Amb</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span>
+  <span class="n">use</span><span class="o">(</span><span class="n">amb</span><span class="o">)(</span><span class="n">amb</span><span class="o">.</span><span class="n">handler</span><span class="o">.</span><span class="n">flip</span><span class="o">())</span> <span class="n">map</span> <span class="o">{</span> <span class="n">x</span> <span class="k">=&gt;</span> <span class="k">if</span> <span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="mi">2</span> <span class="k">else</span> <span class="mi">3</span> <span class="o">}</span>
+</code></pre>
+</div>
+
+<p>The result type <code class="highlighter-rouge">Control[Int]</code> tells us that the integer-result will be
+contained in the <code class="highlighter-rouge">Control</code> <em>monad</em> which is <strong>Effekt</strong> specific. The
+call to <code class="highlighter-rouge">use</code> shows us that we use the capability <code class="highlighter-rouge">Use[Amb]</code> in two ways:</p>
+
+<ol>
+  <li>It serves as a proof, that we are allowed to use effect operations
+defined in the <code class="highlighter-rouge">Amb</code> signature.</li>
+  <li>It carries the effect implementation (handler code) as member <code class="highlighter-rouge">amb.handler</code>.</li>
+</ol>
+
+<p>The <code class="highlighter-rouge">flip</code> method in the effect signature will turn out to be
+very convenient for handler implementations. However, writing
+<code class="highlighter-rouge">use(u)(u.handler.op())</code> for every use of <code class="highlighter-rouge">op</code> can be tiresome. Hence,
+we establish the convention to define a second variant for each effect
+operation as part of the effect signature’s companion object:</p>
+
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="c1">// The effect companion object
+</span><span class="k">object</span> <span class="nc">Amb</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">flip</span><span class="o">()(</span><span class="k">implicit</span> <span class="n">u</span><span class="k">:</span> <span class="kt">Use</span><span class="o">[</span><span class="kt">Amb</span><span class="o">])</span> <span class="k">=</span> <span class="n">use</span><span class="o">(</span><span class="n">u</span><span class="o">)</span> <span class="o">{</span> <span class="n">u</span><span class="o">.</span><span class="n">handler</span><span class="o">.</span><span class="n">flip</span><span class="o">()</span> <span class="o">}</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<p>After importing the operations from the companion object, we can
+just use it like a normal function. Note that the capability is
+implicitly passed using Scala’s feature of implicit arguments.</p>
+
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">import</span> <span class="nn">Amb._</span>
+<span class="k">def</span> <span class="n">prog</span><span class="o">(</span><span class="k">implicit</span> <span class="n">amb</span><span class="k">:</span> <span class="kt">Use</span><span class="o">[</span><span class="kt">Amb</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span>
+  <span class="n">flip</span><span class="o">()</span> <span class="n">map</span> <span class="o">{</span> <span class="n">x</span> <span class="k">=&gt;</span> <span class="k">if</span> <span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="mi">2</span> <span class="k">else</span> <span class="mi">3</span> <span class="o">}</span>
+</code></pre>
+</div>
+
+<h2 id="defining-handlers">Defining Handlers</h2>
+<p>Let us now define our own handler for the <code class="highlighter-rouge">Amb</code> effect. A handler is
+just an implementation of the effect interface. However, it also
+needs to give the type to interpret the effect into (<code class="highlighter-rouge">List[R]</code>) and
+a function <code class="highlighter-rouge">unit</code> that lifts pure values of type <code class="highlighter-rouge">R</code> into the effect interpretation.</p>
+
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">ambList</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">Handler</span><span class="o">.</span><span class="nc">Basic</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">List</span><span class="o">[</span><span class="kt">R</span><span class="o">]]</span> <span class="k">with</span> <span class="nc">Amb</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">unit</span> <span class="k">=</span> <span class="n">a</span> <span class="k">=&gt;</span> <span class="nc">List</span><span class="o">(</span><span class="n">a</span><span class="o">)</span>
+
+  <span class="k">def</span> <span class="n">flip</span><span class="o">()</span> <span class="k">=</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
+    <span class="n">ts</span> <span class="k">&lt;-</span> <span class="n">resume</span><span class="o">(</span><span class="kc">true</span><span class="o">)(())</span>
+    <span class="n">fs</span> <span class="k">&lt;-</span> <span class="n">resume</span><span class="o">(</span><span class="kc">false</span><span class="o">)(())</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="n">ts</span> <span class="o">++</span> <span class="n">fs</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<p>Notice how we use the trait <code class="highlighter-rouge">Handler.Basic</code> which helps us defining
+some abstract type members.</p>
+
+<p>In the handler code we now can see why we defined <code class="highlighter-rouge">flip</code> to return
+<code class="highlighter-rouge">Op[Boolean]</code> before. To implement <code class="highlighter-rouge">flip</code> we get access to the handler
+state and the continuation <code class="highlighter-rouge">resume</code> (the remaining program after the flip effect,
+up to the handler).</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>type Op[A] =
+  State =&gt;                          // the handler state
+  (A =&gt; State =&gt; Control[Res]) =&gt;   // the continuation
+  Control[Res]                      // the result type
+</code></pre>
+</div>
+<p>In <code class="highlighter-rouge">Handler.Basic</code> the type member <code class="highlighter-rouge">State</code> is set to <code class="highlighter-rouge">Unit</code> and <code class="highlighter-rouge">Res</code>
+is bound to the second type parameter, hence <code class="highlighter-rouge">List[R]</code>. In our example
+<code class="highlighter-rouge">Op</code> is defined to be:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>type Op[A] = Unit =&gt; (A =&gt; Unit =&gt; Control[List[R]]) =&gt; Control[List[R]]
+</code></pre>
+</div>
+
+<h2 id="handling-effects">Handling Effects</h2>
+<p>To handle an effect we use the apply method that is defined on an
+instance of <code class="highlighter-rouge">handler</code>.</p>
+
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">val</span> <span class="n">handled</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="n">ambList</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">h</span> <span class="k">=&gt;</span> <span class="n">prog</span> <span class="o">}</span>
+</code></pre>
+</div>
+
+<p>One way of thinking about algebraic effects and handlers is to think
+as (resumable) exceptions. In our example, the effect operation <code class="highlighter-rouge">flip</code>
+would correspond to <code class="highlighter-rouge">throw</code> and the handler <code class="highlighter-rouge">ambList</code> to a surrounding
+<code class="highlighter-rouge">try { ... }</code>.</p>
+
+<p>After all effects are handled, we can now run the effectful computation:</p>
+
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">handled</span><span class="o">.</span><span class="n">run</span><span class="o">()</span>
+<span class="n">res3</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">List</span><span class="o">(</span><span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span>
+</code></pre>
+</div>
+</section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scala-effekt/highlight/highlight.pack.js"></script><script>hljs.configure({
+languages:['scala','java','bash']
+});
+hljs.initHighlighting();
+             </script><script src="/scala-effekt/js/boilerplate.js"></script><script src="/scala-effekt/js/main.js"></script><script src="/scala-effekt/js/kazari.js"></script><script>
+$(document).ready(function() {
+	kazari.KazariPlugin().decorateCode('https://scala-evaluator-212.herokuapp.com/eval', 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.S2F6YXJp.Jl2eqMfw8IakJF93PjxTbrf-8YUJgX5OoOfy5JHE8Yw', '', 'solarized-dark')
+})
+    </script></body></html>
