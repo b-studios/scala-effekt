@@ -103,20 +103,14 @@ object effekt {
     // Here we need to idiomatically reset the idiomatic continuation...
     // This is similar to installing a separate, idiomatic handler that
     // communicates with the outer (monadic) handler via `run`.
-    def flatMap[B](f: A => C[B]): C[B] =
-    {
-      h match {
-        case hd: handler.Dynamic[r] =>
-          // a flatMap acts like a reset for the inner (idiomatic) handler
-          val ga: I[h.G[A]] = h.CPS[X, A](body)(reset(h) { ki })
-          // now it is up to the outer (monadic) handler
-          UseD(hd, ga.asInstanceOf[I[hd.G[A]]], f)
-        case _ => sys error "should not happen! control computation within idiomatic handler."
-      }
+    def flatMap[B](f: A => C[B]): C[B] = {
+      // a flatMap acts like a reset for the inner (idiomatic) handler
+      // now it is up to the outer (monadic) handler
+      UseD(h, h.CPS[X, A](body)(reset(h) { ki }), f)
     }
   }
 
-  case class UseD[A, X](h: handler.Dynamic[_], ki: I[h.G[X]], km: X => C[A]) extends C[A] {
+  case class UseD[A, X](h: handler.Idiomatic, ki: I[h.G[X]], km: X => C[A]) extends C[A] {
     def run = sys error "undelimited idiom"
     def map[B](f: A => B): C[B] = UseD(h, ki, a => km(a) map f)
     def flatMap[B](f: A => C[B]): C[B] = UseD(h, ki, a => km(a) flatMap f)
@@ -164,6 +158,10 @@ object effekt {
       def handle[R](prog: this.type => I[R]): I[G[R]] = effekt.handle(this)(prog)
       def apply[R](prog: this.type => I[R]): I[G[R]] = effekt.handle(this)(prog)
 
+      // TODO can we somehow return a Monadic[R] here?
+      def dynamic[R](prog: this.type => C[R])(run: G[ω] => (ω => C[R]) => C[R]): C[R] =
+        effekt.dynamic(this, run)(prog)
+
       private[effekt] def CPS[A, R](body: CPS[A])(g: I[G[A => R]]): I[G[R]] =
         body.asInstanceOf[I[G[A => R]] => I[G[R]]](g)
     }
@@ -171,14 +169,6 @@ object effekt {
     trait Analyze[D] extends Monoidal[D] {
       def default[R] = use { identity }
       def collect[A](el: D): I[A] = use { d => m.combine(el, d) }
-    }
-
-    // a handler for monadic programs that allows dynamic optimizations
-    // for idiomatic subprograms.
-    trait Dynamic[R] extends Idiomatic {
-      def run[X]: G[X] => (X => C[R]) => C[R]
-
-      def handleDynamic(prog: this.type => C[R]): C[R] = effekt.handle(this)(prog)
     }
 
     // a handler for monadic programs that is itself monadic normal bubble semantics
@@ -235,22 +225,22 @@ object effekt {
       UseM(u.h, u.body, x => reset(hi) { u.km(x).asInstanceOf[I[R]] })
   }
 
-  def handle[R](h: handler.Dynamic[R])(prog: h.type => C[R]): C[R] = reset(h) { prog(h) }
-  private[effekt] def reset[R](hd: handler.Dynamic[R])(prog: C[R]): C[R] = prog match {
+  // lowers an idiomatic handler to a monadic handler
+  def dynamic[R](hi: handler.Idiomatic, run: hi.G[ω] => (ω => C[R]) => C[R])(prog: hi.type => C[R]): C[R] = prog(hi) match {
     case p : Pure[R] => p
 
     // the program is purely idiomatic, no flatMap occurred.
-    case u : UseI[R, _] { val h: hd.type } if hd eq u.h =>
-      reset(hd) { u flatMap { pure } }
+    case u : UseI[R, x] if hi eq u.h =>
+      dynamic(hi, run)(_ => u flatMap { pure })
 
-    case u : UseD[R, _] { val h: hd.type } if hd eq u.h =>
-      u.ki flatMap { gx => hd.run(gx)(x => reset(hd) { u.km(x) }) }
+    case u : UseD[R, ω] { val h: hi.type } if hi eq u.h =>
+      u.ki flatMap { go => run(go) { x => dynamic(hi, run) { _ => u.km(x) }}}
 
-    case u : UseM[x, a] =>
-      UseM(u.h, u.body, x => reset(hd) { u.km(x) })
+    case u : UseD[R, x] =>
+      UseD(u.h, u.ki, x => dynamic(hi, run) { _ => u.km(x) })
 
-    case u : UseD[r, x] =>
-      UseD(u.h, u.ki, x => reset(hd) { u.km(x) })
+    case u : UseM[x, R] =>
+      UseM(u.h, u.body, x => dynamic(hi, run) { _ => u.km(x) })
 
     // since this handler is monadic, there shouldn't be another unhandled idiomatic effect
     case u : UseI[R, x] =>
@@ -422,22 +412,10 @@ object examples extends App {
   } yield "done"
 
   type Trace = List[Int]
-  class TracePuts[R] extends Put with Dynamic[(R, Trace)] {
-    // the applicative carrier
-    type G[X] = (X, Int)
-    def unit[R] = r => (r, 0)
-    def map[A, B] = f => (a, n) => (f(a), n)
-
-    // the applicative operation
-    def put(n: Int) = use { case (k, m) => (k(()), m + n) }
-
-    // connection to the monadic carrier
-    def run[X] = (x, n) => resume => resume(x) map {
-      case (r, ms) => (r, n :: ms)
-    }
-  }
   def tracePuts[R](prog: C[R] using Put): C[(R, Trace)] =
-    new TracePuts[R] handleDynamic  { g => prog(g) map { x => (x, Nil) } }
+    sumPuts.dynamic(prog(_) map { x => (x, List.empty[Int]) }) {
+      (x, n) => resume => resume(x) map { case (r, ms) => (r, n :: ms) }
+    }
 
   expect (((), List(1, 2))) {
     tracePuts { implicit _ =>
@@ -511,6 +489,9 @@ object examples extends App {
     }
   }
 }
+
+
+
 
 object github extends App {
 
@@ -626,7 +607,7 @@ object github extends App {
   def prefetched(db: Map[UserLogin, User])(implicit outer: Github) =
     new Prefetched(db, outer)
 
-  trait Reify extends Github with Idiomatic {
+  class Reify extends Github with Idiomatic {
     type G[X] = I[X] using Github
     def unit[R] = r => pure(r)
     def map[A, B] = f => ma => ma map f
@@ -636,21 +617,22 @@ object github extends App {
     def getComments(owner: Owner, repo: Repo, issue: Issue) = use { Github.getComments(owner, repo, issue) ap _ }
     def listIssues(owner: Owner, repo: Repo) = use { Github.listIssues(owner, repo) ap _ }
   }
+  def reify = new Reify
 
-  class Batched[R](implicit outer: Github) extends Reify with Dynamic[R] {
-    def run[X] = prog => resume => for {
-      logins <- requestedLogins { prog } map { _.toList }
-      _ = println("prefetching user logins: " + logins)
-      users <- logins.traverse { Github.getUser } // here we could actually batch.
-      db = (logins zip users).toMap
-      res <- prefetched(db).apply { prog } flatMap resume
-    } yield res
-  }
-  def batched[R](implicit outer: Github) = new Batched[R]
+  def batched[R](prog: C[R] using Github): C[R] using Github =
+    reify.dynamic(prog) {
+      prog => resume => for {
+        logins <- requestedLogins { prog } map { _.toList }
+        _ = println("prefetching user logins: " + logins)
+        users <- logins.traverse { Github.getUser } // here we could actually batch.
+        db = (logins zip users).toMap
+        res <- prefetched(db).apply { prog } flatMap resume
+      } yield res
+    }
 
   println { run {
-    batched(GHStub) handleDynamic { implicit _ =>
+    batched { implicit _ =>
       allUsers(epfl, dotty) map { _ mkString "\n" }
-    }
+    } (GHStub)
   }}
 }
