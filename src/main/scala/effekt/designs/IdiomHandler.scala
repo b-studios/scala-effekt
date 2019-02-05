@@ -1,7 +1,7 @@
 package effekt.design.idioms
 
 // for rank-2 types
-// not really safe, since values of type can
+// not really safe, since values of type ω can
 // be stored in references and recovered later.
 object rank2 {
   type ω
@@ -136,11 +136,6 @@ object effekt {
 
   def pure[A](value: => A): I[A] = new Pure(value)
   def run[A](i: C[A]): A = i.run
-  def map3[A, B, C, R](ia: I[A], ib: I[B], ic: I[C])(f: (A, B, C) => R): I[R] =
-    ia.map2(ib) { case (a, b) => (a, b) }.map2(ic) { case ((a, b), c) => f (a, b, c) }
-  def map4[A, B, C, D, R](ia: I[A], ib: I[B], ic: I[C], id: I[D])(f: (A, B, C, D) => R): I[R] =
-    map3(ia, ib, ic) { case (a, b, c) => (a, b, c) }.map2(id) { case ((a, b, c), d) => f (a, b, c, d) }
-
 
   // We have three flavors of handlers:
   // 1) idiomatic handlers: I[R] => I[G[R]]
@@ -289,6 +284,8 @@ object examples extends App {
 
   import effekt._
   import handler._
+  import cats.Applicative
+  import cats.implicits._
 
   def expect[R](expected: R)(prog: C[R]): Unit = {
     val got = run { prog }
@@ -312,7 +309,7 @@ object examples extends App {
   }
 
   val exampleGet: I[Int] using Get and Put = {
-    map3(Get.get(), Get.get(), Put.put(4) andThen Put.put(7)) {
+    Applicative[I].map3(Get.get(), Get.get(), Put.put(4) andThen Put.put(7)) {
       case (x, y, _) => x + y
     }
   }
@@ -522,6 +519,7 @@ object github extends App {
 
   import effekt._
   import handler._
+  import cats.implicits._
 
   case class Issue(value: Int)
   case class Url(value: String)
@@ -586,23 +584,17 @@ object github extends App {
     }
   }
 
-  import cats.implicits._
-
   def allUsers(owner: Owner, repo: Repo): C[List[(Issue,List[(Comment,User)])]] using Github = for {
 
     issues <- Github.listIssues(owner,repo)
 
-    issueComments <- {
-      issues.traverse(issue =>
-        Github.getComments(owner,repo,issue).map((issue,_)))
-    }
+    issueComments <- issues.traverse(issue => Github.getComments(owner,repo,issue).map((issue,_)))
 
-    users <- {
+    users <-
       issueComments.traverse { case (issue,comments) =>
         comments.traverse(comment =>
           Github.getUser(comment.user).map((comment,_))).map((issue,_))
       }
-    }
   } yield users
 
   println { run {
@@ -613,7 +605,6 @@ object github extends App {
 
 
   // Handlers
-
 
   class RequestedLogins extends Github with Analyze[Set[UserLogin]] with Monoidal[Set[UserLogin]] {
     def getUser(login: UserLogin): I[User] = collect { Set(login) }
@@ -653,9 +644,9 @@ object github extends App {
     def run[X] = prog => resume => for {
       logins <- requestedLogins { prog } map { _.toList }
       _ = println("prefetching user logins: " + logins)
-      users <- logins.traverse { Github.getUser }
+      users <- logins.traverse { Github.getUser } // here we could actually batch.
       db = (logins zip users).toMap
-      res <- prefetched(db).apply[X] { prog } flatMap resume
+      res <- prefetched(db).apply { prog } flatMap resume
     } yield res
   }
   def batched[R](implicit outer: Github) = new Batched[R]
