@@ -124,23 +124,23 @@ object effekt {
     def map2[B, C](mb: I[B])(f: (A, B) => C): I[C] =
       UseI(h, body, ki.map2(mb) { (xa, b) => x => f(xa(x), b) })
 
-    // that's the transition from I to C
+    // Here we need to idiomatically reset the idiomatic continuation...
+    // This is similar to installing a separate, idiomatic handler that
+    // communicates with the outer (monadic) handler via `run`.
     def flatMap[B](f: A => C[B]): C[B] =
     {
       h match {
-        case hd: handler.Dynamic =>
-          // TODO is it ok to already call the body here with the partial continuation?
-          // here we need to idiomatically reset the idiomatic continuation...
-          // This is similar to installing a separate, idiomatic handler that somehow
-          // communicates with the outer (monadic) handler
+        case hd: handler.Dynamic[r] =>
+          // a flatMap acts like a reset for the inner (idiomatic) handler
           val ga: I[h.G[A]] = h.CPS[X, A](body)(reset(h) { ki })
+          // now it is up to the outer (monadic) handler
           UseD(hd, ga.asInstanceOf[I[hd.G[A]]], f)
         case _ => sys error "should not happen! control computation within idiomatic handler."
       }
     }
   }
 
-  case class UseD[A, X, Y](h: handler.Dynamic, ki: I[h.G[Y]], km: Y => C[A]) extends C[A] {
+  case class UseD[A, X](h: handler.Dynamic[_], ki: I[h.G[X]], km: X => C[A]) extends C[A] {
     def run = sys error "undelimited idiom"
     def map[B](f: A => B): C[B] = UseD(h, ki, a => km(a) map f)
     def flatMap[B](f: A => C[B]): C[B] = UseD(h, ki, a => km(a) flatMap f)
@@ -148,7 +148,7 @@ object effekt {
 
   // TODO here UseM extends I since the effect signatures promise idiomatic effects
   // It should be C[A] after the first call to flatMap! Otherwise the signature of `map` is a lie.
-  case class UseM[X, A](h: handler.Monadic, body: h.CPS[X], km: X => C[A]) extends I[A] {
+  case class UseM[X, A](h: handler.Monadic[_], body: h.CPS[X], km: X => C[A]) extends I[A] {
     def run = sys error "undelimited control"
     def map[B](f: A => B): I[B] = UseM(h, body, a => km(a) map f)
     def flatMap[B](f: A => C[B]): C[B] = UseM(h, body, a => km(a) flatMap f)
@@ -204,26 +204,19 @@ object effekt {
 
     // a handler for monadic programs that allows dynamic optimizations
     // for idiomatic subprograms.
-    trait Dynamic extends Idiomatic {
-      def run[X, R]: G[X] => (X => C[G[R]]) => C[G[R]]
+    trait Dynamic[R] extends Idiomatic {
+      def run[X]: G[X] => (X => C[R]) => C[R]
 
-      def handleDynamic[R](prog: this.type => C[R]): C[G[R]] = effekt.handle(this)(prog)
+      def handleDynamic(prog: this.type => C[R]): C[R] = effekt.handle(this)(prog)
     }
 
     // a handler for monadic programs that is itself monadic normal bubble semantics
-    trait Monadic {
-      // for reasons of symmetry, monadic handlers for now also uses functor G[_]
-      type G[_]
-      def unit[R]: R => G[R]
-
-      type CPS[A] = (A => C[G[ω]]) => C[G[ω]]
+    trait Monadic[R] {
+      type CPS[A] = (A => C[R]) => C[R]
       def use[A](body: CPS[A]): I[A] = UseM(this, body, pure)
 
-      private[effekt] def CPS[A, R](body: CPS[A])(g: A => C[R]): C[R] =
-        body.asInstanceOf[(A => C[R]) => C[R]](g)
-
-      def handle[R](prog: this.type => C[R]): C[G[R]] = effekt.handle(this)(prog)
-      def apply[R](prog: this.type => C[R]): C[G[R]] = effekt.handle(this)(prog)
+      def handle(prog: this.type => C[R]): C[R] = effekt.handle(this)(prog)
+      def apply(prog: this.type => C[R]): C[R] = effekt.handle(this)(prog)
     }
 
 
@@ -271,26 +264,24 @@ object effekt {
       UseM(u.h, u.body, x => reset(h) { u.km(x).asInstanceOf[I[R]] })
   }
 
-  def handle[R](h: handler.Dynamic)(prog: h.type => C[R]): C[h.G[R]] = reset(h) { prog(h) }
-  private[effekt] def reset[R](h: handler.Dynamic)(prog: C[R]): C[h.G[R]] = prog match {
-    case p : Pure[R] =>
-      p.map(h.unit)
+  def handle[R](h: handler.Dynamic[R])(prog: h.type => C[R]): C[R] = reset(h) { prog(h) }
+  private[effekt] def reset[R](h: handler.Dynamic[R])(prog: C[R]): C[R] = prog match {
+    case p : Pure[R] => p
 
     // the program is purely idiomatic, no flatMap occurred.
     case u : UseI[R, x] if h eq u.h =>
-      val gr: I[u.h.G[R]] = u.h.CPS(u.body)(reset(u.h) { u.ki })
-      gr.asInstanceOf[I[h.G[R]]]
+      reset(h) { u flatMap { pure } }
 
-    case u : UseD[R, x, y] if h eq u.h =>
-      val ki: I[u.h.G[y]] = u.ki
-      ki.asInstanceOf[I[h.G[y]]] flatMap { gy =>
-        h.run(gy)(x => reset(h) { u.km(x) })
+    case u : UseD[R, x] if h eq u.h =>
+      val ki: I[u.h.G[x]] = u.ki
+      ki.asInstanceOf[I[h.G[x]]] flatMap { gx =>
+        h.run(gx)(x => reset(h) { u.km(x) })
       }
 
     case u : UseM[x, a] =>
       UseM(u.h, u.body, x => reset(h) { u.km(x) })
 
-    case u : UseD[r, x, a] =>
+    case u : UseD[r, x] =>
       UseD(u.h, u.ki, x => reset(h) { u.km(x) })
 
     // since this handler is monadic, there shouldn't be another unhandled idiomatic effect
@@ -298,17 +289,17 @@ object effekt {
       sys error "should not happen! Unhandled idiomatic effect"
   }
 
-  def handle[R](h: handler.Monadic)(prog: h.type => C[R]): C[h.G[R]] = reset(h) { prog(h) map h.unit }
-  private[effekt] def reset[R](h: handler.Monadic)(prog: C[h.G[R]]): C[h.G[R]] = prog match {
-    case p: Pure[h.G[R]] => p
+  def handle[R](h: handler.Monadic[R])(prog: h.type => C[R]): C[R] = reset(h) { prog(h) }
+  private[effekt] def reset[R](h: handler.Monadic[R])(prog: C[R]): C[R] = prog match {
+    case p: Pure[R] => p
 
     case u : UseM[x, r] if h eq u.h =>
-      u.h.CPS(u.body)(x => reset(h) { u.km(x) })
+      u.body.asInstanceOf[(x => C[R]) => C[R]](x => reset(h) { u.km(x) })
 
     case u : UseM[x, a] =>
       UseM(u.h, u.body, x => reset(h) { u.km(x) })
 
-    case u: UseD[a, x, y] =>
+    case u: UseD[a, x] =>
       UseD(u.h, u.ki, x => reset(h) { u.km(x) })
 
     // Can only occur through handleIdiom { i => handleMonadic { m => i.op() } }
@@ -399,9 +390,7 @@ object examples extends App {
   }
   def both = new Both
 
-  class MonadicGet extends Get with Monadic {
-    type G[X] = List[X]
-    def unit[R] = x => List(x)
+  class MonadicGet[R] extends Get with Monadic[List[R]] {
     def get() = use { resume =>
       for {
         xs <- resume(0)
@@ -409,7 +398,8 @@ object examples extends App {
       } yield xs ++ ys
     }
   }
-  def monadicGet = new MonadicGet
+  def monadicGet[R](prog: C[R] using Get): C[List[R]] =
+    new MonadicGet[R] handle { g => prog(g) map { x => List(x) } }
 
   expect ((2, 11)) {
     sumPuts { implicit _ =>
@@ -461,45 +451,50 @@ object examples extends App {
     _ <- pure(())
   } yield "done"
 
-  class TracePuts extends Put with Dynamic {
-    type G[X] = (X, List[Int])
-    def unit[R] = r => (r, 0 :: Nil)
+  type Trace = List[Int]
+  class TracePuts[R] extends Put with Dynamic[(R, Trace)] {
+    // the applicative carrier
+    type G[X] = (X, Int)
+    def unit[R] = r => (r, 0)
     def map[A, B] = f => (a, n) => (f(a), n)
 
-    def put(n: Int) = use { case (k, m :: rs) => (k(()), (m + n) :: rs) }
+    // the applicative operation
+    def put(n: Int) = use { case (k, m) => (k(()), m + n) }
 
-    def run[X, R] = (x, ns) => resume => resume(x) map {
-      case (r, ms) => (r, ns ++ ms)
+    // connection to the monadic carrier
+    def run[X] = (x, n) => resume => resume(x) map {
+      case (r, ms) => (r, n :: ms)
     }
   }
-  def tracePuts = new TracePuts
+  def tracePuts[R](prog: C[R] using Put): C[(R, Trace)] =
+    new TracePuts[R] handleDynamic  { g => prog(g) map { x => (x, Nil) } }
 
-  expect (((), List(1, 2, 0))) {
-    tracePuts handleDynamic { implicit _ =>
+  expect (((), List(1, 2))) {
+    tracePuts { implicit _ =>
       example1
     }
   }
 
   expect (((), List(1))) {
-    tracePuts handleDynamic { implicit _ =>
+    tracePuts { implicit _ =>
       example1a
     }
   }
 
   expect (((), List(3))) {
-    tracePuts handleDynamic { implicit _ =>
+    tracePuts { implicit _ =>
       example1b
     }
   }
 
-  expect (((), List(3, 0))) {
-    tracePuts handleDynamic { implicit _ =>
+  expect (((), List(3))) {
+    tracePuts { implicit _ =>
       example1c
     }
   }
 
-  expect (("done", List(12, 6, 9, 0))) {
-    tracePuts handleDynamic { implicit _ =>
+  expect (("done", List(12, 6, 9))) {
+    tracePuts { implicit _ =>
       example2
     }
   }
@@ -533,18 +528,16 @@ object examples extends App {
   }
 
   val result3c = List(
-    ((),List(6, 6, 0)),
-    ((),List(6, 9, 0)),
-    ((),List(9, 6, 0)),
-    ((),List(9, 9, 0)))
+    ((),List(6, 6)),
+    ((),List(6, 9)),
+    ((),List(9, 6)),
+    ((),List(9, 9)))
 
   expect (result3c) {
     monadicGet { implicit _ =>
-      tracePuts handleDynamic { implicit _ =>
+      tracePuts { implicit _ =>
         example3c
       }
     }
   }
-
-
 }
