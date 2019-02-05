@@ -1,5 +1,5 @@
 lazy val commonSettings = Seq(
-  scalaVersion := dottyLatestNightlyBuild.get,
+  scalaVersion := "0.13.0-bin-20190120-2ce89da-NIGHTLY", // dottyLatestNightlyBuild.get, // "0.12.0-bin-SNAPSHOT"
   version := "0.2-SNAPSHOT",
   organization := "de.b-studios",
   scalacOptions ++= Seq(
@@ -9,9 +9,10 @@ lazy val commonSettings = Seq(
     "-unchecked",
     "-language:implicitConversions"
   ),
+  libraryDependencies += ("org.typelevel" %% "cats-core" % "1.6.0").withDottyCompat(scalaVersion.value),
   fork in test := true,
-  parallelExecution in Test := false,
-  mainClass in (Compile, run) := Some("effekt.examples.DottyTest")
+  parallelExecution in Test := false
+//  mainClass in (Compile, run) := Some("effekt.examples.DottyTest")
 )
 
 lazy val effektSettings = commonSettings ++ publishSettings
