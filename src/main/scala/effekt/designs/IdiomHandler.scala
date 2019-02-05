@@ -208,19 +208,19 @@ object effekt {
 
 
   def handle[R](h: handler.Idiomatic)(prog: h.type => I[R]): I[h.G[R]] = reset(h) { prog(h) }
-  private[effekt] def reset[R](h: handler.Idiomatic)(prog: I[R]): I[h.G[R]] = prog match {
+  private[effekt] def reset[R](hi: handler.Idiomatic)(prog: I[R]): I[hi.G[R]] = prog match {
     case p @ Pure(_) =>
-      p.map(h.unit)
+      p.map(hi.unit)
 
     // since h eq u.h
     // we can assume that h.G =:= u.h.G
-    case u : UseI[R, x] if h eq u.h =>
-      u.h.CPS(u.body)(reset(u.h) { u.ki }).asInstanceOf[I[h.G[R]]]
+    case u : UseI[R, _] { val h: hi.type } if hi eq u.h =>
+      u.h.CPS(u.body)(reset(u.h) { u.ki })
 
     case u : UseI[R, x] =>
-      val k: I[x => h.G[R]] = reset(h)(u.ki) map { gk => x =>
+      val k: I[x => hi.G[R]] = reset(hi)(u.ki) map { gk => x =>
         // here we require G to be a functor to convert `gk: G[x => R]` to `x => G[R]`:
-        h.map[x => R, R](xr => xr(x))(gk)
+        hi.map[x => R, R](xr => xr(x))(gk)
       }
       UseI(u.h, u.body, k)
 
@@ -232,28 +232,25 @@ object effekt {
       // this case is only necessary since we declared UseM <: I
       // we could have a separate bubble type for UseMI that is an idiomatic prog.
       // This way we could avoid the cast.
-      UseM(u.h, u.body, x => reset(h) { u.km(x).asInstanceOf[I[R]] })
+      UseM(u.h, u.body, x => reset(hi) { u.km(x).asInstanceOf[I[R]] })
   }
 
   def handle[R](h: handler.Dynamic[R])(prog: h.type => C[R]): C[R] = reset(h) { prog(h) }
-  private[effekt] def reset[R](h: handler.Dynamic[R])(prog: C[R]): C[R] = prog match {
+  private[effekt] def reset[R](hd: handler.Dynamic[R])(prog: C[R]): C[R] = prog match {
     case p : Pure[R] => p
 
     // the program is purely idiomatic, no flatMap occurred.
-    case u : UseI[R, x] if h eq u.h =>
-      reset(h) { u flatMap { pure } }
+    case u : UseI[R, _] { val h: hd.type } if hd eq u.h =>
+      reset(hd) { u flatMap { pure } }
 
-    case u : UseD[R, x] if h eq u.h =>
-      val ki: I[u.h.G[x]] = u.ki
-      ki.asInstanceOf[I[h.G[x]]] flatMap { gx =>
-        h.run(gx)(x => reset(h) { u.km(x) })
-      }
+    case u : UseD[R, _] { val h: hd.type } if hd eq u.h =>
+      u.ki flatMap { gx => hd.run(gx)(x => reset(hd) { u.km(x) }) }
 
     case u : UseM[x, a] =>
-      UseM(u.h, u.body, x => reset(h) { u.km(x) })
+      UseM(u.h, u.body, x => reset(hd) { u.km(x) })
 
     case u : UseD[r, x] =>
-      UseD(u.h, u.ki, x => reset(h) { u.km(x) })
+      UseD(u.h, u.ki, x => reset(hd) { u.km(x) })
 
     // since this handler is monadic, there shouldn't be another unhandled idiomatic effect
     case u : UseI[R, x] =>
@@ -261,17 +258,17 @@ object effekt {
   }
 
   def handle[R](h: handler.Monadic[R])(prog: h.type => C[R]): C[R] = reset(h) { prog(h) }
-  private[effekt] def reset[R](h: handler.Monadic[R])(prog: C[R]): C[R] = prog match {
+  private[effekt] def reset[R](hm: handler.Monadic[R])(prog: C[R]): C[R] = prog match {
     case p: Pure[R] => p
 
-    case u : UseM[x, r] if h eq u.h =>
-      u.body.asInstanceOf[(x => C[R]) => C[R]](x => reset(h) { u.km(x) })
+    case u : UseM[_, R] { val h: hm.type } if hm eq u.h =>
+      u.body(x => reset(hm) { u.km(x) })
 
     case u : UseM[x, a] =>
-      UseM(u.h, u.body, x => reset(h) { u.km(x) })
+      UseM(u.h, u.body, x => reset(hm) { u.km(x) })
 
     case u: UseD[a, x] =>
-      UseD(u.h, u.ki, x => reset(h) { u.km(x) })
+      UseD(u.h, u.ki, x => reset(hm) { u.km(x) })
 
     // Can only occur through handleIdiom { i => handleMonadic { m => i.op() } }
     // but this should be ruled out by `handleMonadic: C[R]` and `handleIdiom(I[R])`.
