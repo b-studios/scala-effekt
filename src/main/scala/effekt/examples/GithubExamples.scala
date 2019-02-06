@@ -11,20 +11,9 @@ import cats.implicits._
 import effekt.catsinterop._
 import effekt.handler._
 
-// The example is inspired by Markus Hauk's talk:
-//     "Free Monads and Free Applicatives", flatMap(Oslo) 2016.
-//     https://github.com/markus1189/flatmap-oslo-2016
-trait GithubExamples {
+trait GithubEffect {
 
-  case class Issue(value: Int)
-  case class Url(value: String)
-  case class Owner(value: String)
-  case class UserLogin(value: String)
-  case class Repo(value: String)
-  case class Comment(url: Url, body: Body, user: UserLogin)
-  case class Body(value: String) { override def toString = "<body not shown>" }
-  case class User(login: String, name: String)
-
+  // The effect signature
   trait Github {
     def getComment(owner: Owner, repo: Repo, id: Int): I[Comment]
     def getComments(owner: Owner, repo: Repo, issue: Issue): I[List[Comment]]
@@ -33,7 +22,83 @@ trait GithubExamples {
   }
   def Github: Github using Github = implicit gh => gh
 
+  // Data Classes
+  case class Issue(value: Int)
+  case class Url(value: String)
+  case class Owner(value: String)
+  case class UserLogin(value: String)
+  case class Repo(value: String)
+  case class Comment(url: Url, body: Body, user: UserLogin)
+  case class Body(value: String) { override def toString = "<body not shown>" }
+  case class User(login: String, name: String)
+}
 
+// The example is inspired by Markus Hauk's talk:
+//     "Free Monads and Free Applicatives", flatMap(Oslo) 2016.
+//     https://github.com/markus1189/flatmap-oslo-2016
+trait GithubExamples
+    extends GithubEffect
+    with GithubStubHandler
+    with GithubRemoteHandler
+    with GithubBatchedHandler {
+
+  // A user program that is partially idiomatic but overall monadic.
+  def allUsers(owner: Owner, repo: Repo): C[List[(Issue,List[(Comment,User)])]] using Github = for {
+
+    issues <- Github.listIssues(owner,repo)
+
+    issueComments <- issues.traverse(issue => Github.getComments(owner,repo,issue).map((issue,_)))
+
+    users <-
+      issueComments.traverse { case (issue,comments) =>
+        comments.traverse(comment =>
+          Github.getUser(comment.user).map((comment,_))).map((issue,_))
+      }
+  } yield users
+
+  // Running the example with the static stub handler
+  println { run {
+    allUsers(epfl, dotty)(GithubStub) map {
+      _ mkString "\n"
+    }
+  }}
+
+  // Running the example with the static stub handler
+  // AND the batch optimizing handler
+  println("-----------")
+  println { run {
+    batched { implicit _ =>
+      allUsers(epfl, dotty) map { _ mkString "\n" }
+    } (GithubStub)
+  }}
+
+  // Running the example with a simple, blocking remote
+  // handler AND the batch optimizing handler.
+  // (commented out to avoid running into rate-limiting issues)
+//  println("-----------")
+//  println { run {
+//    batched { implicit _ =>
+//      allUsers(Owner("koka-lang"), Repo("libhandler")) map { _ mkString "\n" }
+//    } (GithubRemote)
+//  }}
+
+  // Running the example with a remote handler that uses
+  // the future applicative instance AND the batch optimizing
+  // handler.
+  import scala.concurrent.ExecutionContext.Implicits.global
+  println("-----------")
+  println { run {
+    githubRemoteFuture(30 seconds) { implicit _ =>
+      batched { implicit _ =>
+        allUsers(Owner("koka-lang"), Repo("libhandler")) map { _ mkString "\n" }
+      }
+    }
+  }}
+}
+
+trait GithubStubHandler extends GithubEffect {
+
+  // just some static dummy data
   val epfl = Owner("epfl")
   val dotty = Repo("dotty")
   val bstudios = UserLogin("b-studios")
@@ -78,6 +143,9 @@ trait GithubExamples {
       pure(issues((owner, repo)))
     }
   }
+}
+
+trait GithubRemoteHandler extends GithubEffect {
 
   trait GithubApi extends Github {
     def getComment(owner: Owner, repo: Repo, id: Int) =
@@ -118,24 +186,6 @@ trait GithubExamples {
       Await.result(prog.map(resume), timeout)
     }
 
-  def allUsers(owner: Owner, repo: Repo): C[List[(Issue,List[(Comment,User)])]] using Github = for {
-
-    issues <- Github.listIssues(owner,repo)
-
-    issueComments <- issues.traverse(issue => Github.getComments(owner,repo,issue).map((issue,_)))
-
-    users <-
-      issueComments.traverse { case (issue,comments) =>
-        comments.traverse(comment =>
-          Github.getUser(comment.user).map((comment,_))).map((issue,_))
-      }
-  } yield users
-
-  println { run {
-    allUsers(epfl, dotty)(GithubStub) map {
-      _ mkString "\n"
-    }
-  }}
 
   // JSON parsers
   type Parser[T] = JsValue => T
@@ -170,9 +220,9 @@ trait GithubExamples {
     val objs = json.validate[List[JsValue]].get
     objs.map(obj => (obj \ "number").validate[Int].map(Issue(_)).asOpt).flatten
   }
+}
 
-
-  // Handlers
+trait GithubBatchedHandler extends GithubEffect {
 
   class RequestedLogins extends Github with Analyze[Set[UserLogin]] with Monoidal[Set[UserLogin]] {
     def getUser(login: UserLogin): I[User] = collect { Set(login) }
@@ -223,28 +273,4 @@ trait GithubExamples {
         res <- prefetched(db) handle { prog } flatMap resume
       } yield res
     }
-
-  println("-----------")
-  println { run {
-    batched { implicit _ =>
-      allUsers(epfl, dotty) map { _ mkString "\n" }
-    } (GithubStub)
-  }}
-
-//  println("-----------")
-//  println { run {
-//    batched { implicit _ =>
-//      allUsers(Owner("koka-lang"), Repo("libhandler")) map { _ mkString "\n" }
-//    } (GithubRemote)
-//  }}
-
-  import scala.concurrent.ExecutionContext.Implicits.global
-  println("-----------")
-  println { run {
-    githubRemoteFuture(30 seconds) { implicit _ =>
-      batched { implicit _ =>
-        allUsers(Owner("koka-lang"), Repo("libhandler")) map { _ mkString "\n" }
-      }
-    }
-  }}
 }
