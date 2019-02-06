@@ -194,12 +194,12 @@ trait GithubExamples {
     def listIssues(owner: Owner, repo: Repo) =
       Github.listIssues(owner, repo)
   }
-  def prefetched[R](db: Map[UserLogin, User])(prog: I[R] using Github): I[R] using Github =
-    new Prefetched(db) handle prog
+  def prefetched[R](db: Map[UserLogin, User]): Prefetched using Github =
+    new Prefetched(db)
 
   // we can also run the handler on monadic computations!
   def prefetchedM[R](db: Map[UserLogin, User])(prog: C[R] using Github): C[R] using Github =
-    new Prefetched(db).dynamic(prog) { res => resume => resume(res) }
+    prefetched(db) handleMonadic prog
 
   class Reify extends Github with Idiomatic {
     type G[X] = I[X] using Github
@@ -220,7 +220,7 @@ trait GithubExamples {
         _ = println("prefetching user logins: " + logins)
         users <- logins.traverse { Github.getUser } // here we could actually batch.
         db = (logins zip users).toMap
-        res <- prefetched(db) { prog } flatMap resume
+        res <- prefetched(db) handle { prog } flatMap resume
       } yield res
     }
 

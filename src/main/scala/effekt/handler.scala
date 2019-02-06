@@ -49,4 +49,8 @@ trait Id extends Idiomatic {
   type G[X] = X
   def unit[R] = identity
   def map[A, B] = _.apply
+
+  // since G is Id, we can also run the handler on monadic computations
+  def handleMonadic[R](prog: this.type => C[R]): C[R] =
+    dynamic(prog) { res => resume => resume(res) }
 }
