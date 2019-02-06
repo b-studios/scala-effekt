@@ -147,8 +147,7 @@ trait GithubStubHandler extends GithubEffect {
 
 trait GithubRemoteHandler extends GithubEffect {
 
-  // A very naive, blocking implementation that sends HTTP requests
-  // to the Github API.
+  // A blocking handler that sends HTTP requests to the Github API.
   object GithubRemote extends GithubApi {
     def fetch[T](uri: String, parse: Parser[T]): I[T] =
       pure(parse(fetch(uri)))
@@ -190,7 +189,7 @@ trait GithubRemoteHandler extends GithubEffect {
     protected def fetch(endpoint: String) =
       Json.parse(requests.get("https://api.github.com" + endpoint).text)
   }
-  
+
 
   // JSON parsers
   type Parser[T] = JsValue => T
