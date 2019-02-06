@@ -106,11 +106,8 @@ trait GithubExamples {
   }
 
   // has to be used as the very last effect (all other effects have to be handled before)
-  class GithubRemoteFuture[R](implicit ec: ExecutionContext) extends GithubApi with Idiomatic {
-    type G[X] = Future[X]
+  class GithubRemoteFuture[R](implicit ec: ExecutionContext) extends GithubApi with Functorial[Future] {
     def unit[R] = Future.apply
-    def map[A, B] = f => ma => ma map f
-
     def fetch[T](uri: String, parse: Parser[T]): I[T] = use { k =>
       Applicative[Future].ap(k) { Future { fetch(uri) }.map(parse) }
     }
