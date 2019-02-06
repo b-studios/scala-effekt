@@ -147,6 +147,30 @@ trait GithubStubHandler extends GithubEffect {
 
 trait GithubRemoteHandler extends GithubEffect {
 
+  // A very naive, blocking implementation that sends HTTP requests
+  // to the Github API.
+  object GithubRemote extends GithubApi {
+    def fetch[T](uri: String, parse: Parser[T]): I[T] =
+      pure(parse(fetch(uri)))
+  }
+
+  // An idiomatic handler that sends HTTP requests to the Github API.
+  // The applicative instance of Future is used to send request
+  // concurrently.
+  class GithubRemoteFuture[R](implicit ec: ExecutionContext) extends GithubApi with Functorial[Future] {
+    def unit[R] = Future.apply
+    def fetch[T](uri: String, parse: Parser[T]): I[T] = use { k =>
+      Applicative[Future].ap(k) { Future { fetch(uri) }.map(parse) }
+    }
+  }
+
+  def githubRemoteFuture[R](timeout: Duration)(prog: C[R] using Github): C[R] using ExecutionContext =
+    new GithubRemoteFuture().dynamic[R](prog) { prog: Future[ω] => resume: (ω => C[R]) =>
+      Await.result(prog.map(resume), timeout)
+    }
+
+  // Common implementation details of the naive blocking handler and
+  // the Future based idiomatic handler.
   trait GithubApi extends Github {
     def getComment(owner: Owner, repo: Repo, id: Int) =
       fetch(s"/repos/${owner.value}/${repo.value}/issues/comments/$id", parseComment)
@@ -166,26 +190,7 @@ trait GithubRemoteHandler extends GithubEffect {
     protected def fetch(endpoint: String) =
       Json.parse(requests.get("https://api.github.com" + endpoint).text)
   }
-
-  // A very naive, blocking implementation
-  object GithubRemote extends GithubApi {
-    def fetch[T](uri: String, parse: Parser[T]): I[T] =
-      pure(parse(fetch(uri)))
-  }
-
-  // has to be used as the very last effect (all other effects have to be handled before)
-  class GithubRemoteFuture[R](implicit ec: ExecutionContext) extends GithubApi with Functorial[Future] {
-    def unit[R] = Future.apply
-    def fetch[T](uri: String, parse: Parser[T]): I[T] = use { k =>
-      Applicative[Future].ap(k) { Future { fetch(uri) }.map(parse) }
-    }
-  }
-
-  def githubRemoteFuture[R](timeout: Duration)(prog: C[R] using Github): C[R] using ExecutionContext =
-    new GithubRemoteFuture().dynamic[R](prog) { prog: Future[ω] => resume: (ω => C[R]) =>
-      Await.result(prog.map(resume), timeout)
-    }
-
+  
 
   // JSON parsers
   type Parser[T] = JsValue => T
