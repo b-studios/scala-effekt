@@ -496,6 +496,8 @@ trait GithubExamples {
   import cats.{ Applicative }
   import cats.implicits._
   import play.api.libs.json._
+  import scala.concurrent._
+  import scala.concurrent.duration._
 
   case class Issue(value: Int)
   case class Url(value: String)
@@ -588,9 +590,6 @@ trait GithubExamples {
   }
 
   import scala.concurrent.Future
-  import scala.concurrent.ExecutionContext
-  import scala.concurrent._
-  import scala.concurrent.duration._
 
   // has to be used as the very last effect (all other effects have to be handled before)
   class GithubRemoteFuture[R](implicit ec: ExecutionContext) extends GithubApi with Idiomatic {
@@ -604,9 +603,10 @@ trait GithubExamples {
       Applicative[Future].ap(k) { Future { fetch(uri) }.map(parse) }
     }
   }
-  def githubRemoteFuture[R](prog: C[R] using Github): C[R] using ExecutionContext =
+
+  def githubRemoteFuture[R](timeout: Duration)(prog: C[R] using Github): C[R] using ExecutionContext =
     new GithubRemoteFuture().dynamic[R](prog) { prog: Future[ω] => resume: (ω => C[R]) =>
-      Await.result(prog.map(resume), 30 seconds)
+      Await.result(prog.map(resume), timeout)
     }
 
   def allUsers(owner: Owner, repo: Repo): C[List[(Issue,List[(Comment,User)])]] using Github = for {
@@ -728,7 +728,7 @@ trait GithubExamples {
   import scala.concurrent.ExecutionContext.Implicits.global
   println("-----------")
   println { run {
-    githubRemoteFuture { implicit _ =>
+    githubRemoteFuture(30 seconds) { implicit _ =>
       batched { implicit _ =>
         allUsers(Owner("koka-lang"), Repo("libhandler")) map { _ mkString "\n" }
       }
