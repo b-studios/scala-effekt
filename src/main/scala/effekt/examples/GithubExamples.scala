@@ -280,23 +280,26 @@ trait GithubBatchedHandler extends GithubEffect {
   }
   def reify = new Reify
 
-  // A handler that forwards all effect operations to an outer handler
-  // but optimizes the requests before.
-  //
-  // It uses `reify` to obtain the idiomatic program which it then
-  // first analyses and then eventually handles.
+  // A handler for idiomatic programs that forwards all effect operations
+  // to an outer handler but optimizes the requests before.
+  // The resulting program is monadic.
+  def optimize[R](prog: I[R] using Github): C[R] using Github =
+    for {
+      // (1) statically analyse the set of requested logins
+      logins <- requestedLogins { prog } map { _.toList }
+      _ = println("prefetching user logins: " + logins)
+      // (2) now fetch the necessary users. This is again an idiomatic prog.
+      users <- logins.traverse { Github.getUser }
+      // (3) build up the db / cache
+      db = (logins zip users).toMap
+      // (4) use the db to handle the `getUser` requests and forward otherwise
+      res <- prefetched(db) handle { prog }
+    } yield res
+
+  // This is a handler that uses `reify` to obtain the idiomatic
+  // program which it then runs optimized.
   def batched[R](prog: C[R] using Github): C[R] using Github =
-    reify.dynamic(prog) {
-      prog => resume => for {
-        // (1) statically analyse the set of requested logins
-        logins <- requestedLogins { prog } map { _.toList }
-        _ = println("prefetching user logins: " + logins)
-        // (2) now fetch the necessary users. This is again an idiomatic prog.
-        users <- logins.traverse { Github.getUser }
-        // (3) build up the db / cache
-        db = (logins zip users).toMap
-        // (4) use the db to handle the `getUser` requests and forward otherwise
-        res <- prefetched(db) handle { prog } flatMap resume
-      } yield res
+    reify.dynamic(prog) { prog => resume =>
+      optimize(prog) flatMap resume
     }
 }
