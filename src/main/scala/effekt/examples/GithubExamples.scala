@@ -11,6 +11,9 @@ import cats.implicits._
 import effekt.catsinterop._
 import effekt.handler._
 
+// This example is inspired by Markus Hauck's talk:
+//     "Free Monads and Free Applicatives", flatMap(Oslo) 2016.
+//     https://github.com/markus1189/flatmap-oslo-2016
 trait GithubEffect {
 
   // The effect signature
@@ -33,9 +36,6 @@ trait GithubEffect {
   case class User(login: String, name: String)
 }
 
-// The example is inspired by Markus Hauck's talk:
-//     "Free Monads and Free Applicatives", flatMap(Oslo) 2016.
-//     https://github.com/markus1189/flatmap-oslo-2016
 trait GithubExamples
     extends GithubEffect
     with GithubStubHandler
