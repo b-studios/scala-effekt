@@ -183,19 +183,23 @@ trait GithubExamples {
   def requestedLogins = new RequestedLogins
 
   type DB = Map[UserLogin, User]
-  class Prefetched(db: DB, outer: Github) extends Github with Id {
+  class Prefetched(db: DB)(implicit outer: Github) extends Github with Id {
     def getUser(login: UserLogin): I[User] =
-      db.get(login).map(pure).getOrElse(outer.getUser(login))
+      db.get(login).map(pure).getOrElse(Github.getUser(login))
 
     def getComment(owner: Owner, repo: Repo, id: Int) =
-      outer.getComment(owner, repo, id)
+      Github.getComment(owner, repo, id)
     def getComments(owner: Owner, repo: Repo, issue: Issue) =
-      outer.getComments(owner, repo, issue)
+      Github.getComments(owner, repo, issue)
     def listIssues(owner: Owner, repo: Repo) =
-      outer.listIssues(owner, repo)
+      Github.listIssues(owner, repo)
   }
-  def prefetched(db: Map[UserLogin, User])(implicit outer: Github) =
-    new Prefetched(db, outer)
+  def prefetched[R](db: Map[UserLogin, User])(prog: I[R] using Github): I[R] using Github =
+    new Prefetched(db) handle prog
+
+  // we can also run the handler on monadic computations!
+  def prefetchedM[R](db: Map[UserLogin, User])(prog: C[R] using Github): C[R] using Github =
+    new Prefetched(db).dynamic(prog) { res => resume => resume(res) }
 
   class Reify extends Github with Idiomatic {
     type G[X] = I[X] using Github
@@ -216,7 +220,7 @@ trait GithubExamples {
         _ = println("prefetching user logins: " + logins)
         users <- logins.traverse { Github.getUser } // here we could actually batch.
         db = (logins zip users).toMap
-        res <- prefetched(db).apply { prog } flatMap resume
+        res <- prefetched(db) { prog } flatMap resume
       } yield res
     }
 
