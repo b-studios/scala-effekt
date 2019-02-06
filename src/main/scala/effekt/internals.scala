@@ -118,7 +118,6 @@ package object internals {
       dynamic(hi, run)(_ => u flatMap { pure })
   }
 
-
   private[effekt]
   def reset[R](hm: handler.Monadic[R])(prog: C[R]): C[R] = prog match {
     case p: Pure[R] => p

@@ -224,6 +224,12 @@ trait GithubRemoteHandler extends GithubEffect {
 
 trait GithubBatchedHandler extends GithubEffect {
 
+  // This is a handler that collects the statically known set of requested
+  // user logins within an idiomatic computation.
+  //
+  // ## Example
+  // requestedLogins { Github.getUser(UserLogin("foo")) }
+  // > Set(UserLogin("foo"))
   class RequestedLogins extends Github with Analyze[Set[UserLogin]] with Monoidal[Set[UserLogin]] {
     def getUser(login: UserLogin): I[User] = collect { Set(login) }
     def getComment(owner: Owner, repo: Repo, id: Int) = default
@@ -232,6 +238,15 @@ trait GithubBatchedHandler extends GithubEffect {
   }
   def requestedLogins = new RequestedLogins
 
+  // This is a handler that handles `getUser` requests by looking up in a given db
+  // and forwards to an outer handler otherwise. Also all other effect operations
+  // are forwarded.
+  //
+  // ## Example
+  // prefetched(Map(UserLogin("foo") -> User("foo", "Peter Foo"))) {
+  //   Github.getUser(UserLogin("foo"))
+  // }
+  // > User("foo", "Peter Foo")
   type DB = Map[UserLogin, User]
   class Prefetched(db: DB)(implicit outer: Github) extends Github with Id {
     def getUser(login: UserLogin): I[User] =
@@ -251,6 +266,8 @@ trait GithubBatchedHandler extends GithubEffect {
   def prefetchedM[R](db: Map[UserLogin, User])(prog: C[R] using Github): C[R] using Github =
     prefetched(db) handleMonadic prog
 
+  // A handler that rebuilds the idiomatic program with Github still unhandled.
+  // Handlers like this can potentially be generated or implemented using reflection.
   class Reify extends Github with Idiomatic {
     type G[X] = I[X] using Github
     def unit[R] = r => pure(r)
@@ -263,13 +280,22 @@ trait GithubBatchedHandler extends GithubEffect {
   }
   def reify = new Reify
 
+  // A handler that forwards all effect operations to an outer handler
+  // but optimizes the requests before.
+  //
+  // It uses `reify` to obtain the idiomatic program which it then
+  // first analyses and then eventually handles.
   def batched[R](prog: C[R] using Github): C[R] using Github =
     reify.dynamic(prog) {
       prog => resume => for {
+        // (1) statically analyse the set of requested logins
         logins <- requestedLogins { prog } map { _.toList }
         _ = println("prefetching user logins: " + logins)
-        users <- logins.traverse { Github.getUser } // here we could actually batch.
+        // (2) now fetch the necessary users. This is again an idiomatic prog.
+        users <- logins.traverse { Github.getUser }
+        // (3) build up the db / cache
         db = (logins zip users).toMap
+        // (4) use the db to handle the `getUser` requests and forward otherwise
         res <- prefetched(db) handle { prog } flatMap resume
       } yield res
     }
