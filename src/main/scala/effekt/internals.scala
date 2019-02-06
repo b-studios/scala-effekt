@@ -89,16 +89,15 @@ package object internals {
       // we could have a separate bubble type for UseMI that is an idiomatic prog.
       // This way we could avoid the cast.
       UseM(u.h, u.body, x => reset(hi) { u.km(x).asInstanceOf[I[R]] })
+
+    case u : UseD[R, x] =>
+      sys error "Should not occur. Unhandled idiomatic computation " + u
   }
 
   // lowers an idiomatic handler to a monadic handler
   private[effekt]
   def dynamic[R](hi: handler.Idiomatic, run: hi.G[ω] => (ω => C[R]) => C[R])(prog: hi.type => C[R]): C[R] = prog(hi) match {
     case p : Pure[R] => p
-
-    // the program is purely idiomatic, no flatMap occurred.
-    case u : UseI[R, x] if hi eq u.h =>
-      dynamic(hi, run)(_ => u flatMap { pure })
 
     case u : UseD[R, ω] { val h: hi.type } if hi eq u.h =>
       u.ki flatMap { go => run(go) { x => dynamic(hi, run) { _ => u.km(x) }}}
@@ -109,10 +108,16 @@ package object internals {
     case u : UseM[R, x] =>
       UseM(u.h, u.body, x => dynamic(hi, run) { _ => u.km(x) })
 
-    // since this handler is monadic, there shouldn't be another unhandled idiomatic effect
+    // the program is purely idiomatic, no flatMap occurred.
+    case u : UseI[R, x] if hi eq u.h =>
+      dynamic(hi, run)(_ => u flatMap { pure })
+
+    // Like with `reset(Monadic)`, in presence of `dynamic` this
+    // we need to force a conversion from UseI to UseD here.
     case u : UseI[R, x] =>
-      sys error "should not happen! Unhandled idiomatic effect"
+      dynamic(hi, run)(_ => u flatMap { pure })
   }
+
 
   private[effekt]
   def reset[R](hm: handler.Monadic[R])(prog: C[R]): C[R] = prog match {
@@ -129,7 +134,10 @@ package object internals {
 
     // Can only occur through handleIdiom { i => handleMonadic { m => i.op() } }
     // but this should be ruled out by `handleMonadic: C[R]` and `handleIdiom(I[R])`.
+    //
+    // No: In presence of `dynamic` this is in deed possible, so we need
+    // to force a conversion from UseI to UseD here.
     case i : UseI[r, x] =>
-      sys error "should not happen! Unhandled idiomatic effect"
+      reset(hm) { prog flatMap pure }
   }
 }
