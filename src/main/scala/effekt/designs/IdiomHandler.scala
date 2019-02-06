@@ -91,8 +91,6 @@ object effekt {
     // +---------------------+
     // |    handleDynamic()  |  the handler (dynamic handler with access to both fragments)
 
-
-  // TODO add another continuation fragement: km: Option[X => C[A]]
   case class UseI[A, X](h: handler.Idiomatic, body: h.CPS[X], ki: I[X => A]) extends I[A] {
     def run = sys error "undelimited idiom"
     def map[B](f: A => B): I[B] =
@@ -118,7 +116,8 @@ object effekt {
 
   // TODO here UseM extends I since the effect signatures promise idiomatic effects
   // It should be C[A] after the first call to flatMap! Otherwise the signature of `map` is a lie.
-  case class UseM[X, A](h: handler.Monadic[_], body: h.CPS[X], km: X => C[A]) extends I[A] {
+  // This could be addressed by yet another type of bubble UseMI
+  case class UseM[A, X](h: handler.Monadic[_], body: h.CPS[X], km: X => C[A]) extends I[A] {
     def run = sys error "undelimited control"
     def map[B](f: A => B): I[B] = UseM(h, body, a => km(a) map f)
     def flatMap[B](f: A => C[B]): C[B] = UseM(h, body, a => km(a) flatMap f)
@@ -134,7 +133,6 @@ object effekt {
   // We have three flavors of handlers:
   // 1) idiomatic handlers: I[R] => I[G[R]]
   // 2) monadic handlers:   C[R] => C[R]
-  // 3) dynamic handlers:   C[R] => C[G[R]] (but with idiomatic opt.)
   object handler {
 
     // Builtin handlers
@@ -239,7 +237,7 @@ object effekt {
     case u : UseD[R, x] =>
       UseD(u.h, u.ki, x => dynamic(hi, run) { _ => u.km(x) })
 
-    case u : UseM[x, R] =>
+    case u : UseM[R, x] =>
       UseM(u.h, u.body, x => dynamic(hi, run) { _ => u.km(x) })
 
     // since this handler is monadic, there shouldn't be another unhandled idiomatic effect
@@ -251,10 +249,10 @@ object effekt {
   private[effekt] def reset[R](hm: handler.Monadic[R])(prog: C[R]): C[R] = prog match {
     case p: Pure[R] => p
 
-    case u : UseM[_, R] { val h: hm.type } if hm eq u.h =>
+    case u : UseM[R, _] { val h: hm.type } if hm eq u.h =>
       u.body(x => reset(hm) { u.km(x) })
 
-    case u : UseM[x, a] =>
+    case u : UseM[a, x] =>
       UseM(u.h, u.body, x => reset(hm) { u.km(x) })
 
     case u: UseD[a, x] =>
@@ -267,7 +265,10 @@ object effekt {
   }
 }
 
-object examples extends App {
+
+object examples extends SimpleExamples with GithubExamples with App
+
+trait SimpleExamples {
 
   import effekt._
   import handler._
@@ -287,9 +288,6 @@ object examples extends App {
 
   trait Get { def get(): I[Int] }
   def Get: Get using Get = implicit g => g
-
-  trait Amb { def choose[A](fst: I[A], snd: I[A]): I[A] }
-  def Amb: Amb using Amb = implicit p => p
 
   val example: I[String] using Tick and Put = {
     Tick.tick() andThen Put.put(3) andThen Tick.tick() andThen Put.put(7) andThen pure("done")
@@ -329,7 +327,7 @@ object examples extends App {
     type G[X] = Int
     def unit[R] = r => 0
     def map[A, B] = f => n => n
-    def get() = use { _ + 1 }
+    def get() = use { n => n + 1 }
   }
   def countGet = new CountGet
 
@@ -490,14 +488,14 @@ object examples extends App {
   }
 }
 
-
-
-
-object github extends App {
+trait GithubExamples {
 
   import effekt._
   import handler._
+
+  import cats.{ Applicative }
   import cats.implicits._
+  import play.api.libs.json._
 
   case class Issue(value: Int)
   case class Url(value: String)
@@ -522,7 +520,7 @@ object github extends App {
   val bstudios = UserLogin("b-studios")
   val phischu = UserLogin("phischu")
 
-  object GHStub extends Github {
+  object GithubStub extends Github {
     val (i4337, i4339, i5202) = (Issue(4337), Issue(4339), Issue(5202))
 
     val issues: Map[(Owner, Repo), List[Issue]] = Map(
@@ -562,6 +560,55 @@ object github extends App {
     }
   }
 
+  trait GithubApi extends Github {
+
+    def getComment(owner: Owner, repo: Repo, id: Int) =
+      fetch(s"/repos/${owner.value}/${repo.value}/issues/comments/$id", parseComment)
+
+    def getComments(owner: Owner, repo: Repo, issue: Issue) =
+      fetch(s"/repos/${owner.value}/${repo.value}/issues/${issue.value}/comments", parseComments)
+
+    def getUser(login: UserLogin) =
+      fetch(s"/users/${login.value}", parseUser)
+
+    def listIssues(owner: Owner, repo: Repo) =
+      fetch(s"/repos/${owner.value}/${repo.value}/issues", parseIssues)
+
+    def fetch[T](uri: String, parse: Parser[T]): I[T]
+
+    // this is a blocking call
+    protected def fetch(endpoint: String) =
+      Json.parse(requests.get("https://api.github.com" + endpoint).text)
+  }
+
+  // A very naive, blocking implementation
+  object GithubRemote extends GithubApi {
+    def fetch[T](uri: String, parse: Parser[T]): I[T] =
+      pure(parse(fetch(uri)))
+  }
+
+  import scala.concurrent.Future
+  import scala.concurrent.ExecutionContext
+  import scala.concurrent._
+  import scala.concurrent.duration._
+
+  // has to be used as the very last effect (all other effects have to be handled before)
+  class GithubRemoteFuture[R](implicit ec: ExecutionContext) extends GithubApi with Idiomatic {
+    import cats.instances.future._
+
+    type G[X] = Future[X]
+    def unit[R] = Future.apply
+    def map[A, B] = f => ma => ma map f
+
+    def fetch[T](uri: String, parse: Parser[T]): I[T] = use { k =>
+      Applicative[Future].ap(k) { Future { fetch(uri) }.map(parse) }
+    }
+  }
+  def githubRemoteFuture[R](prog: C[R] using Github): C[R] using ExecutionContext =
+    new GithubRemoteFuture().dynamic[R](prog) { prog: Future[ω] => resume: (ω => C[R]) =>
+      Await.result(prog.map(resume), 30 seconds)
+    }
+
   def allUsers(owner: Owner, repo: Repo): C[List[(Issue,List[(Comment,User)])]] using Github = for {
 
     issues <- Github.listIssues(owner,repo)
@@ -576,10 +623,44 @@ object github extends App {
   } yield users
 
   println { run {
-    allUsers(epfl, dotty)(GHStub) map {
+    allUsers(epfl, dotty)(GithubStub) map {
       _ mkString "\n"
     }
   }}
+
+  // JSON parsers
+  type Parser[T] = JsValue => T
+  private val parseComments: Parser[List[Comment]] = json => {
+    val objs = json.validate[List[JsValue]].get
+    objs.map { obj =>
+      (for {
+        url <- (obj \ "url").validate[String]
+        body <- (obj \ "body").validate[String]
+        login <- (obj \ "user" \ "login").validate[String]
+      } yield Comment(Url(url),Body(body),UserLogin(login))).get
+    }
+  }
+
+  private val parseComment: Parser[Comment] = obj => {
+    (for {
+      url <- (obj \ "url").validate[String]
+      body <- (obj \ "body").validate[String]
+      login <- (obj \ "user" \ "login").validate[String]
+    } yield Comment(Url(url),Body(body),UserLogin(login))).get
+  }
+
+  private val parseUser: Parser[User] = json => {
+    (for {
+      login <- (json \ "login").validate[String]
+      name <- (json \ "name").validate[String] orElse (json \ "login").validate[String]
+    } yield User(login,name)).asOpt.get
+  }
+
+  private val parseIssues: Parser[List[Issue]] = json => {
+    println(json)
+    val objs = json.validate[List[JsValue]].get
+    objs.map(obj => (obj \ "number").validate[Int].map(Issue(_)).asOpt).flatten
+  }
 
 
   // Handlers
@@ -630,9 +711,27 @@ object github extends App {
       } yield res
     }
 
+  println("-----------")
   println { run {
     batched { implicit _ =>
       allUsers(epfl, dotty) map { _ mkString "\n" }
-    } (GHStub)
+    } (GithubStub)
+  }}
+
+//  println("-----------")
+//  println { run {
+//    batched { implicit _ =>
+//      allUsers(Owner("koka-lang"), Repo("libhandler")) map { _ mkString "\n" }
+//    } (GithubRemote)
+//  }}
+
+  import scala.concurrent.ExecutionContext.Implicits.global
+  println("-----------")
+  println { run {
+    githubRemoteFuture { implicit _ =>
+      batched { implicit _ =>
+        allUsers(Owner("koka-lang"), Repo("libhandler")) map { _ mkString "\n" }
+      }
+    }
   }}
 }

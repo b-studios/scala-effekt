@@ -10,6 +10,8 @@ lazy val commonSettings = Seq(
     "-language:implicitConversions"
   ),
   libraryDependencies += ("org.typelevel" %% "cats-core" % "1.6.0").withDottyCompat(scalaVersion.value),
+  libraryDependencies += ("com.typesafe.play" %% "play-ws" % "2.6.0").withDottyCompat(scalaVersion.value),
+  libraryDependencies += ("com.lihaoyi" %% "requests" % "0.1.4").withDottyCompat(scalaVersion.value),
   fork in test := true,
   parallelExecution in Test := false
 //  mainClass in (Compile, run) := Some("effekt.examples.DottyTest")
