@@ -80,7 +80,6 @@ trait GithubExamples {
   }
 
   trait GithubApi extends Github {
-
     def getComment(owner: Owner, repo: Repo, id: Int) =
       fetch(s"/repos/${owner.value}/${repo.value}/issues/comments/$id", parseComment)
 
@@ -108,8 +107,6 @@ trait GithubExamples {
 
   // has to be used as the very last effect (all other effects have to be handled before)
   class GithubRemoteFuture[R](implicit ec: ExecutionContext) extends GithubApi with Idiomatic {
-
-
     type G[X] = Future[X]
     def unit[R] = Future.apply
     def map[A, B] = f => ma => ma map f
