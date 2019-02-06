@@ -33,7 +33,7 @@ trait GithubEffect {
   case class User(login: String, name: String)
 }
 
-// The example is inspired by Markus Hauk's talk:
+// The example is inspired by Markus Hauck's talk:
 //     "Free Monads and Free Applicatives", flatMap(Oslo) 2016.
 //     https://github.com/markus1189/flatmap-oslo-2016
 trait GithubExamples
