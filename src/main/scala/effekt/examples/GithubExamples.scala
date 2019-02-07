@@ -153,7 +153,7 @@ trait GithubRemoteHandler extends GithubEffect {
       pure(parse(fetch(uri)))
   }
 
-  // An idiomatic handler that sends HTTP requests to the Github API.
+  // An *idiomatic* handler that sends HTTP requests to the Github API.
   // The applicative instance of Future is used to send request
   // concurrently.
   class GithubRemoteFuture[R](implicit ec: ExecutionContext) extends GithubApi with Functorial[Future] {
@@ -163,9 +163,12 @@ trait GithubRemoteHandler extends GithubEffect {
     }
   }
 
+  def githubRemoteFutureIdiomatic[R](prog: I[R] using Github): I[Future[R]] using ExecutionContext =
+    new GithubRemoteFuture() handle prog
+
   def githubRemoteFuture[R](timeout: Duration)(prog: C[R] using Github): C[R] using ExecutionContext =
     new GithubRemoteFuture().dynamic[R](prog) { prog: Future[ω] => resume: (ω => C[R]) =>
-      Await.result(prog.map(resume), timeout)
+      resume(Await.result(prog, timeout))
     }
 
   // Common implementation details of the naive blocking handler and
@@ -289,7 +292,7 @@ trait GithubBatchedHandler extends GithubEffect {
   // The resulting program is monadic.
   def optimize[R](prog: I[R] using Github): C[R] using Github =
     for {
-      // (1) statically analyse the set of requested logins
+      // (1) statically analyse the *set* of requested logins
       logins <- requestedLogins { prog } map { _.toList }
       _ = println("prefetching user logins: " + logins)
       // (2) now fetch the necessary users. This is again an idiomatic prog.
