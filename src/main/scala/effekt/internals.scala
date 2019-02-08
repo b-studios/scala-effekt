@@ -116,7 +116,7 @@ package object internals {
       val kn: τ => C[hm.G[R]] = x => kj(x) flatMap km
       u.op { x => reset(hm) { kn(x) } }
 
-    case u: UseD[x, y, a] =>
+    case u: UseD[x, y, hm.G[R]] =>
       u.copy(km = x => reset(hm) { u.km(x) })
 
     // Can only occur through handleIdiom { i => handleMonadic { m => i.op() } }
@@ -124,7 +124,7 @@ package object internals {
     //
     // No: In presence of `dynamic` this is in deed possible, so we need
     // to force a conversion from UseI to UseD here.
-    case i : UseI[x, r] =>
+    case i : UseI[x, hm.G[R]] =>
       reset(hm) { prog flatMap pure }
   }
 }
