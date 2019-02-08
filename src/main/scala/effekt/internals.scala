@@ -85,22 +85,22 @@ package object internals {
     case u : UseD[τ, ω, R] { val op: EffOp[hi.type, τ] } if hi eq u.op.h =>
       // 1) Reset the idiomatic continuation with the idiomatic handler
       // 2) Burst the idiomatic bubble
-      // 2) Run the remaining computation with the resulting value (`g`).
+      // 3) Run the remaining computation with the resulting value (`g`).
       val ig: I[hi.G[ω]] = u.op { reset(hi) { u.ki } }
       val kn: ω => C[R]  = x => dynamic(hi, run) { _ => u.km(x) }
-      ig flatMap { g => run(g)(kn) }
+      ig flatMap { g: hi.G[ω] => run(g)(kn) }
 
     case u : UseD[x, ω, R] =>
       u.copy(km = x => dynamic(hi, run) { _ => u.km(x) })
 
     // the program is purely idiomatic, no flatMap occurred.
     case u : UseI[x, R] if hi eq u.op.h =>
-      dynamic(hi, run)(_ => u flatMap { pure })
+      dynamic(hi, run)(_ => UseD(u.op, u.ki, pure))
 
     // Like with `reset(Monadic)`, in presence of `dynamic` this
     // we need to force a conversion from UseI to UseD here.
     case u : UseI[x, R] =>
-      dynamic(hi, run)(_ => u flatMap { pure })
+      dynamic(hi, run)(_ => UseD(u.op, u.ki, pure))
   }
 
   private[effekt]

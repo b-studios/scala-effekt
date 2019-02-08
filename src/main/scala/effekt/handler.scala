@@ -15,7 +15,8 @@ trait Handler {
 
   def use[A](body: CPS[A]): I[A]
 
-  private[effekt] def CPS[A, R](body: CPS[A])(g: Cont[A, R]): Answer[R]
+  private[effekt] def CPS[A, R](body: CPS[A])(g: Cont[A, R]): Answer[R] =
+    body.asInstanceOf[Cont[A, R] => Answer[R]](g)
 }
 
 // I[R] => I[G[R]]
@@ -43,9 +44,6 @@ trait Idiomatic extends Handler {
   // TODO can we somehow return a Monadic[R] here?
   def dynamic[R](prog: this.type => C[R])(run: G[ω] => (ω => C[R]) => C[R]): C[R] =
     effekt.dynamic(this, run)(prog)
-
-  private[effekt] def CPS[A, R](body: CPS[A])(g: Cont[A, R]): Answer[R] =
-    body.asInstanceOf[I[G[A => R]] => I[G[R]]](g)
 }
 
 // a handler for monadic programs that is itself monadic normal bubble semantics
@@ -58,9 +56,6 @@ trait Monadic extends Handler {
 
   def handle[R](prog: this.type => C[R]): C[G[R]] = effekt.handle(this)(prog)
   def apply[R](prog: this.type => C[R]): C[G[R]] = effekt.handle(this)(prog)
-
-  private[effekt] def CPS[A, R](body: CPS[A])(g: Cont[A, R]): Answer[R] =
-    body.asInstanceOf[(A => C[G[R]]) => C[G[R]]](g)
 }
 
 
