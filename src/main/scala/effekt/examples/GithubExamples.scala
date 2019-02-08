@@ -158,7 +158,7 @@ trait GithubRemoteHandler extends GithubEffect {
   // concurrently.
   class GithubRemoteFuture[R](implicit ec: ExecutionContext) extends GithubApi with Functorial[Future] {
     def unit[R] = Future.apply
-    def fetch[T](uri: String, parse: Parser[T]): I[T] = use { k =>
+    def fetch[T](uri: String, parse: Parser[T]): I[T] = usePure { k =>
       Applicative[Future].ap(k) { Future { fetch(uri) }.map(parse) }
     }
   }
@@ -280,10 +280,10 @@ trait GithubBatchedHandler extends GithubEffect {
     def unit[R] = r => pure(r)
     def map[A, B] = f => ma => ma map f
 
-    def getUser(login: UserLogin): I[User] = use { Github.getUser(login) ap _ }
-    def getComment(owner: Owner, repo: Repo, id: Int) = use { Github.getComment(owner, repo, id) ap _ }
-    def getComments(owner: Owner, repo: Repo, issue: Issue) = use { Github.getComments(owner, repo, issue) ap _ }
-    def listIssues(owner: Owner, repo: Repo) = use { Github.listIssues(owner, repo) ap _ }
+    def getUser(login: UserLogin): I[User] = usePure { Github.getUser(login) ap _ }
+    def getComment(owner: Owner, repo: Repo, id: Int) = usePure { Github.getComment(owner, repo, id) ap _ }
+    def getComments(owner: Owner, repo: Repo, issue: Issue) = usePure { Github.getComments(owner, repo, issue) ap _ }
+    def listIssues(owner: Owner, repo: Repo) = usePure { Github.listIssues(owner, repo) ap _ }
   }
   def reify = new Reify
 

@@ -39,7 +39,7 @@ package object catsinterop {
 
   trait Analyze[D] extends Monoidal[D] {
     def default[R] = use { identity }
-    def collect[A](el: D): I[A] = use { d => m.combine(el, d) }
+    def collect[A](el: D): I[A] = usePure { d => m.combine(el, d) }
   }
 }
 

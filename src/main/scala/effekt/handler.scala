@@ -1,23 +1,30 @@
 package effekt
 package handler
 
-trait Idiomatic {
+trait Handler {
   type G[_]
-  type CPS[A] = I[G[A => ω]] => I[G[ω]]
+  type CPS[A]
 
   // G is pointed (would be equiv to providing G[Unit])
   def unit[R]: R => G[R]
 
-  // G needs to be a functor.
+  def use[A](body: CPS[A]): I[A]
+}
+
+// I[R] => I[G[R]]
+trait Idiomatic extends Handler {
+  type CPS[A] = I[G[A => ω]] => I[G[ω]]
+
+  // For idiomatic handlers G needs to be a functor.
   def map[A, B]: (A => B) => G[A] => G[B]
 
   // ideally use would be parametric in R (with a rank-2 type).
-  def useEff[A](body: CPS[A]): I[A] =
+  def use[A](body: CPS[A]): I[A] =
     internals.UseI(this, body, pure(a => a))
 
   // useEff is a bit more expressive, but this often suffices
-  def use[A](body: G[A => ω] => G[ω]): I[A] =
-    useEff { _ map body }
+  def usePure[A](body: G[A => ω] => G[ω]): I[A] =
+    use { _ map body }
 
   def handle[R](prog: this.type => I[R]): I[G[R]] =
     effekt.handle(this)(prog)
@@ -34,12 +41,13 @@ trait Idiomatic {
 }
 
 // a handler for monadic programs that is itself monadic normal bubble semantics
-trait Monadic[R] {
-  type CPS[A] = (A => C[R]) => C[R]
+// C[R] => C[R]
+trait Monadic extends Handler {
+  type CPS[A] = (A => C[G[ω]]) => C[G[ω]]
   def use[A](body: CPS[A]): I[A] = internals.UseM(this, body, pure)
 
-  def handle(prog: this.type => C[R]): C[R] = effekt.handle(this)(prog)
-  def apply(prog: this.type => C[R]): C[R] = effekt.handle(this)(prog)
+  def handle[R](prog: this.type => C[R]): C[G[R]] = effekt.handle(this)(prog)
+  def apply[R](prog: this.type => C[R]): C[G[R]] = effekt.handle(this)(prog)
 }
 
 

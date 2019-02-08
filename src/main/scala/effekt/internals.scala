@@ -53,7 +53,7 @@ package object internals {
   // It should be C[A] after the first call to flatMap! Otherwise the signature of `map` is a lie.
   // This could be addressed by yet another type of bubble UseMI
   private[effekt]
-  case class UseM[A, X](h: handler.Monadic[_], body: h.CPS[X], km: X => C[A]) extends I[A] {
+  case class UseM[A, X](h: handler.Monadic, body: h.CPS[X], km: X => C[A]) extends I[A] {
     def run = sys error "undelimited control"
     def map[B](f: A => B): I[B] = UseM(h, body, a => km(a) map f)
     def flatMap[B](f: A => C[B]): C[B] = UseM(h, body, a => km(a) flatMap f)
@@ -119,10 +119,10 @@ package object internals {
   }
 
   private[effekt]
-  def reset[R](hm: handler.Monadic[R])(prog: C[R]): C[R] = prog match {
-    case p: Pure[R] => p
+  def reset[R](hm: handler.Monadic)(prog: C[hm.G[R]]): C[hm.G[R]] = prog match {
+    case p: Pure[_] => p
 
-    case u : UseM[R, _] { val h: hm.type } if hm eq u.h =>
+    case u : UseM[hm.G[ω], _] { val h: hm.type } if hm eq u.h =>
       u.body(x => reset(hm) { u.km(x) })
 
     case u : UseM[a, x] =>

@@ -37,7 +37,7 @@ trait SimpleExamples {
     type G[X] = (X, Int)
     def unit[R] = r => (r, 0)
     def map[A, B] = f => (a, n) => (f(a), n)
-    def tick() = use { case (k, n) => (k(()), n + 1) }
+    def tick() = usePure { case (k, n) => (k(()), n + 1) }
   }
   def countTicks = new CountTicks
 
@@ -45,7 +45,7 @@ trait SimpleExamples {
     type G[X] = (X, Int)
     def unit[R] = r => (r, 0)
     def map[A, B] = f => (a, n) => (f(a), n)
-    def put(n: Int) = use { case (k, m) => (k(()), m + n) }
+    def put(n: Int) = usePure { case (k, m) => (k(()), m + n) }
   }
   def sumPuts = new SumPuts
 
@@ -53,7 +53,7 @@ trait SimpleExamples {
     type G[X] = Int
     def unit[R] = r => 0
     def map[A, B] = f => n => n
-    def put(n: Int) = use { _ + n }
+    def put(n: Int) = usePure { _ + n }
   }
   def onlySum = new OnlySum
 
@@ -61,7 +61,7 @@ trait SimpleExamples {
     type G[X] = Int
     def unit[R] = r => 0
     def map[A, B] = f => n => n
-    def get() = use { n => n + 1 }
+    def get() = usePure { n => n + 1 }
   }
   def countGet = new CountGet
 
@@ -69,7 +69,7 @@ trait SimpleExamples {
     type G[R] = (R, Int)
     def unit[R] = r => (r, 0)
     def map[A, B] = f => (a, n) => (f(a), n)
-    def get() = use { case (k, n) => (k(0), n + 1) }
+    def get() = usePure { case (k, n) => (k(0), n + 1) }
   }
   def countGet2 = new CountGet2
 
@@ -77,12 +77,15 @@ trait SimpleExamples {
     type G[X] = (X, Int)
     def unit[R] = r => (r, 0)
     def map[A, B] = f => (a, n) => (f(a), n)
-    def get() = use { case (k, m) => (k(m), m) }
-    def put(n: Int) = use { case (k, m) => (k(()), n) }
+    def get() = usePure { case (k, m) => (k(m), m) }
+    def put(n: Int) = usePure { case (k, m) => (k(()), n) }
   }
   def both = new Both
 
-  class MonadicGet[R] extends Get with Monadic[List[R]] {
+  class MonadicGet[R] extends Get with Monadic {
+    type G[X] = List[X]
+    def unit[R] = r => List(r)
+
     def get() = use { resume =>
       for {
         xs <- resume(0)
@@ -91,7 +94,7 @@ trait SimpleExamples {
     }
   }
   def monadicGet[R](prog: C[R] using Get): C[List[R]] =
-    new MonadicGet[R] handle { g => prog(g) map { x => List(x) } }
+    new MonadicGet[R] handle { prog }
 
   expect ((2, 11)) {
     sumPuts { implicit _ =>

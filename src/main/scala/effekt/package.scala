@@ -18,8 +18,8 @@ package object effekt {
   def handle[R](h: handler.Idiomatic)(prog: h.type => I[R]): I[h.G[R]] =
     internals.reset(h) { prog(h) }
 
-  def handle[R](h: handler.Monadic[R])(prog: h.type => C[R]): C[R] =
-    internals.reset(h) { prog(h) }
+  def handle[R](h: handler.Monadic)(prog: h.type => C[R]): C[h.G[R]] =
+    internals.reset(h) { prog(h) map h.unit }
 
   // lowers an idiomatic handler to a monadic handler
   def dynamic[R](hi: handler.Idiomatic, run: hi.G[ω] => (ω => C[R]) => C[R])(prog: hi.type => C[R]): C[R] =
