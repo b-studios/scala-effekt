@@ -107,7 +107,7 @@ package object internals {
   def reset[R](hm: Monadic)(prog: C[hm.G[R]]): C[hm.G[R]] = prog match {
     case p: Pure[_] => p
 
-    // even though the handler is monadic, the continuation *can* have a
+    // even though the handler is monadic, the continuation *can* have an
     // idiomatic fragment.
     case u : UseD[τ, ω, hm.G[R]] { val op: EffOp[hm.type, τ] } if hm eq u.op.h =>
       val ki: I[τ => ω]       = u.ki
@@ -122,7 +122,7 @@ package object internals {
     // Can only occur through handleIdiom { i => handleMonadic { m => i.op() } }
     // but this should be ruled out by `handleMonadic: C[R]` and `handleIdiom(I[R])`.
     //
-    // No: In presence of `dynamic` this is in deed possible, so we need
+    // No: In presence of `dynamic` this is indeed possible, so we need
     // to force a conversion from UseI to UseD here.
     case i : UseI[x, hm.G[R]] =>
       reset(hm) { prog flatMap pure }
