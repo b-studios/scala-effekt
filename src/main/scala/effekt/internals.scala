@@ -87,7 +87,8 @@ package object internals {
       // 2) Burst the idiomatic bubble
       // 2) Run the remaining computation with the resulting value (`g`).
       val ig: I[hi.G[ω]] = u.op { reset(hi) { u.ki } }
-      ig flatMap { g => run(g) { x => dynamic(hi, run) { _ => u.km(x) } } }
+      val kn: ω => C[R]  = x => dynamic(hi, run) { _ => u.km(x) }
+      ig flatMap { g => run(g)(kn) }
 
     case u : UseD[R, τ, ω] =>
       u.copy(km = x => dynamic(hi, run) { _ => u.km(x) })
@@ -111,7 +112,7 @@ package object internals {
     case u : UseD[hm.G[R], τ, ω] { val op: EffOp[hm.type, τ] } if hm eq u.op.h =>
       val ki: I[τ => ω]       = u.ki
       val km: ω => C[hm.G[R]] = u.km
-      val kj: τ => I[ω]       = x => u.ki map { f => f(x) }
+      val kj: τ => I[ω]       = x => ki map { f => f(x) }
       val kn: τ => C[hm.G[R]] = x => kj(x) flatMap km
       u.op { x => reset(hm) { kn(x) } }
 
