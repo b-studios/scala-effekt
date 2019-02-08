@@ -1,7 +1,7 @@
 package effekt
 package handler
 
-import internals. { UseI, UseM, EffOp }
+import internals. { UseI, EffOp }
 
 trait Handler {
   type G[_]
@@ -54,7 +54,7 @@ trait Monadic extends Handler {
   type Cont[A, R] = A => C[G[R]]
   type Answer[R]  = C[G[R]]
 
-  def use[A](body: CPS[A]): I[A] = UseM(EffOp(this, body), pure)
+  def use[A](body: CPS[A]): I[A] = UseI(EffOp(this, body), pure(a => a))
 
   def handle[R](prog: this.type => C[R]): C[G[R]] = effekt.handle(this)(prog)
   def apply[R](prog: this.type => C[R]): C[G[R]] = effekt.handle(this)(prog)

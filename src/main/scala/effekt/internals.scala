@@ -30,8 +30,9 @@ package object internals {
     // +---------------------+
     // |    handleDynamic()  |  the handler (dynamic handler with access to both fragments)
 
+  // A "Bubble" that collects an idiomatic context.
   private[effekt]
-  case class UseI[A, X](op: EffOp[Idiomatic, X], ki: I[X => A]) extends I[A] {
+  case class UseI[A, X](op: EffOp[_, X], ki: I[X => A]) extends I[A] {
     def run = sys error "undelimited idiom"
     def map[B](f: A => B): I[B] =
       copy(ki = ki map { _ andThen f })
@@ -46,22 +47,12 @@ package object internals {
   }
 
   private[effekt]
-  case class UseD[A, X, Y](op: EffOp[Idiomatic, X], ki: I[X => Y], km: Y => C[A]) extends C[A] {
+  case class UseD[A, X, Y](op: EffOp[_, X], ki: I[X => Y], km: Y => C[A]) extends C[A] {
     def run = sys error "undelimited idiom"
     def map[B](f: A => B): C[B] = copy(km = a => km(a) map f)
     def flatMap[B](f: A => C[B]): C[B] = copy(km = a => km(a) flatMap f)
   }
 
-  // TODO here UseM extends I since the effect signatures promise idiomatic effects
-  // It should be C[A] after the first call to flatMap! Otherwise the signature of `map` is a lie.
-  // This could be addressed by yet another type of bubble UseMI
-  private[effekt]
-  case class UseM[A, X](op: EffOp[Monadic, X], km: X => C[A]) extends I[A] {
-    def run = sys error "undelimited control"
-    def map[B](f: A => B): I[B] = copy(km = a => km(a) map f)
-    def flatMap[B](f: A => C[B]): C[B] = copy(km = a => km(a) flatMap f)
-    def map2[B, D](mb: I[B])(f: (A, B) => D): I[D] = copy(km = a => km(a).map2(mb)(f))
-  }
 
   private[effekt]
   def reset[R](hi: Idiomatic)(prog: I[R]): I[hi.G[R]] = prog match {
@@ -80,16 +71,6 @@ package object internals {
       }
       u.copy(ki = k)
 
-    // interaction between outer monadic handlers and idiomatic programs:
-    //   handleMonad { m => handleIdiom { i => idiomProg(... m.op() ...) }}
-    case u : UseM[a, x] =>
-      // FIXME doesn't typecheck, since the continuation is not idiomatic. So we can't reset it
-      //       with this reset. Hence the cast.
-      // this case is only necessary since we declared UseM <: I
-      // we could have a separate bubble type for UseMI that is an idiomatic prog.
-      // This way we could avoid the cast.
-      u.copy(km = x => reset(hi) { u.km(x).asInstanceOf[I[R]] })
-
     case u : UseD[R, x, y] =>
       sys error "Should not occur. Unhandled idiomatic computation " + u
   }
@@ -101,17 +82,14 @@ package object internals {
 
     // Here is where the magic happens!
     // The first flatMap acts like a reset for the inner (idiomatic) handler
-    case u : UseD[R, ω, ω] { val op: EffOp[hi.type, ω] } if hi eq u.op.h =>
+    case u : UseD[R, τ, ω] { val op: EffOp[hi.type, τ] } if hi eq u.op.h =>
       // 1) Reset the idiomatic continuation with the idiomatic handler
       // 2) Burst the idiomatic bubble
       // 2) Run the remaining computation with the resulting value (`g`).
       val ig: I[hi.G[ω]] = u.op { reset(hi) { u.ki } }
       ig flatMap { g => run(g) { x => dynamic(hi, run) { _ => u.km(x) } } }
 
-    case u : UseD[R, x, ω] =>
-      u.copy(km = x => dynamic(hi, run) { _ => u.km(x) })
-
-    case u : UseM[R, x] =>
+    case u : UseD[R, τ, ω] =>
       u.copy(km = x => dynamic(hi, run) { _ => u.km(x) })
 
     // the program is purely idiomatic, no flatMap occurred.
@@ -128,11 +106,14 @@ package object internals {
   def reset[R](hm: Monadic)(prog: C[hm.G[R]]): C[hm.G[R]] = prog match {
     case p: Pure[_] => p
 
-    case u : UseM[hm.G[ω], ω] { val op: EffOp[hm.type, ω] } if hm eq u.op.h =>
-      u.op { x => reset(hm) { u.km(x) } }
-
-    case u : UseM[a, x] =>
-      u.copy(km = x => reset(hm) { u.km(x) })
+    // even though the handler is monadic, the continuation *can* have a
+    // idiomatic fragment.
+    case u : UseD[hm.G[R], τ, ω] { val op: EffOp[hm.type, τ] } if hm eq u.op.h =>
+      val ki: I[τ => ω]       = u.ki
+      val km: ω => C[hm.G[R]] = u.km
+      val kj: τ => I[ω]       = x => u.ki map { f => f(x) }
+      val kn: τ => C[hm.G[R]] = x => kj(x) flatMap km
+      u.op { x => reset(hm) { kn(x) } }
 
     case u: UseD[a, x, y] =>
       u.copy(km = x => reset(hm) { u.km(x) })

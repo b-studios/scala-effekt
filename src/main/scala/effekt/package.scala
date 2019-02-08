@@ -6,6 +6,9 @@ package object effekt {
   type ω
   type Omega = ω
 
+  type τ
+  type Tau = τ
+
   type using[A, E] = implicit E => A
   type and[A, E] = implicit E => A
 
