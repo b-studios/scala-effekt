@@ -41,6 +41,23 @@ trait SimpleExamples {
   }
   def countTicks = new CountTicks
 
+  class PrintTicks extends Tick with Monadic {
+    type G[X] = X
+    def unit[R] = r => r
+    def tick() = use { resume =>
+      println("tick")
+      resume(())
+    }
+  }
+  def printTicks = new PrintTicks
+
+  class Get42 extends Get with Monadic {
+    type G[X] = X
+    def unit[R] = r => r
+    def get() = use { resume => resume(42) }
+  }
+  def get42 = new Get42
+
   class SumPuts extends Put with Idiomatic {
     type G[X] = (X, Int)
     def unit[R] = r => (r, 0)
@@ -194,6 +211,9 @@ trait SimpleExamples {
   } yield ()
 
 
+  val example4: I[Unit] using Get and Tick =
+    Tick.tick() andThen Tick.tick() andThen Tick.tick() andThen Get.get() andThen Tick.tick()
+
   expect (List(((),3), ((),3))) {
     monadicGet { implicit _ =>
       sumPuts { implicit _ =>
@@ -223,4 +243,20 @@ trait SimpleExamples {
       }
     }
   }
+
+  println { run {
+    printTicks { implicit _ =>
+      get42 { implicit _ =>
+        example4
+      }
+    }
+  }}
+
+  println { run {
+    printTicks { implicit _ =>
+      onlySum { implicit _ =>
+        example
+      }
+    }
+  }}
 }

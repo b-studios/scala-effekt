@@ -46,6 +46,7 @@ package object internals {
       UseD(op, ki, f)
   }
 
+  // A "Bubble" that collects a monadic context.
   private[effekt]
   case class UseD[X, Y, A](op: EffOp[_, X], ki: I[X => Y], km: Y => C[A]) extends C[A] {
     def run = sys error "undelimited idiom"
@@ -90,8 +91,13 @@ package object internals {
       val kn: ω => C[R]  = x => dynamic(hi, run) { _ => u.km(x) }
       ig flatMap { g: hi.G[ω] => run(g)(kn) }
 
+    // Like in resetMonadic, we loose the idiomatic structure by forwarding.
     case u : UseD[x, ω, R] =>
-      u.copy(km = x => dynamic(hi, run) { _ => u.km(x) })
+      // Oh! We also need to handle ki with the interpreter!
+      // In this case, we loose the idiomatic structure of our subprogram.
+      UseD[x, x, R](u.op, pure(identity), x => {
+        dynamic(hi, run) { _ => u.ki map { _ apply x } flatMap u.km }
+      })
 
     // the program is purely idiomatic, no flatMap occurred.
     case u : UseI[x, R] if hi eq u.op.h =>
@@ -117,7 +123,11 @@ package object internals {
       u.op { x => reset(hm) { kn(x) } }
 
     case u: UseD[x, y, hm.G[R]] =>
-      u.copy(km = x => reset(hm) { u.km(x) })
+      // Oh! We also need to handle ki with the interpreter!
+      // In this case, we loose the idiomatic structure of our subprogram.
+      UseD[x, x, hm.G[R]](u.op, pure(identity), x => {
+        reset(hm) { u.ki map { _ apply x } flatMap u.km }
+      })
 
     // Can only occur through handleIdiom { i => handleMonadic { m => i.op() } }
     // but this should be ruled out by `handleMonadic: C[R]` and `handleIdiom(I[R])`.
