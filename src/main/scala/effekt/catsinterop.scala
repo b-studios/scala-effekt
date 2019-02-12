@@ -6,11 +6,11 @@ import effekt.handler._
 package object catsinterop {
 
   implicit object controlMonad extends Monad[Control] {
-  override def flatMap[A, B](fa: C[A])(f: A => C[B]): C[B] = fa flatMap f
-  override def pure[A](a: A): C[A] = effekt.pure(a)
+    override def flatMap[A, B](fa: C[A])(f: A => C[B]): C[B] = fa flatMap f
+    override def pure[A](a: A): C[A] = effekt.pure(a)
 
-  // TODO make tailrecursive
-  // @annotation.tailrec
+    // TODO make tailrecursive
+    // @annotation.tailrec
     def tailRecM[A, B](init: A)(fn: A => C[Either[A, B]]): C[B] =
       fn(init) flatMap {
         case Left(a) => tailRecM(a)(fn)
