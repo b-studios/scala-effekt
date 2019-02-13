@@ -37,6 +37,14 @@ package object catsinterop {
     def map[A, B] = f => d => d
   }
 
+  // since Applicative is already taken, we use the made up name "Applicable"
+  trait Applicable[F[_]: Applicative] extends Idiomatic {
+    type G[X] = F[X]
+    def unit[R] = Applicative[F].pure
+    def map[A, B] = f => fa => Applicative[F].map(fa)(f)
+    def lift[A](fa: F[A]): I[A] = usePure(Applicative[F].ap(_)(fa))
+  }
+
   trait Analyze[D] extends Monoidal[D] {
     def default[R] = use { identity }
     def collect[A](el: D): I[A] = usePure { d => m.combine(el, d) }

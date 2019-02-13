@@ -88,9 +88,9 @@ trait GithubExamples
   import scala.concurrent.ExecutionContext.Implicits.global
   println("-----------")
   println { run {
-    githubRemoteFuture(30 seconds) { implicit _ =>
+    githubRemoteParallel(30 seconds) { implicit _ =>
       batched { implicit _ =>
-        allUsers(Owner("koka-lang"), Repo("libhandler")) map { _ mkString "\n" }
+        allUsers(Owner("koka-lang"), Repo("madoko")) map { _ mkString "\n" }
       }
     }
   }}
@@ -153,6 +153,19 @@ trait GithubRemoteHandler extends GithubEffect {
       pure(parse(fetch(uri)))
   }
 
+  case class Parallel[A](requests: List[String], future: Future[A])
+
+  implicit def parallelApplicative(implicit ec: ExecutionContext): Applicative[Parallel] = new Applicative[Parallel] {
+    def ap[A, B](ff: Parallel[A => B])(fa: Parallel[A]): Parallel[B] = (ff, fa) match {
+      case (Parallel(reqs1, fa), Parallel(reqs2, a)) => Parallel(reqs1 ++ reqs2, fa ap a)
+    }
+    def pure[A](a: A): Parallel[A] = Parallel(Nil, Future { a })
+    override def map[A, B](fa: Parallel[A])(f: A => B): Parallel[B] = fa match {
+      case Parallel(reqs, future) => Parallel(reqs, future map f)
+    }
+  }
+
+
   // An *idiomatic* handler that sends HTTP requests to the Github API.
   // The applicative instance of Future is used to send request
   // concurrently.
@@ -163,11 +176,24 @@ trait GithubRemoteHandler extends GithubEffect {
     }
   }
 
+  class GithubRemoteParallel[R](implicit ec: ExecutionContext) extends GithubApi with Applicable[Parallel] {
+    def fetch[T](uri: String, parse: Parser[T]): I[T] = lift {  Parallel(List(uri), Future { fetch(uri) }).map(parse) }
+  }
+  def githubRemoteParallel[R](timeout: Duration)(prog: C[R] using Github): C[R] using ExecutionContext =
+    new GithubRemoteParallel().dynamic[R](prog) { case Parallel(reqs, future) => resume: (ω => C[R]) =>
+      println("Requesting in parallel: " + reqs)
+      resume(Await.result(future, timeout))
+    }
+
+  class GithubRemoteFutureApp[R](implicit ec: ExecutionContext) extends GithubApi with Applicable[Future] {
+    def fetch[T](uri: String, parse: Parser[T]): I[T] = lift {  Future { fetch(uri) }.map(parse) }
+  }
+
   def githubRemoteFutureIdiomatic[R](prog: I[R] using Github): I[Future[R]] using ExecutionContext =
-    new GithubRemoteFuture() handle prog
+    new GithubRemoteFutureApp() handle prog
 
   def githubRemoteFuture[R](timeout: Duration)(prog: C[R] using Github): C[R] using ExecutionContext =
-    new GithubRemoteFuture().dynamic[R](prog) { prog: Future[ω] => resume: (ω => C[R]) =>
+    new GithubRemoteFutureApp().dynamic[R](prog) { prog: Future[ω] => resume: (ω => C[R]) =>
       resume(Await.result(prog, timeout))
     }
 

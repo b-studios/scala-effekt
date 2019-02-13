@@ -473,10 +473,10 @@ package object idiomInject extends App {
         resume(handled flatMap (ga => send(Dynamic(ga))))
       }
 
-      case d @ Dynamic(gr) if d.prompt eq this => resume => {
+      case d @ Dynamic(ga) if d.prompt eq this => resume => {
         // this cast is a consequence of interpreters not being fixed to *one particular* answer type.
         val seq = sequence.asInstanceOf[Sequencer[G, R2]]
-        seq(gr)(resume)
+        seq(ga)(resume)
       }
     }
   } apply prog
