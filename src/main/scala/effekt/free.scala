@@ -327,53 +327,69 @@ package object idiomInject extends App {
   trait Op[X]
 
   // all effect calls start out as idiomatic programs
-  def send[X](op: Op[X]): Idiom[X] = ImpureAp[X, X](op, pure(identity))
+  def send[X](op: Op[X]): Idiom[X] = Idiom.Impure[X, X](op, Idiom.pure(identity))
+  def sendM[X](op: Op[X]): Eff[X] = Eff.Impure[X, X](op, Eff.pure)
+  def pure[A](value: A): Idiom[A] = Idiom.pure(value)
+  def embed[A](prog: Idiom[A]): Eff[A] = bind(prog) flatMap identity
+
+  private def bind[A](prog: Idiom[A]): Eff[Eff[A]] = prog match {
+    // This is an optimization:
+    // only inject bind around actual effectful computations, otherwise we
+    // get spurious traces.
+    case Idiom.Pure(a) => Eff.pure(Eff.pure(a))
+    case prog => Eff.Impure(Bind(prog), Eff.pure)
+  }
 
 
   // Base Types
   // ==========
 
+  // The free monad
   sealed trait Eff[A] {
     def map[B](f: A => B): Eff[B]
     def flatMap[B](f: A => Eff[B]): Eff[B]
     def ap[B](f: Eff[A => B]): Eff[B] = flatMap { a => f map { _ apply a } }
     def andThen[B](f: Eff[B]): Eff[B] = ap(f map { b => a: A => b })
   }
+  object Eff {
+    // does it make sense to have pure Monadic values, if you can have pure idiomatic ones?
+    case class Pure[A](value: A) extends Eff[A] {
+      def map[B](f: A => B): Eff[B] = Pure(f(value))
+      def flatMap[B](f: A => Eff[B]): Eff[B] = f(value)
+    }
 
-  sealed trait Idiom[A] extends Eff[A] {
-    def map[B](f: A => B): Idiom[B]
+    case class Impure[X, A](op: Op[X], continuation: MonadCont[X, A]) extends Eff[A] {
+      def map[B](f: A => B): Eff[B] = Impure(op, x => continuation(x) map f)
+      def flatMap[B](f: A => Eff[B]): Eff[B] = Impure(op, x => continuation(x) flatMap f)
+    }
+    def pure[A](a: A): Eff[A] = Pure(a)
+  }
+
+  // The free applicative
+  //   https://hackage.haskell.org/package/free-5.1/docs/Control-Applicative-Free.html
+  sealed trait Idiom[A] {
     def ap[B](f: Idiom[A => B]): Idiom[B]
+    def map[B](f: A => B): Idiom[B]
     def andThen[B](f: Idiom[B]): Idiom[B] = ap(f map { b => a: A => b })
     def map2[B, C](mb: Idiom[B])(f: (A, B) => C): Idiom[C] = ap(mb.map { b: B => a: A => f(a, b) })
   }
+  object Idiom {
 
-  def pure[A](a: A): Idiom[A] = Pure(a)
+    case class Pure[A](value: A) extends Idiom[A] {
+      def map[B](f: A => B): Idiom[B] = Pure(f(value))
+      def ap[B](ef: Idiom[A => B]): Idiom[B] = ef map { f => f(value) }
+    }
 
+    case class Impure[X, A](op: Op[X], continuation: IdiomCont[X, A]) extends Idiom[A] {
+      def map[B](f: A => B): Idiom[B] =
+        Impure(op, continuation map { f compose _ })
+      def ap[B](ef: Idiom[A => B]): Idiom[B] =
+        Impure(op, continuation ap (ef map { (f : A => B) => (g : X => A) => f compose g }))
+    }
 
-  // Bubble Types
-  // ============
-
-  case class Pure[A](value: A) extends Idiom[A] {
-    def map[B](f: A => B): Idiom[B] = Pure(f(value))
-    def flatMap[B](f: A => Eff[B]): Eff[B] = f(value)
-    def ap[B](ef: Idiom[A => B]): Idiom[B] = ef map { f => f(value) }
+    def pure[A](a: A): Idiom[A] = Pure(a)
   }
 
-  // this is free applicatives:
-  //   https://hackage.haskell.org/package/free-5.1/docs/Control-Applicative-Free.html
-  case class ImpureAp[X, A](op: Op[X], continuation: IdiomCont[X, A]) extends Idiom[A] {
-    def map[B](f: A => B): Idiom[B] =
-      ImpureAp(op, continuation map { f compose _ })
-    def ap[B](ef: Idiom[A => B]): Idiom[B] =
-      ImpureAp(op, continuation ap (ef map { (f : A => B) => (g : X => A) => f compose g }))
-    def flatMap[B](f: A => Eff[B]): Eff[B] =
-      Impure(Bind(this), _ flatMap f)
-  }
-
-  case class Impure[X, A](op: Op[X], continuation: MonadCont[X, A]) extends Eff[A] {
-    def map[B](f: A => B): Eff[B] = Impure(op, x => continuation(x) map f)
-    def flatMap[B](f: A => Eff[B]): Eff[B] = Impure(op, x => continuation(x) flatMap f)
-  }
 
 
   // Interpreters
@@ -397,13 +413,13 @@ package object idiomInject extends App {
   }
 
   private def runIdiomatic[R, G[_]](interpreter: Idiomatic[G])(prog: Idiom[R]): Idiom[G[R]] = prog match {
-    case p @ Pure(_) =>
+    case p @ Idiom.Pure(_) =>
       prog map interpreter.onPure
-    case ImpureAp(op, k) if interpreter.onEffect isDefinedAt op =>
+    case Idiom.Impure(op, k) if interpreter.onEffect isDefinedAt op =>
       interpreter(k) map interpreter.onEffect(op)
-    case ImpureAp(op, k) =>
+    case Idiom.Impure(op, k) =>
       // here we require G to be a functor to convert `gk: G[x => R]` to `x => G[R]`:
-      ImpureAp(op, interpreter(k) map { gk => x => interpreter.map(gk) { xr => xr(x) } })
+      Idiom.Impure(op, interpreter(k) map { gk => x => interpreter.map(gk) { xr => xr(x) } })
   }
 
   // Monadic Handlers
@@ -414,34 +430,34 @@ package object idiomInject extends App {
     def apply[R](prog: Eff[R]): Eff[G[R]] = runMonadic(this)(prog map onPure)
   }
   private def runMonadic[R, G[_]](interpreter: Monadic[G])(prog: Eff[G[R]]): Eff[G[R]] = prog match {
-    case p @ Pure(_) =>
+    case p @ Eff.Pure(_) =>
       p
-    case Impure(op, km) if interpreter.onEffect isDefinedAt op =>
+    case Eff.Impure(op, km) if interpreter.onEffect isDefinedAt op =>
       interpreter.onEffect(op) { x => runMonadic(interpreter) { km(x) } }
-    case im: Impure[x, G[R]] =>
-      Impure(im.op, x => runMonadic(interpreter) { im.continuation(x) })
-    case ImpureAp(op, k) =>
-      runMonadic(interpreter) { prog flatMap pure }
+    case Eff.Impure(op, km) =>
+      Eff.Impure(op, x => runMonadic(interpreter) { km(x) })
   }
-
 
   // Idiom Injection
   // ===============
   // the first bind on an idiomatic computation sends a "Bind"-effect.
 
   // Bind has return type Eff[A] to allow sending effectful values back to the original position. (Time traveling control!)
-  private case class Bind[X, A](ap: ImpureAp[X, A]) extends Op[Eff[A]]
+  private case class Bind[A](ap: Idiom[A]) extends Op[Eff[A]]
 
   // Default handler for Bind:
-  //   case class Bind[X, A](op: Op[X], continuation: Idiom[X => A]) extends Op[Eff[A]]
+  // It translates applicative effects into monadic effects.
   private object BindDefault extends MonadicId {
     def onEffect[X, R] = {
-      case Bind(ImpureAp(op, k)) => resume => resume(Impure(op, x => k map { _ apply x }))
+      case Bind(Idiom.Pure(a)) => resume =>
+        resume(Eff.Pure(a))
+      case Bind(Idiom.Impure(op, k)) => resume =>
+        resume(Eff.Impure(op, x => embed(k map { _ apply x })))
     }
   }
 
   def run[A](ma: Eff[A]): A = BindDefault { ma } match {
-    case Pure(a) => a
+    case Eff.Pure(a) => a
     case _ => sys error "Cannot run program with unhandled effects: " + ma
   }
 
@@ -462,15 +478,34 @@ package object idiomInject extends App {
     // collects the continuation
     private case class Dynamic[R](gr: G[R]) extends Op[R] { val prompt = outer }
 
-    def onEffect[X, R2] = {
-      case Bind(ap @ ImpureAp(op, k)) if interpreter.onEffect.isDefinedAt(op) => resume => {
-        // 1) inject idiomatic handler
-        val handled = interpreter { ap }
+    // This is an optimization:
+    //   Since this is purely driven by "the first bind" it might insert too many calls to an interpreter.
+    //   Should the interpreter be wrapped around a term that does not use the corresponding effect?
+    //   It's an applicative term: We can just search for effects that are handled by the interpreter!
+    @tailrec
+    private def shouldHandle[A](prog: Idiom[A]): Boolean = prog match {
+      case Idiom.Pure(v) => false
+      case Idiom.Impure(op, k) => interpreter.onEffect.isDefinedAt(op) || shouldHandle(k)
+    }
 
-        // Send computation back to the future. It ...
-        // 2) runs the idiomatic handler in the original position of the bind
-        // 3) collects the continuation (using Dynamic) to be sequenced in a separate step
-        resume(handled flatMap (ga => send(Dynamic(ga))))
+    def onEffect[X, R2] = {
+
+      case Bind(prog) if shouldHandle(prog) => resume => {
+
+        // 1) inject idiomatic handler
+        val handled = interpreter { prog }
+
+        // 2) give outer handlers the chance to handle the remaining idiomatic computation
+        val rebound = bind(handled)
+
+        // Send resulting computation back to the future. It ...
+        // 3) runs the idiomatic handler in the original position of the bind
+        // 4) collects the continuation (using Dynamic) to be sequenced in a separate step
+        //
+        // Note:
+        //   using sendM here is important since otherwise we need to call `embed` and end
+        //   up in this very handler again.
+        rebound flatMap { prog => resume(prog flatMap { ga => sendM(Dynamic(ga)) }) }
       }
 
       case d @ Dynamic(ga) if d.prompt eq this => resume => {
@@ -497,7 +532,7 @@ package object idiomInject extends App {
 
   implicit object effMonad extends Monad[Eff] {
     override def flatMap[A, B](fa: Eff[A])(f: A => Eff[B]): Eff[B] = fa flatMap f
-    override def pure[A](a: A): Eff[A] = idiomInject.pure(a)
+    override def pure[A](a: A): Eff[A] = Eff.pure(a)
 
     // TODO make tailrecursive
     // @annotation.tailrec
@@ -510,7 +545,7 @@ package object idiomInject extends App {
 
   implicit object idiomApplicative extends Applicative[Idiom] {
     def ap[A, B](ff: Idiom[A => B])(fa: Idiom[A]): Idiom[B] = fa ap ff
-    def pure[A](a: A): Idiom[A] = idiomInject.pure(a)
+    def pure[A](a: A): Idiom[A] = Idiom.pure(a)
     override def map[A, B](fa: Idiom[A])(f: A => B): Idiom[B] = fa map f
   }
 
@@ -588,13 +623,13 @@ package object idiomInject extends App {
     put(n + 1) andThen put(n + 2) andThen put(n + 3) andThen get()
 
 
-  println { run { Get42 { PrintPuts { prog(0) } } } }
+  println { run { Get42 { PrintPuts { embed(prog(0)) } } } }
   // 1
   // 2
   // 3
   //> 42
 
-  println { run { Get42 { SumPuts { prog(0) } } } }
+  println { run { Get42 { embed { SumPuts { prog(0) } } } } }
   //> (42, 6)
 
   // Doesn't type check since Get42 is a *monadic* handler
@@ -602,19 +637,19 @@ package object idiomInject extends App {
   //   println { run { SumPuts { Get42 { prog(0) } } } }
 
   // however, we can use the tracing variant of puts:
-  println { run { Get42 { trace(SumPuts) { prog(0) } } } }
+  println { run { Get42 { trace(SumPuts) { embed { prog(0) } } } } }
   //> (42, List(6))
 
   // now also works in this nesting:
-  println { run { trace(SumPuts) { Get42 { prog(0) } } } }
+  println { run { trace(SumPuts) { Get42 { embed { prog(0) } } } } }
   //> (42, List(6))
 
 
   // A slightly larger example to illustrate "trace":
   val prog2 = for {
-    x <- prog(0)
-    y <- prog(1).map2(get()) { _ + _ }
-    z <- prog(2)
+    x <- embed { prog(0) }
+    y <- embed { prog(1).map2(get()) { _ + _ } }
+    z <- embed { prog(2) }
   } yield (x, y, z)
 
   println { run { Get42 { trace(SumPuts) { prog2 } } } }
@@ -640,27 +675,27 @@ package object idiomInject extends App {
     }
   }
 
-  println { run { AmbiguousTick { tick() }}}
+  println { run { AmbiguousTick { embed { tick() } }}}
   //> List((), ())
 
   println { run { AmbiguousTick { trace(SumPuts) {
-    tick() andThen put(2)
+    embed { tick() andThen put(2) }
   }}}}
   //> List(((),List(2)), ((),List(2)))
 
   println { run { trace(SumPuts) { AmbiguousTick {
-    tick() andThen put(2)
+    embed { tick() andThen put(2) }
   }}}}
   //> (List((), ()), List(2, 2))
 
   // A larger program with nested idiomatic computation
   val prog3: Eff[(Int, Int, Int)] = for {
-    x <- prog(0)
-    y <- put(1337) andThen (for {
-      a <- tick() andThen List(10,20,30).traverse(prog) andThen get()
-      b <- tick() andThen prog(2)
+    x <- embed { prog(0) }
+    y <- embed { put(1337) } andThen (for {
+      a <- embed { tick() andThen List(10,20,30).traverse(prog) andThen get() }
+      b <- embed { tick() andThen prog(2) }
     } yield a + b)
-    z <- get() andThen prog(3)
+    z <- embed { get() andThen prog(3) }
   } yield (x, y, z)
 
   println("--------------------")
@@ -671,6 +706,12 @@ package object idiomInject extends App {
   //       ((42,84,42),List(6, 1337, 198, 12, 15)))
 
 
+  val prog4 = embed { get() andThen put(20) andThen get() }
+
+  println("--------------------")
+  println { run { Get42 { tracePuts { prog4 } } } }
+
+//
 //  println("--------------------")
 //  println { run { Get42 { AmbiguousTick { tracePuts { prog3 } } } } }
 //  println("--------------------")
