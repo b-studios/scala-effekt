@@ -249,7 +249,6 @@ trait GithubRemoteHandler extends GithubEffect {
   }
 
   private val parseIssues: Parser[List[Issue]] = json => {
-    println(json)
     val objs = json.validate[List[JsValue]].get
     objs.map(obj => (obj \ "number").validate[Int].map(Issue(_)).asOpt).flatten
   }
