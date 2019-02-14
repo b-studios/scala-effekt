@@ -309,7 +309,7 @@ package object idiomUnsafe extends App {
 // To focus on the operation semantics, this implementation is not effect safe.
 // establishing static effect safety is a separate (and probably orthogonal)
 // step.
-package object idiomInject extends App {
+package object idiomInject {
 
   // Type Aliases
   // ============
@@ -328,8 +328,12 @@ package object idiomInject extends App {
 
   // all effect calls start out as idiomatic programs
   def send[X](op: Op[X]): Idiom[X] = Idiom.Impure[X, X](op, Idiom.pure(identity))
-  def sendM[X](op: Op[X]): Eff[X] = Eff.Impure[X, X](op, Eff.pure)
   def pure[A](value: A): Idiom[A] = Idiom.pure(value)
+
+  // used interally. Directly send a monadic effect
+  def sendM[X](op: Op[X]): Eff[X] = Eff.Impure[X, X](op, Eff.pure)
+
+  // lift idiomatic computation into monadic computation
   def embed[A](prog: Idiom[A]): Eff[A] = bind(prog) flatMap identity
 
   private def bind[A](prog: Idiom[A]): Eff[Eff[A]] = prog match {
@@ -343,6 +347,8 @@ package object idiomInject extends App {
 
   // Base Types
   // ==========
+  // We have free monad over free applicative. Is this just fraxl?
+  //   https://hackage.haskell.org/package/fraxl-0.3.0.0/docs/Control-Monad-Fraxl.html
 
   // The free monad
   sealed trait Eff[A] {
@@ -408,6 +414,7 @@ package object idiomInject extends App {
     // this is a simplified form of Idiom[G[X => R]] => Idiom[G[R]]
     def map[A, B]: G[A] => (A => B) => G[B]
     def onEffect[X, R]: Op[X] ~> (G[X => R] => G[R])
+
     def apply[R](prog: Idiom[R]): Idiom[G[R]] = runIdiomatic(this)(prog)
     def dynamic[R](prog: Eff[R])(sequence: Sequencer[G, R]): Eff[R] = runDynamic(this, sequence)(prog)
   }
@@ -524,6 +531,11 @@ package object idiomInject extends App {
     def onPure[A] = a => a
   }
 
+  trait IdiomaticId extends Idiomatic[[X] => X] {
+    def onPure[A] = a => a
+    def map[A, B] = a => f => f(a)
+  }
+
 
   // Cats Interop
   // ============
@@ -554,6 +566,27 @@ package object idiomInject extends App {
     def map[A, B] = Functor[F].map
   }
 
+  trait Monoidal[D](implicit val m: Monoid[D]) extends Idiomatic[[X] => D] {
+    def onPure[R] = r => m.empty
+    def map[A, B] = d => f => d
+  }
+
+  // since Applicative is already taken, we use the made up name "Applicable"
+  trait Applicable[F[_]: Applicative] extends Idiomatic[F] {
+    // `interpret` is a natural transformation for a subset of Op to F
+    def interpret[X]: Op[X] ~> F[X]
+    def onPure[R] = Applicative[F].pure
+    def map[A, B] = Applicative[F].map
+    def onEffect[X, R] = { case op if interpret.isDefinedAt(op) => Applicative[F].ap(_)(interpret(op)) }
+  }
+
+}
+
+object idiomInjectExamples extends App {
+
+  import idiomInject._
+  import cats.{ Applicative, Functor, Monoid, Monad }
+  import cats.implicits._
 
   // Examples
   // ========
@@ -716,4 +749,245 @@ package object idiomInject extends App {
 //  println { run { Get42 { AmbiguousTick { tracePuts { prog3 } } } } }
 //  println("--------------------")
 //  println { run {  tracePuts { Get42 { AmbiguousTick { prog3 } } } } }
+}
+
+
+object idiomInjectGithub extends App {
+
+  import idiomInject._
+  import cats.{ Applicative, Functor, Monoid, Monad }
+  import cats.implicits._
+  import scala.concurrent._
+  import scala.concurrent.duration._
+  import play.api.libs.json._
+
+  implicit def lift[R](idiom: Idiom[R]): Eff[R] = embed(idiom)
+
+  // The effect operations
+  sealed trait Github[A] extends Op[A]
+  case class GetComment(owner: Owner, repo: Repo, id: Int) extends Github[Comment]
+  case class GetComments(owner: Owner, repo: Repo, issue: Issue) extends Github[List[Comment]]
+  case class GetUser(login: UserLogin) extends Github[User]
+  case class ListIssues(owner: Owner, repo: Repo) extends Github[List[Issue]]
+
+  // Boilerplate
+  object Github {
+    def getComment(owner: Owner, repo: Repo, id: Int) = send(GetComment(owner, repo, id))
+    def getComments(owner: Owner, repo: Repo, issue: Issue) = send(GetComments(owner, repo, issue))
+    def getUser(login: UserLogin) = send(GetUser(login))
+    def listIssues(owner: Owner, repo: Repo) = send(ListIssues(owner, repo))
+  }
+
+  // Data Classes
+  case class Issue(value: Int)
+  case class Url(value: String)
+  case class Owner(value: String)
+  case class UserLogin(value: String)
+  case class Repo(value: String)
+  case class Comment(url: Url, body: Body, user: UserLogin)
+  case class Body(value: String) { override def toString = "<body not shown>" }
+  case class User(login: String, name: String)
+
+
+  // Example Program
+  // ===============
+  def allUsers(owner: Owner, repo: Repo): Eff[List[(Issue,List[(Comment,User)])]] = for {
+
+    issues <- Github.listIssues(owner,repo)
+
+    _ = println("got issues " + issues)
+
+    issueComments <- issues.traverse(issue => Github.getComments(owner,repo,issue).map((issue,_)))
+
+    users <-
+      issueComments.traverse { case (issue,comments) =>
+        comments.traverse(comment =>
+          Github.getUser(comment.user).map((comment,_))).map((issue,_))
+      }
+  } yield users
+
+  println {
+    import scala.concurrent.ExecutionContext.Implicits.global
+    run {
+      githubRemoteParallel(10 seconds) {
+        batched {
+          allUsers(Owner("koka-lang"), Repo("madoko")) map { _ mkString "\n" }
+        }
+      }
+    }
+  }
+
+
+  // Github Remote Handler
+  // =====================
+
+  trait GithubApi[F[_]] extends Idiomatic[F] {
+    def onEffect[X, R] = {
+      case GetComment(owner, repo, id) =>
+        fetch(s"/repos/${owner.value}/${repo.value}/issues/comments/$id", parseComment)
+      case GetComments(owner, repo, issue) =>
+        fetch(s"/repos/${owner.value}/${repo.value}/issues/${issue.value}/comments", parseComments)
+      case GetUser(login) =>
+        fetch(s"/users/${login.value}", parseUser)
+      case ListIssues(owner, repo) =>
+        fetch(s"/repos/${owner.value}/${repo.value}/issues", parseIssues)
+    }
+
+    def fetch[X, R](uri: String, parse: Parser[X]): F[X => R] => F[R]
+
+    // this is a blocking call
+    protected def fetch(endpoint: String) = {
+      println("fetching " + endpoint)
+      Json.parse(requests.get("https://api.github.com" + endpoint).text)
+    }
+  }
+
+  // A blocking handler that sends HTTP requests to the Github API.
+  type Id[A] = A
+  object GithubRemote extends GithubApi[Id] with IdiomaticId {
+    def fetch[X, R](uri: String, parse: Parser[X]) = resume =>
+      resume(parse(fetch(uri)))
+  }
+  def githubRemote[R](prog: Eff[R]): Eff[R] =
+    GithubRemote.dynamic(prog)(new Sequencer {
+      def apply[X] = x => resume => resume(x)
+    })
+
+  case class Parallel[A](requests: List[String], future: Future[A])
+
+  implicit def parallelApplicative(implicit ec: ExecutionContext): Applicative[Parallel] = new Applicative[Parallel] {
+    def pure[A](a: A): Parallel[A] = Parallel(Nil, Future { a })
+    def ap[A, B](ff: Parallel[A => B])(fa: Parallel[A]): Parallel[B] = (ff, fa) match {
+      case (Parallel(reqs1, fa), Parallel(reqs2, a)) => Parallel(reqs1 ++ reqs2, fa ap a)
+    }
+    override def map[A, B](fa: Parallel[A])(f: A => B): Parallel[B] = fa match {
+      case Parallel(reqs, future) => Parallel(reqs, future map f)
+    }
+  }
+
+  class GithubRemoteFuture[R](implicit ec: ExecutionContext) extends GithubApi[Future] with Functorial[Future] {
+    def onPure[R] = r => Future { r }
+    def fetch[X, R](uri: String, parse: Parser[X]) = resume =>
+      resume ap Future { fetch(uri) }.map(parse)
+  }
+  def githubRemoteFuture[R](timeout: Duration)(prog: Eff[R]): Eff[R] using ExecutionContext =
+    new GithubRemoteFuture().dynamic[R](prog)(new Sequencer {
+      def apply[X] = future => resume => resume(Await.result(future, timeout))
+    })
+
+  // An *idiomatic* handler that sends HTTP requests to the Github API.
+  // The applicative instance of Future is used to send request concurrently.
+  class GithubRemoteParallel[R](implicit ec: ExecutionContext) extends GithubApi[Parallel] with Functorial[Parallel] {
+    def onPure[R] = r => Parallel(Nil, Future { r })
+    def fetch[X, R](uri: String, parse: Parser[X]) = resume =>
+      resume ap Parallel(List(uri), Future { fetch(uri) }.map(parse))
+  }
+  def githubRemoteParallel[R](timeout: Duration)(prog: Eff[R]): Eff[R] using ExecutionContext =
+    new GithubRemoteParallel().dynamic[R](prog)(new Sequencer {
+      def apply[X] = { case Parallel(reqs, future) => resume =>
+        println("Requesting in parallel: " + reqs)
+        resume(Await.result(future, timeout))
+      }
+    })
+
+
+  // Batched Handlers
+  // ================
+
+
+  // This is a handler that collects the statically known set of requested
+  // user logins within an idiomatic computation.
+  //
+  // ## Example
+  // RequestedLogins { Github.getUser(UserLogin("foo")) }
+  // > Set(UserLogin("foo"))
+  object RequestedLogins extends Monoidal[Set[UserLogin]] {
+    def onEffect[X, R] = {
+      case GetUser(login) => _ + login
+      case _: Github[_] => identity
+    }
+  }
+
+  // This is a handler that handles `getUser` requests by looking up in a given db
+  // and forwards to an outer handler otherwise. Also all other effect operations
+  // are forwarded.
+  //
+  // ## Example
+  // prefetched(Map(UserLogin("foo") -> User("foo", "Peter Foo"))) {
+  //   Github.getUser(UserLogin("foo"))
+  // }
+  // > User("foo", "Peter Foo")
+  type DB = Map[UserLogin, User]
+  class Prefetched(db: DB) extends IdiomaticId {
+    def onEffect[X, R] = {
+      // TODO forward if not in DB
+      //   db.get(login).map(pure).getOrElse(Github.getUser(login))
+      // we need to change the signature of `onEffect` for that.
+      case GetUser(login) => resume => resume(db(login))
+    }
+  }
+  def prefetched[R](db: DB) = new Prefetched(db)
+
+  // A handler for idiomatic programs that forwards all effect operations
+  // to an outer handler but optimizes the requests before.
+  // The resulting program is monadic.
+  def optimize[R](prog: Idiom[R]): Eff[R] =
+    for {
+      // (1) statically analyse the *set* of requested logins
+      logins <- RequestedLogins { prog } map { _.toList }
+      _ = println("prefetching user logins: " + logins)
+      // (2) now fetch the necessary users. This is again an idiomatic prog.
+      users <- logins.traverse { Github.getUser }
+      // (3) build up the db / cache
+      db = (logins zip users).toMap
+      // (4) use the db to handle the `getUser` requests and forward otherwise
+      res <- prefetched(db) { prog }
+    } yield res
+
+  object ReifyGithub extends Applicable[Idiom] {
+    def interpret[X] = { case g: Github[X] => send(g) }
+  }
+
+  // This is a handler that uses `reify` to obtain the idiomatic
+  // program which it then runs optimized.
+  def batched[R](prog: Eff[R]): Eff[R] =
+    ReifyGithub.dynamic(prog)(new Sequencer {
+      def apply[R] = prog => resume => optimize(prog) flatMap resume
+    })
+
+
+  // JSON parsers
+  // ============
+
+  type Parser[T] = JsValue => T
+  private def parseComments: Parser[List[Comment]] = json => {
+    val objs = json.validate[List[JsValue]].get
+    objs.map { obj =>
+      (for {
+        url <- (obj \ "url").validate[String]
+        body <- (obj \ "body").validate[String]
+        login <- (obj \ "user" \ "login").validate[String]
+      } yield Comment(Url(url),Body(body),UserLogin(login))).get
+    }
+  }
+
+  private def parseComment: Parser[Comment] = obj => {
+    (for {
+      url <- (obj \ "url").validate[String]
+      body <- (obj \ "body").validate[String]
+      login <- (obj \ "user" \ "login").validate[String]
+    } yield Comment(Url(url),Body(body),UserLogin(login))).get
+  }
+
+  private def parseUser: Parser[User] = json => {
+    (for {
+      login <- (json \ "login").validate[String]
+      name <- (json \ "name").validate[String] orElse (json \ "login").validate[String]
+    } yield User(login,name)).asOpt.get
+  }
+
+  private def parseIssues: Parser[List[Issue]] = json => {
+    val objs = json.validate[List[JsValue]].get
+    objs.map(obj => (obj \ "number").validate[Int].map(Issue(_)).asOpt).flatten
+  }
 }
