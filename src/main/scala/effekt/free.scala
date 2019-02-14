@@ -401,16 +401,15 @@ package object idiomInject {
   // Interpreters
   // ============
 
-  trait Interpreter[G[_]] {
-    // the pure clause is non-effectful for now
-    // can be changed to `A => Eff[G[A]]` for monadic and `Idiom[A] => Idiom[G[A]]` for idiomatic handlers
-    def onPure[A]: A => G[A]
-  }
 
   // Idiomatic Handlers
   // ------------------
 
-  trait Idiomatic[G[_]] extends Interpreter[G] {
+  trait Idiomatic[G[_]] {
+     // the pure clause is non-effectful for now
+    // can be changed to `A => Eff[G[A]]` for monadic and `Idiom[A] => Idiom[G[A]]` for idiomatic handlers
+    def onPure[A]: A => G[A]
+
     // this is a simplified form of Idiom[G[X => R]] => Idiom[G[R]]
     def map[A, B]: G[A] => (A => B) => G[B]
     def onEffect[X, R]: Op[X] ~> (G[X => R] => G[R])
@@ -432,7 +431,8 @@ package object idiomInject {
   // Monadic Handlers
   // ----------------
 
-  trait Monadic[G[_]] extends Interpreter[G] {
+  trait Monadic[G[_]] {
+    def onPure[A]: A => G[A]
     def onEffect[X, R]: Op[X] ~> (MonadCont[X, G[R]] => Eff[G[R]])
     def apply[R](prog: Eff[R]): Eff[G[R]] = runMonadic(this)(prog map onPure)
   }
