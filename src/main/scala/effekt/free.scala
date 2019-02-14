@@ -431,12 +431,11 @@ package object idiomInject {
   // Monadic Handlers
   // ----------------
 
-  trait Monadic[G[_]] {
-    def onPure[A]: A => G[A]
-    def onEffect[X, R]: Op[X] ~> (MonadCont[X, G[R]] => Eff[G[R]])
-    def apply[R](prog: Eff[R]): Eff[G[R]] = runMonadic(this)(prog map onPure)
+  trait Monadic[R] {
+    def onEffect[X]: Op[X] ~> (MonadCont[X, R] => Eff[R])
+    def apply(prog: Eff[R]): Eff[R] = runMonadic(this)(prog)
   }
-  private def runMonadic[R, G[_]](interpreter: Monadic[G])(prog: Eff[G[R]]): Eff[G[R]] = prog match {
+  private def runMonadic[R](interpreter: Monadic[R])(prog: Eff[R]): Eff[R] = prog match {
     case p @ Eff.Pure(_) =>
       p
     case Eff.Impure(op, km) if interpreter.onEffect isDefinedAt op =>
@@ -454,14 +453,15 @@ package object idiomInject {
 
   // Default handler for Bind:
   // It translates applicative effects into monadic effects.
-  private object BindDefault extends MonadicId {
-    def onEffect[X, R] = {
+  private class BindDefault[R] extends Monadic[R] {
+    def onEffect[X] = {
       case Bind(Idiom.Pure(a)) => resume =>
         resume(Eff.Pure(a))
       case Bind(Idiom.Impure(op, k)) => resume =>
         resume(Eff.Impure(op, x => embed(k map { _ apply x })))
     }
   }
+  private def BindDefault[R] = new BindDefault[R]
 
   def run[A](ma: Eff[A]): A = BindDefault { ma } match {
     case Eff.Pure(a) => a
@@ -480,7 +480,7 @@ package object idiomInject {
   // The combinator `runDynamic` injects the provided interpreter at the position of the
   // first call to flatMap on an idiomatic program. This implies that also all effects
   // used by the interpreter are evaluated at that particular position!
-  private def runDynamic[R, G[_]](interpreter: Idiomatic[G], sequence: Sequencer[G, R])(prog: Eff[R]): Eff[R] = new MonadicId { outer =>
+  private def runDynamic[R, G[_]](interpreter: Idiomatic[G], sequence: Sequencer[G, R]): Monadic[R] = new Monadic[R] { outer =>
 
     // collects the continuation
     private case class Dynamic[R](gr: G[R]) extends Op[R] { val prompt = outer }
@@ -495,7 +495,7 @@ package object idiomInject {
       case Idiom.Impure(op, k) => interpreter.onEffect.isDefinedAt(op) || shouldHandle(k)
     }
 
-    def onEffect[X, R2] = {
+    def onEffect[X] = {
 
       case Bind(prog) if shouldHandle(prog) => resume => {
 
@@ -515,21 +515,18 @@ package object idiomInject {
         rebound flatMap { prog => resume(prog flatMap { ga => sendM(Dynamic(ga)) }) }
       }
 
-      case d @ Dynamic(ga) if d.prompt eq this => resume => {
-        // this cast is a consequence of interpreters not being fixed to *one particular* answer type.
-        val seq = sequence.asInstanceOf[Sequencer[G, R2]]
-        seq(ga)(resume)
-      }
+      case d @ Dynamic(ga) if d.prompt eq this => resume => sequence(ga)(resume)
     }
-  } apply prog
+  }
+
+  def dynamic[R, E](shouldHandle: Op[_] => Boolean)(seq: Sequencer[Idiom, R]): Monadic[R] =
+    runDynamic(new Applicable[Idiom] {
+      def interpret[X] = { case op if shouldHandle(op) => send(op) }
+    }, seq)
 
 
   // Helpers
   // =======
-
-  trait MonadicId extends Monadic[[X] => X] {
-    def onPure[A] = a => a
-  }
 
   trait IdiomaticId extends Idiomatic[[X] => X] {
     def onPure[A] = a => a
@@ -604,18 +601,20 @@ object idiomInjectExamples extends App {
   type Id[A] = A
 
   // A simple monadic handler that prints the values it receives
-  object PrintPuts extends MonadicId {
-    def onEffect[X, R] = {
+  class PrintPuts[R] extends Monadic[R] {
+    def onEffect[X] = {
       case Put(n) => resume => println(n); resume(())
     }
   }
+  def PrintPuts[R] = new PrintPuts[R]
 
   // A handler that constantly returns 42
-  object Get42 extends MonadicId {
-    def onEffect[X, R] = {
+  class Get42[R] extends Monadic[R] {
+    def onEffect[X] = {
       case Get => resume => resume(42)
     }
   }
+  def Get42[R] = new Get42[R]
 
 
   type WithInt[X] = (X, Int)
@@ -695,9 +694,8 @@ object idiomInjectExamples extends App {
 
 
   // A handler for tick, that calls the continuation twice
-  object AmbiguousTick extends Monadic[List] {
-    def onPure[R] = a => List(a)
-    def onEffect[X, R] = {
+  class AmbiguousTick[R] extends Monadic[List[R]] {
+    def onEffect[X] = {
       case Tick => resume => {
         println("tick")
         for {
@@ -707,6 +705,8 @@ object idiomInjectExamples extends App {
       }
     }
   }
+  def AmbiguousTick[R](prog: Eff[R]): Eff[List[R]] =
+    new AmbiguousTick[R] apply (prog map { x => List(x) })
 
   println { run { AmbiguousTick { embed { tick() } }}}
   //> List((), ())
