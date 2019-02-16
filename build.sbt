@@ -1,10 +1,10 @@
-import org.scalajs.sbtplugin.cross.CrossProject
+import sbtcrossproject.{crossProject, CrossType}
 
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.2",
+  scalaVersion := "2.12.8",
   version := "0.3-SNAPSHOT",
   organization := "de.b-studios",
-  crossScalaVersions := Seq("2.11.8", "2.12.1"),
+  crossScalaVersions := Seq("2.11.12", "2.12.1"),
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding", "UTF-8",
@@ -61,7 +61,7 @@ lazy val root = project
   .aggregate(effektJVM, effektJS, effectsJVM, effectsJS)
   .dependsOn(effektJVM, effektJS, effectsJVM, effectsJS)
 
-lazy val effekt = crossProject
+lazy val effekt = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Full)
   .in(file("."))
   .settings(moduleName := "effekt", name := "effekt")
@@ -76,11 +76,10 @@ lazy val commonJvmSettings = commonSettings
 
 lazy val commonJsSettings = commonSettings ++ Seq(
   scalaJSModuleKind := ModuleKind.CommonJSModule,
-  scalaJSStage in Global := FastOptStage,
-  requiresDOM := false
+  scalaJSStage in Global := FastOptStage
 )
 
-lazy val effects = crossProject
+lazy val effects = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .in(file("effects"))
   .settings(moduleName := "effekt-effects", name := "effect instances using Effekt")
@@ -94,7 +93,7 @@ lazy val effectsJS = effects.js
 
 lazy val effectsSettings = Seq(
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats" % "0.9.0"
+    "org.typelevel" %% "cats-core" % "1.6.0"
   )
 )
 
