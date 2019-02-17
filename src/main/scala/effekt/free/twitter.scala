@@ -18,47 +18,27 @@ object twitter {
 
   case class User(login: String, name: String)
 
-  object Remote extends Functorial[Idiom] {
-    def onPure[R] = Idiom.pure
+  // While we could implement this handler with Idiomatic[Idiom] to be
+  // effectful, having built-in support for an effectful domain is important:
+  // With G = Id, the sequencing does not change the idiomatic structure, while with
+  // G = Idiom, we need to implement the sequencer as `embed { x } flatMap resume`
+  // which leads to loss of idiomatic structure.
+  object Remote extends IdiomaticId {
     def onEffect[X, R] = {
       case GetUser(login) => fetch(s"/users/${login}", parseUser)
     }
     // for now we pretend github is twitter... :)
-    def fetch[X, R](endpoint: String, parse: Parser[X]): Idiom[X => R] => Idiom[R] = resume =>
+    def fetch[X, R](endpoint: String, parse: Parser[X]): Idiom[X => R] => Idiom[R] = resume => {
+      println("Requesting twitter endpoint: " + endpoint)
       Http.get("https://api.github.com" + endpoint).map(Json.parse).map(parse) ap resume
+    }
   }
   def remote[R](prog: Eff[R]): Eff[R] =
     Remote.dynamic(prog)(new Sequencer {
-      def apply[X] = x => resume => embed { x } flatMap resume
+      def apply[X] = x => resume => resume(x)
     })
 
-  object RequestedLogins extends Monoidal[Set[String]] {
-    def onEffect[X, R] = { case GetUser(login) => _ + login }
-  }
-
-  type DB = Map[String, User]
-  class Prefetched(db: DB) extends IdiomaticId {
-    def onEffect[X, R] = {
-      // TODO forward if not in DB
-      //   db.get(login).map(pure).getOrElse(Github.getUser(login))
-      // we need to change the signature of `onEffect` for that.
-      case GetUser(login) => resume => resume(db(login))
-    }
-  }
-  def prefetched[R](db: DB) = new Prefetched(db)
-
-  def optimize[R](prog: Idiom[R]): Eff[R] =
-    for {
-      // (1) statically analyse the *set* of requested logins
-      logins <- embed { RequestedLogins { prog } map { _.toList } }
-      _ = println("prefetching user logins: " + logins)
-      // (2) now fetch the necessary users. This is again an idiomatic prog.
-      users <- embed { logins.traverse { Twitter.getUser } }
-      // (3) build up the db / cache
-      db = (logins zip users).toMap
-      // (4) use the db to handle the `getUser` requests and forward otherwise
-      res <- embed { prefetched(db) { prog } }
-    } yield res
+  def optimized[R] = http.Prefetched[String, User, GetUser](_.login, GetUser.apply).optimized[R]
 
 
   type Parser[T] = JsValue => T

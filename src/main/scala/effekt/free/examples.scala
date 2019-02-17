@@ -41,18 +41,18 @@ object examples extends App {
 
   // An idiomatic handler for put, that statically sums all the puts.
   object SumPuts extends Idiomatic[WithInt] {
-    def onPure[R] = r => (r, 0)
+    def onPure[R] = _ map { r => (r, 0) }
     def map[A, B] = (a, n) => f => (f(a), n)
-    def onEffect[X, R] = {
+    def onEffect[X, R] = lifted {
       case Put(n) => (k, m) => (k(()), m + n)
     }
   }
 
   // An idiomatic handler for get, that statically counts all the puts.
   object CountGets extends Idiomatic[WithInt] {
-    def onPure[R] = r => (r, 0)
+    def onPure[R] = _ map { r => (r, 0) }
     def map[A, B] = (a, n) => f => (f(a), n)
-    def onEffect[X, R] = {
+    def onEffect[X, R] = lifted {
       // here we make up a value (0) to continue. We could also pick `[X] => Int` to avoid this.
       case Get => (k, m) => (k(0), m + 1)
     }

@@ -76,7 +76,7 @@ package object free {
     def map[B](f: A => B): Eff[B]
     def flatMap[B](f: A => Eff[B]): Eff[B]
     def ap[B](f: Eff[A => B]): Eff[B] = flatMap { a => f map { _ apply a } }
-    def andThen[B](f: Eff[B]): Eff[B] = ap(f map { b => a: A => b })
+    def andThen[B](f: Eff[B]): Eff[B] = flatMap { _ => f }
   }
   object Eff {
     // does it make sense to have pure Monadic values, if you can have pure idiomatic ones?
@@ -99,12 +99,15 @@ package object free {
     def map[B](f: A => B): Idiom[B]
     def andThen[B](f: Idiom[B]): Idiom[B] = ap(f map { b => a: A => b })
     def map2[B, C](mb: Idiom[B])(f: (A, B) => C): Idiom[C] = ap(mb.map { b: B => a: A => f(a, b) })
+
+    def fold[R](zero: R)(f: Op[_] ~> (R => R)): R
   }
   object Idiom {
 
     case class Pure[A](value: A) extends Idiom[A] {
       def map[B](f: A => B): Idiom[B] = Pure(f(value))
       def ap[B](ef: Idiom[A => B]): Idiom[B] = ef map { f => f(value) }
+      def fold[R](zero: R)(f: Op[_] ~> (R => R)): R = zero
     }
 
     // there are obviously more efficient implementations, like
@@ -116,6 +119,13 @@ package object free {
         Impure(op, continuation map { f compose _ })
       def ap[B](ef: Idiom[A => B]): Idiom[B] =
         Impure(op, continuation ap (ef map { (f : A => B) => (g : X => A) => f compose g }))
+
+      def fold[R](zero: R)(f: Op[_] ~> (R => R)): R = {
+        if (f.isDefinedAt(op))
+          continuation.fold(f(op)(zero))(f)
+        else
+          continuation.fold(zero)(f)
+      }
     }
 
     def pure[A](a: A): Idiom[A] = Pure(a)
@@ -131,23 +141,26 @@ package object free {
   // ------------------
 
   trait Idiomatic[G[_]] {
-     // the pure clause is non-effectful for now
-    // can be changed to `A => Eff[G[A]]` for monadic and `Idiom[A] => Idiom[G[A]]` for idiomatic handlers
-    def onPure[A]: A => G[A]
+    def onPure[A]: Idiom[A] => Idiom[G[A]]
 
     // this is a simplified form of Idiom[G[X => R]] => Idiom[G[R]]
     def map[A, B]: G[A] => (A => B) => G[B]
-    def onEffect[X, R]: Op[X] ~> (G[X => R] => G[R])
+    def onEffect[X, R]: Op[X] ~> (Idiom[G[X => R]] => Idiom[G[R]])
+
+    def lifted[X, R](impl: Op[X] ~> (G[X => R] => G[R])): Op[X] ~> (Idiom[G[X => R]] => Idiom[G[R]]) = {
+      case op if impl.isDefinedAt(op) => _.map { impl(op) }
+    }
 
     def apply[R](prog: Idiom[R]): Idiom[G[R]] = runIdiomatic(this)(prog)
     def dynamic[R](prog: Eff[R])(sequence: Sequencer[G, R]): Eff[R] = free.dynamic(this, sequence)(prog)
   }
 
+
   private def runIdiomatic[R, G[_]](interpreter: Idiomatic[G])(prog: Idiom[R]): Idiom[G[R]] = prog match {
     case p @ Idiom.Pure(_) =>
-      prog map interpreter.onPure
+      interpreter.onPure(prog)
     case Idiom.Impure(op, k) if interpreter.onEffect isDefinedAt op =>
-      interpreter(k) map interpreter.onEffect(op)
+      interpreter.onEffect(op)(interpreter(k))
     case Idiom.Impure(op, k) =>
       // here we require G to be a functor to convert `gk: G[x => R]` to `x => G[R]`:
       Idiom.Impure(op, interpreter(k) map { gk => x => interpreter.map(gk) { xr => xr(x) } })
@@ -199,13 +212,28 @@ package object free {
 
   // Defines how to sequence (embed) idiomatic computation into monadic computation.
   trait Sequencer[G[_], R] {
+    // TODO think about changing to
+    //   Idiom[G[X]] => (Idiom[X] => Eff[R]) => Eff[R]
     def apply[X]: G[X] => (X => Eff[R]) => Eff[R]
   }
+
+  trait DynamicHandler[R, G[_]] {
+    def handle[X]: Idiom[X] => Idiom[G[X]]
+    def sequence[X]: G[X] => (X => Eff[R]) => Eff[R]
+
+    // to optimize injection points, override this function
+    def handles: Op[_] => Boolean = op => true
+
+    def apply[X](prog: Idiom[X]) = handle[X](prog)
+    def apply(prog: Eff[R]) = dynamic[R, G](this)(prog)
+  }
+
+
 
   // The combinator `dynamic` injects the provided interpreter at the position of the
   // first call to flatMap on an idiomatic program. This implies that also all effects
   // used by the interpreter are evaluated at that particular position!
-  def dynamic[R, G[_]](interpreter: Idiomatic[G], sequence: Sequencer[G, R]): Monadic[R] = new Monadic[R] { outer =>
+  def dynamic[R, G[_]](handler: DynamicHandler[R, G]): Monadic[R] = new Monadic[R] { outer =>
 
     // collects the continuation
     private case class Dynamic[R](gr: G[R]) extends Op[R] { val prompt = outer }
@@ -214,10 +242,8 @@ package object free {
     //   Since this is purely driven by "the first bind" it might insert too many calls to an interpreter.
     //   Should the interpreter be wrapped around a term that does not use the corresponding effect?
     //   It's an applicative term: We can just search for effects that are handled by the interpreter!
-    @tailrec
-    private def shouldHandle[A](prog: Idiom[A]): Boolean = prog match {
-      case Idiom.Pure(v) => false
-      case Idiom.Impure(op, k) => interpreter.onEffect.isDefinedAt(op) || shouldHandle(k)
+    private def shouldHandle[A](prog: Idiom[A]): Boolean = prog.fold(false) {
+      case op => handler.handles(op) || _
     }
 
     def onEffect[X] = {
@@ -225,7 +251,7 @@ package object free {
       case Embed(prog) if shouldHandle(prog) => resume => {
 
         // 1) inject idiomatic handler
-        val handled = interpreter { prog }
+        val handled = handler.handle { prog }
 
         // 2) give outer handlers the chance to handle the remaining idiomatic computation
         val rebound = sendEmbed(handled)
@@ -241,10 +267,18 @@ package object free {
       }
 
       case d : Dynamic[r] if d.prompt eq this => resume =>
-        // we wrap it in pure to avoid forcing effects in G too early
-        Eff.pure(sequence(d.gr)(resume)) flatMap identity
+        handler.sequence(d.gr)(resume)
     }
   }
+
+  // The combinator `dynamic` injects the provided interpreter at the position of the
+  // first call to flatMap on an idiomatic program. This implies that also all effects
+  // used by the interpreter are evaluated at that particular position!
+  def dynamic[R, G[_]](interpreter: Idiomatic[G], sequencer: Sequencer[G, R]): Monadic[R] =
+    dynamic[R, G](new DynamicHandler {
+      def handle[X] = interpreter.apply[X]
+      def sequence[X] = sequencer.apply[X]
+    })
 
   def dynamic[R](shouldHandle: Op[_] => Boolean)(seq: Sequencer[Idiom, R]): Monadic[R] =
     dynamic(new Applicable[Idiom] {
@@ -291,7 +325,7 @@ package object free {
   }
 
   trait Monoidal[D](implicit val m: Monoid[D]) extends Idiomatic[[X] => D] {
-    def onPure[R] = r => m.empty
+    def onPure[R] = r => pure(m.empty)
     def map[A, B] = d => f => d
   }
 
@@ -299,8 +333,10 @@ package object free {
   trait Applicable[F[_]: Applicative] extends Idiomatic[F] {
     // `interpret` is a natural transformation for a subset of Op to F
     def interpret[X]: Op[X] ~> F[X]
-    def onPure[R] = Applicative[F].pure
+    def onPure[R] = _ map Applicative[F].pure
     def map[A, B] = Applicative[F].map
-    def onEffect[X, R] = { case op if interpret.isDefinedAt(op) => Applicative[F].ap(_)(interpret(op)) }
+    def onEffect[X, R] = { case op if interpret.isDefinedAt(op) => resume =>
+      resume map { Applicative[F].ap(_)(interpret(op)) }
+    }
   }
 }

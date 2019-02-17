@@ -13,7 +13,7 @@ import twitter.Twitter
 
 object mixed extends App {
 
-  val users = List("b-studios", "klauso")
+  val users = List("b-studios", "klauso", "b-studios")
 
   val prog = users.traverse { u =>
     Applicative[Idiom].map2(Github.getUser(u), Twitter.getUser(u)) {
@@ -21,17 +21,26 @@ object mixed extends App {
     }
   }
 
-//  log {
-//    import scala.concurrent.ExecutionContext.Implicits.global
-//
-//    http.nonblocking(5 seconds) {
-//      twitter.remote {
-//        github.remote {
-//          embed { prog }
-//        }
-//      }
-//    }
-//  }
+  log {
+    import scala.concurrent.ExecutionContext.Implicits.global
+
+    http.nonblocking(5 seconds) {
+      // prefetching http requests
+      http.prefetched {
+        twitter.remote {
+          github.remote {
+            // prefetching twitter users
+            twitter.optimized {
+              // prefetching github users
+              github.optimized {
+                embed { prog }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 
 //  log {
 //    import scala.concurrent.ExecutionContext.Implicits.global

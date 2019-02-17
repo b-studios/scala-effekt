@@ -1,14 +1,16 @@
 package effekt
 package free
 
-import cats.{ Applicative, Functor, Monoid, Monad }
+import cats.{ Applicative, Functor, Monad, Monoid }
 import cats.implicits._
+
 import scala.concurrent._
 import scala.concurrent.duration._
 import play.api.libs.json._
-
 import effekt.free.http.Http
-object github extends App {
+
+import scala.reflect.ClassTag
+object github {
 
   implicit def lift[R](idiom: Idiom[R]): Eff[R] = embed(idiom)
 
@@ -66,6 +68,15 @@ object github extends App {
         s"Usernames are ${bstudios.name}, ${phischu.name}, and ${klauso.name}"
     }
 
+  object run extends App {
+
+//  log {
+//    import scala.concurrent.ExecutionContext.Implicits.global
+//    val r = new BatchedStatic apply { threeUsers }
+//    println(r)
+//    http.nonblocking(10 seconds) { github.remote { runRequests(10 seconds) { r } }}
+//  }
+
 
 //  log { RequestedLogins { threeUsers } }
 
@@ -76,23 +87,23 @@ object github extends App {
 //    http.nonblocking(10 seconds) { githubRemote { threeUsers } }
 //  }
 
-//  log {
-//    import scala.concurrent.ExecutionContext.Implicits.global
-//    http.blocking {
-//      remote {
-//        batched {
-//          allUsers(Owner("koka-lang"), Repo("libhandler")) map { _ mkString "\n" }
-//        }
-//      }
-//    }
-//  }
+  log {
+    import scala.concurrent.ExecutionContext.Implicits.global
+    http.nonblocking(30 seconds) {
+      github.remote {
+        github.optimized {
+          allUsers(Owner("koka-lang"), Repo("madoko")) map { _ mkString "\n" }
+        }
+      }
+    }
+  }
 
+  }
 
   // Github Remote Handler
   // =====================
 
-  object Remote extends Functorial[Idiom] {
-    def onPure[R] = Idiom.pure
+  object Remote extends IdiomaticId {
     def onEffect[X, R] = {
       case GetComment(owner, repo, id) =>
         fetch(s"/repos/${owner.value}/${repo.value}/issues/comments/$id", parseComment)
@@ -104,82 +115,26 @@ object github extends App {
         fetch(s"/repos/${owner.value}/${repo.value}/issues", parseIssues)
     }
 
-    def fetch[X, R](endpoint: String, parse: Parser[X]): Idiom[X => R] => Idiom[R] = resume =>
+    def fetch[X, R](endpoint: String, parse: Parser[X]): Idiom[X => R] => Idiom[R] = resume => {
+      println("Requesting github endpoint: " + endpoint)
       Http.get("https://api.github.com" + endpoint).map(Json.parse).map(parse) ap resume
+    }
   }
   def remote[R](prog: Eff[R]): Eff[R] =
     Remote.dynamic(prog)(new Sequencer {
-      def apply[X] = x => resume => embed { x } flatMap resume
+      def apply[X] = x => resume => resume(x)
     })
 
 
   // Batched Handlers
   // ================
-
-
-  // This is a handler that collects the statically known set of requested
-  // user logins within an idiomatic computation.
-  //
-  // ## Example
-  // RequestedLogins { Github.getUser(UserLogin("foo")) }
-  // > Set(UserLogin("foo"))
-  object RequestedLogins extends Monoidal[Set[UserLogin]] {
-    def onEffect[X, R] = {
-      case GetUser(login) => _ + login
-      // this is necessary, otherwise all other effects will
-      // be executed when running the program for analysis.
-      // TODO use other effects (than github) in the same
-      //      program and then change this to `other: Github[_]`
-      case other => identity
-    }
-  }
-
-  // This is a handler that handles `getUser` requests by looking up in a given db
-  // and forwards to an outer handler otherwise. Also all other effect operations
-  // are forwarded.
-  //
-  // ## Example
-  // prefetched(Map(UserLogin("foo") -> User("foo", "Peter Foo"))) {
-  //   Github.getUser(UserLogin("foo"))
-  // }
-  // > User("foo", "Peter Foo")
   type DB = Map[UserLogin, User]
-  class Prefetched(db: DB) extends IdiomaticId {
-    def onEffect[X, R] = {
-      // TODO forward if not in DB
-      //   db.get(login).map(pure).getOrElse(Github.getUser(login))
-      // we need to change the signature of `onEffect` for that.
-      case GetUser(login) => resume => resume(db(login))
-    }
-  }
-  def prefetched[R](db: DB) = new Prefetched(db)
+  type Id[X] = X
 
-  // A handler for idiomatic programs that forwards all effect operations
-  // to an outer handler but optimizes the requests before.
-  // The resulting program is monadic.
-  def optimize[R](prog: Idiom[R]): Eff[R] =
-    for {
-      // (1) statically analyse the *set* of requested logins
-      logins <- RequestedLogins { prog } map { _.toList }
-      _ = println("prefetching user logins: " + logins)
-      // (2) now fetch the necessary users. This is again an idiomatic prog.
-      users <- logins.traverse { Github.getUser }
-      // (3) build up the db / cache
-      db = (logins zip users).toMap
-      // (4) use the db to handle the `getUser` requests and forward otherwise
-      res <- prefetched(db) { prog }
-    } yield res
+  def requestedLogins(prog: Idiom[_]): Set[UserLogin] =
+    prog.fold(Set.empty) { case GetUser(login) => _ + login }
 
-  object ReifyGithub extends Applicable[Idiom] {
-    def interpret[X] = { case g: Github[X] => send(g) }
-  }
-
-  // This is a handler that uses `reify` to obtain the idiomatic
-  // program which it then runs optimized.
-  def batched[R](prog: Eff[R]): Eff[R] =
-    ReifyGithub.dynamic(prog)(new Sequencer {
-      def apply[R] = prog => resume => optimize(prog) flatMap resume
-    })
+  def optimized[R] = http.Prefetched[UserLogin, User, GetUser](_.login, GetUser.apply).optimized[R]
 
 
   // JSON parsers
