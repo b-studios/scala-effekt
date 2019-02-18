@@ -10,6 +10,10 @@ import play.api.libs.json._
 import effekt.free.http.Http
 
 import scala.reflect.ClassTag
+
+// This example is inspired by Markus Hauck's talk:
+//     "Free Monads and Free Applicatives", flatMap(Oslo) 2016.
+//     https://github.com/markus1189/flatmap-oslo-2016
 object github {
 
   implicit def lift[R](idiom: Idiom[R]): Eff[R] = embed(idiom)
