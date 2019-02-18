@@ -64,10 +64,12 @@ object http {
     def computeKeys(prog: Idiom[_]): Set[K] =
       prog.fold(Set.empty) { case o : O => _ + cacheKey(o) }
 
+    // Idiom[R] => Idiom[DB => R]
     object fromDB extends Applicable[[X] => DB => X] {
       def interpret[X] = { case o : O => db => db(cacheKey(o)) }
     }
 
+    // Idiom[R] => Idiom[R]
     class Optimized[R] extends DynamicHandler[R, [X] => X] {
       def handle[X] = prog => {
         val keys  = computeKeys { prog }.toList

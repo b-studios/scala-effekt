@@ -228,7 +228,27 @@ package object free {
     def apply(prog: Eff[R]) = dynamic[R, G](this)(prog)
   }
 
-
+  // This is just to demonstrate the nature of dynamic handlers.
+  // Dynamic handlers are really just pairs of an idiomatic handler
+  //   Idiomatic[G]
+  // that handles some effect into the domain G and a monadic handler
+  //   Monadic[R]
+  // that handles G effects. G itself can be understood as an effect
+  // operation, that is raised after locally handling with the idiomatic
+  // handler.
+  //
+  // That is, the program
+  //   embed { (prog: Idiom[X]) } flatMap k
+  // is conceptually rewritten to
+  //   embed { ih { prog } } flatMap { gx => sendM(gx) } flatMap k
+  case class FromHandlers[G[X] <: Op[X], R](
+      ih: Idiomatic[G] /* raises G */,
+      im: Monadic[R]   /* handles G */
+  ) extends DynamicHandler[R, G] {
+    def handle[X] = ih.apply[X]
+    def sequence[X] = { case op if im.onEffect.isDefinedAt(op) => resume => im.onEffect(op)(resume) }
+    override def handles = ih.onEffect.isDefinedAt(_)
+  }
 
   // The combinator `dynamic` injects the provided interpreter at the position of the
   // first call to flatMap on an idiomatic program. This implies that also all effects
