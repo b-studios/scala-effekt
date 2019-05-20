@@ -14,26 +14,12 @@ sealed trait MetaCont[-A, +B] extends Serializable {
 }
 
 private[effekt]
-case class CastCont[-A, +B]() extends MetaCont[A, B] {
+case class ReturnCont[A]() extends MetaCont[A, A] {
+  final def apply(a: A): Result[A] = Pure(a)
 
-  final def apply(a: A): Result[B] = Pure(a.asInstanceOf[B])
-
-  final def append[C](s: MetaCont[B, C]): MetaCont[A, C] = s.asInstanceOf[MetaCont[A, C]]
-
-  final def splitAt[Res](c: Prompt[Res]) = sys error s"Prompt $c not found on the stack."
-
-//  override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(x => g(x).asInstanceOf[B])
-}
-
-private[effekt]
-case class ReturnCont[-A, +B](f: A => B) extends MetaCont[A, B] {
-  final def apply(a: A): Result[B] = Pure(f(a))
-
-  final def append[C](s: MetaCont[B, C]): MetaCont[A, C] = s map f
+  final def append[B](s: MetaCont[A, B]): MetaCont[A, B] = s
 
   final def splitAt[Res](c: Prompt[Res]) = sys error s"Prompt $c not found on the stack."
-
-//  override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(x => f(g(x)))
 }
 
 private[effekt]
@@ -64,16 +50,13 @@ case class HandlerCont[Res, +A](h: Prompt[Res])(tail: MetaCont[Res, A]) extends 
 
   final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = HandlerCont(h)(tail append s)
 
-  final def splitAt[Res2](c: Prompt[Res2]) =
-  // Here we deduce type equality from referential equality
-    if (h eq c) {
-      // Res == Res2
-      val head = HandlerCont(h)(CastCont[Res, Res2]())
-      val rest = tail.asInstanceOf[MetaCont[Res2, A]]
-      (head, rest)
-    } else tail.splitAt(c) match {
+  final def splitAt[Res2](c: Prompt[Res2]) = c match {
+    // Here we deduce type equality from referential equality
+    case _: h.type => (HandlerCont(h)(ReturnCont()), tail)
+    case _ => tail.splitAt(c) match {
       case (head, tail) => (HandlerCont(h)(head), tail)
     }
+  }
 }
 
 // we will NEVER split at a state cont. Instead a statecont

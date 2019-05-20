@@ -45,7 +45,7 @@ sealed trait Control[+A] { outer =>
    * Attention: It is unsafe to run control if not all effects have
    *            been handled!
    */
-  def run(): A = Result.trampoline(apply(ReturnCont(identity)))
+  def run(): A = Result.trampoline(apply(ReturnCont()))
 
   def map[B](f: A => B): Control[B] = new Control[B] {
     def apply[R](k: MetaCont[B, R]): Result[R] = outer(k map f)
