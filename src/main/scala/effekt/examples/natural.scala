@@ -39,7 +39,7 @@ object Var {
 // Effects
 
 trait Id[R] extends Handler.Basic[R, R] {
-  def unit = a => a
+  def unit = a => pure(a)
 }
 
 

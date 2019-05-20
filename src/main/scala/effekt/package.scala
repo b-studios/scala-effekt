@@ -1,5 +1,3 @@
-import scala.language.implicitConversions
-
 package object effekt {
 
   /**
@@ -23,24 +21,26 @@ package object effekt {
   final def handling[R0](f: R0 using Prompt { type Res = R0 }): Control[R0] =
     Control.handle(new Prompt { type Res = R0 })(f)
 
-  implicit final def pure[A](a: => A): Control[A] = new Trivial(a)
+  final def pure[A](a: => A): Control[A] = new Trivial(a)
 
   final def resume[A, Res](a: A): CPS[A, Res] = given k => k(a)
-  final def resume[A, Res, S](a: A, s: S)(implicit k: ((A, S) => Control[Res])): Control[Res] = k(a, s)
+  final def resume[A, Res, S](a: A, s: S) given (k: ((A, S) => Control[Res])): Control[Res] = k(a, s)
 
   // capture continuations
   // ===
   // TODO rename Prompt to Delimiter?
   @scala.annotation.implicitNotFound("No prompt found for 'use'. Maybe you forgot to handle the effect?")
   trait Prompt { type Res }
-  def use[A] given (p: Prompt) = ContinuationScope[A, p.type](p)
+  def use[A](p: Prompt)(body: CPS[A, p.Res]) = Control.use(p) { body }
 
   // this complication is only necessary since we can't write `use {}` and have p inferred
   // as `use(p) {}`. So we write `use in {}` to mean `use(p) in {}`
   // In summary, we use value inference to guide type inference.
+  //
+  // sadly, even with the new Dotty syntax for `given` this does not work, since we use
+  // the path-dependent p.Res _before_ `given (p: P)`
   case class ContinuationScope[A, P <: Prompt](p: P) {
     def in(body: CPS[A, p.Res]): Control[A] = Control.use(p) { body }
-    def apply(body: CPS[A, p.Res]): Control[A] = in(body)
   }
 
   // ambient state
