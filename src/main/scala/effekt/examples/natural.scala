@@ -1,6 +1,8 @@
 package effekt
 package examples
 
+import scala.language.implicitConversions
+
 trait NominalPhrase
 trait Sentence
 
@@ -51,7 +53,7 @@ object Speaker {
       def speaker() = pure(p)
     })(f)
 
-  def me: NominalPhrase using Speaker = implicit s => s.speaker()
+  def me: NominalPhrase using Speaker = given s => s.speaker()
 }
 
 // Second effect: Scoped sentences
@@ -61,10 +63,10 @@ trait Scope[R] {
 object Scope {
   def apply[R](f: R using Scope[R]): Control[R] =
     handle(new Scope[R] with Id[R] {
-      def scope[A](k: CPS[A, R]) = use { k(resume) }
+      def scope[A](k: CPS[A, R]) = use { k given resume }
     })(f)
 
-  def scope[A, R](k: CPS[A, R]): A using Scope[R] = implicit s => s.scope[A](k)
+  def scope[A, R](k: CPS[A, R]): A using Scope[R] = given s => s.scope[A](k)
 }
 
 // Third effect: Conventional implicature
@@ -77,7 +79,7 @@ object Implicature {
       def implicate(s: Sentence) = use { resume(()).map { x => And(s, x) } }
     })(f)
 
-  def implicate(s: Sentence): Unit using Implicature = implicit i => i.implicate(s)
+  def implicate(s: Sentence): Unit using Implicature = given i => i.implicate(s)
 }
 
 
@@ -171,7 +173,7 @@ object syntax {
   implicit def autoLift(t: NominalPhrase): LiftedPersonOps = pure(t)
 
   //  @inline // crashes the dotty compiler
-  def quote(f: Sentence using Speaker): Speaker => Control[Sentence] = f
+  def quote(f: Sentence using Speaker): Speaker => Control[Sentence] = s => f given s
 
   def every(pred: NominalPhrase => Sentence): NominalPhrase using Scope[Sentence]
     = every(pure(pred))

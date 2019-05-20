@@ -2,6 +2,8 @@ package effekt
 package examples
 package shallow
 
+import scala.language.implicitConversions
+
 trait Sentences[NP, S] {
   def person(name: String): Control[NP]
 
@@ -29,48 +31,48 @@ trait Syntax { self: SpeakerDSL with ScopeDSL with ImplicatureDSL with SubjectDS
   type NP
   type S
 
-  def person(name: String)(implicit alg: Sentences[NP, _]): Control[NP] = alg.person(name)
+  def person(name: String) given (alg: Sentences[NP, _]): Control[NP] = alg.person(name)
 
-  def man(implicit alg: Sentences[NP, S]): NP => Control[S] = p => alg.man(p)
-  def woman(implicit alg: Sentences[NP, S]): NP => Control[S] = p => alg.woman(p)
+  def man given (alg: Sentences[NP, S]): NP => Control[S] = p => alg.man(p)
+  def woman given (alg: Sentences[NP, S]): NP => Control[S] = p => alg.woman(p)
 
-  def love(person: Control[NP], target: Control[NP])(implicit alg: Sentences[NP, S]): Control[S] = for {
+  def love(person: Control[NP], target: Control[NP]) given (alg: Sentences[NP, S]): Control[S] = for {
     x   <- person
     y   <- target
     res <- alg.love(x, y)
   } yield res
 
-  def bestFriend(person: Control[NP], friend: Control[NP])(implicit alg: Sentences[NP, S]): Control[S] = for {
+  def bestFriend(person: Control[NP], friend: Control[NP]) given (alg: Sentences[NP, S]): Control[S] = for {
     p   <- person
     f   <- friend
     res <- alg.bestFriend(p, f)
   } yield res
 
-  def say(person: Control[NP], sentence: Control[S])(implicit alg: Sentences[NP, S]): Control[S] = for {
+  def say(person: Control[NP], sentence: Control[S]) given (alg: Sentences[NP, S]): Control[S] = for {
     p   <- person
     s   <- sentence
     res <- alg.say(p, s)
   } yield res
 
-  def and(first: Control[S], second: Control[S])(implicit alg: Logical[NP, S]): Control[S] = for {
+  def and(first: Control[S], second: Control[S]) given (alg: Logical[NP, S]): Control[S] = for {
       x   <- first
       y   <- second
       res <- alg.and(x, y)
     } yield res
 
-  def or(first: Control[S], second: Control[S])(implicit alg: Logical[NP, S]): Control[S] = for {
+  def or(first: Control[S], second: Control[S]) given (alg: Logical[NP, S]): Control[S] = for {
       x   <- first
       y   <- second
       res <- alg.or(x, y)
     } yield res
 
-  def equals(first: Control[NP], second: Control[NP])(implicit alg: Logical[NP, S]): Control[S] = for {
+  def equals(first: Control[NP], second: Control[NP]) given (alg: Logical[NP, S]): Control[S] = for {
       x   <- first
       y   <- second
       res <- alg.equals(x, y)
     } yield res
 
-  implicit class LiftedPersonOps(p: Control[NP])(implicit alg: Sentences[NP, S]) {
+  implicit class LiftedPersonOps(p: Control[NP]) given (alg: Sentences[NP, S]) {
     def loves(other: Control[NP]) = self.love(p, other)
     def love(other: Control[NP]) = self.love(p, other)
 
@@ -105,12 +107,12 @@ trait Syntax { self: SpeakerDSL with ScopeDSL with ImplicatureDSL with SubjectDS
     def and(other: Control[S]): S using Logical[NP, S] = self.and(s, other)
   }
 
-  def quote(f: S using Speaker): Speaker => Control[S] = f
+  def quote(f: S using Speaker): Speaker => Control[S] = s => f given s
 
-  implicit def liftOps(t: NP)(implicit alg: Sentences[NP, S]): LiftedPersonOps =
+  implicit def liftOps(t: NP) given (alg: Sentences[NP, S]): LiftedPersonOps =
     new LiftedPersonOps(pure(t))
 
-  def every(pred: NP => Control[S])(implicit alg: Logical[NP, S]): NP using Scope[S] =
+  def every(pred: NP => Control[S]) given (alg: Logical[NP, S]): NP using Scope[S] =
     scope[NP, S] {
       alg.forall { x => for {
           p   <- pred(x)
@@ -120,7 +122,7 @@ trait Syntax { self: SpeakerDSL with ScopeDSL with ImplicatureDSL with SubjectDS
       }
     }
 
-  def a(pred: NP => Control[S])(implicit alg: Logical[NP, S]): NP using Scope[S] =
+  def a(pred: NP => Control[S]) given (alg: Logical[NP, S]): NP using Scope[S] =
     scope[NP, S] {
       alg.exists { x => for {
           p   <- pred(x)
@@ -153,11 +155,11 @@ trait SpeakerEffectDSL extends SpeakerDSL {
     def speaker(): Control[NP]
   }
 
-  def withSpeaker[R](p: NP)(f: R using Speaker): Control[R] = f(() => p)
+  def withSpeaker[R](p: NP)(f: R using Speaker): Control[R] = f given { () => pure(p) }
 
-  def withSpeaker[R](p: Control[NP])(f: R using Speaker): Control[R] = p flatMap { p => f(() => p) }
+  def withSpeaker[R](p: Control[NP])(f: R using Speaker): Control[R] = p flatMap { p => f given { () => pure(p) } }
 
-  def me: NP using Speaker = implicit s => s.speaker()
+  def me: NP using Speaker = given s => s.speaker()
   def I: NP using Speaker = me
 }
 
@@ -170,10 +172,10 @@ trait ScopeDSL {
 
   def scoped[R](f: R using Scope[R]): Control[R] =
     handle(new Scope[R] with Id[R] {
-      def scope[A](k: CPS[A, R]) = use { k(resume) }
+      def scope[A](k: CPS[A, R]) = use { k given resume }
     })(f)
 
-  def scope[A, R](k: CPS[A, R]): A using Scope[R] = implicit s => s.scope[A](k)
+  def scope[A, R](k: CPS[A, R]): A using Scope[R] = given s => s.scope[A](k)
 }
 
 // Third effect: Conventional implicature
@@ -186,12 +188,12 @@ trait ImplicatureDSL {
     def implicate(s: S): Control[Unit]
   }
 
-  def accommodate(f: S using Implicature)(implicit alg: Logical[_, S]) =
+  def accommodate(f: S using Implicature) given (alg: Logical[_, S]) =
     handle(new Implicature with Id[S] {
       def implicate(s: S) = use { resume(()) flatMap { x => alg.and(s, x) } }
     })(f)
 
-  def imply(s: S): Unit using Implicature = implicit i => i.implicate(s)
+  def imply(s: S): Unit using Implicature = given i => i.implicate(s)
 
 }
 
@@ -208,10 +210,10 @@ trait SubjectDSL {
   def withSubject[R](p: NP)(f: R using Subject): Control[R] = withSubject(pure(p))(f)
 
   def withSubject[R](p: Control[NP])(f: R using Subject): Control[R] =
-    p flatMap { person => f(Subject(person)) }
+    p flatMap { person => f given Subject(person) }
 
-  def he: NP using Subject = implicit s => pure(s.person)
-  def she: NP using Subject = implicit s => pure(s.person)
+  def he: NP using Subject = given s => pure(s.person)
+  def she: NP using Subject = given s => pure(s.person)
 }
 
 trait FocusDSL {
@@ -225,7 +227,7 @@ trait FocusDSL {
 
   // handler for focus
   // XXX change to use Syntax instead!
-  def withFocus(f: S using Focus)(implicit alg: Logical[NP, S]) =
+  def withFocus(f: S using Focus) given (alg: Logical[NP, S]) =
     handle(new Focus with Id[S] {
       def focus(p: NP) = use {
         for {
@@ -247,7 +249,7 @@ trait FocusDSL {
   trait Focus  {
     def focus(a: NP): Control[NP]
   }
-  def only(p: Control[NP]): NP using Focus = implicit f => p.flatMap { f.focus }
+  def only(p: Control[NP]): NP using Focus = given f => p.flatMap { f.focus }
 
 }
 
@@ -256,7 +258,8 @@ trait Statements extends Syntax with SpeakerEffectDSL with ScopeDSL with Implica
   type NP
   type S
 
-  implicit def semantics: Sentences[NP, S] with Logical[NP, S]
+  def semantics: Sentences[NP, S] & Logical[NP, S]
+  implied for (Sentences[NP, S] & Logical[NP, S]) = semantics
 
   val pete = person("Pete")
   val john = person("John")

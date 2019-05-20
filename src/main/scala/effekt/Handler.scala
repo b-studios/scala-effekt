@@ -8,7 +8,7 @@ trait Handler extends Prompt { h =>
   def use[A](body: CPS[A, Res]): Control[A] = Control.use(this) { body }
 
   def handle(f: R using this.type): Control[Res] =
-    Control.handle(this) { f(this) flatMap unit }
+    Control.handle(this) { (f given this) flatMap unit }
 
   def apply(f: R using this.type): Control[Res] = handle(f)
 }
@@ -20,20 +20,20 @@ trait StatefulHandler[S] extends Handler with Stateful[S] {
   //   useStateful( (k, s) -> ... k.resume(a, s) ... )
   override def use[A](body: CPS[A, Res]): Control[A] = {
     val before = get()
-    Control.use(this) { implicit k => body(a => { put(before); k(a) }) }
+    Control.use(this) { given k => body given (a => { put(before); k(a) }) }
   }
 
   def useStateful[A](body: StatefulCPS[A, Res, S]): Control[A] = {
     val before = get()
-    Control.use[A](this) { implicit k => body((a, s) => {
+    Control.use[A](this) { given k => (body given ((a, s) => {
       put(s); k(a)
-    })(before)}
+    }))(before)}
   }
 
   def handle(init: S)(f: R using this.type): Control[Res] = {
     put(init)
     Control.stateful(this) { _ =>
-      Control.handle(this) { f(this) flatMap unit }
+      Control.handle(this) { (f given this) flatMap unit }
     }
   }
 }

@@ -1,3 +1,5 @@
+import scala.language.implicitConversions
+
 package object effekt {
 
   /**
@@ -7,12 +9,12 @@ package object effekt {
    */
   private[effekt] type Frame[-A, +B] = A => Control[B]
 
-  type using[-A, +E] = implicit E => Control[A]
-  type and[-A, +E] = implicit E => A
+  type using[+A, -E] = given E => Control[A]
+  type and[+A, -E] = given E => A
 
-  type CPS[A, E] = implicit (A => Control[E]) => Control[E]
+  type CPS[A, E] = given (A => Control[E]) => Control[E]
 
-  type StatefulCPS[A, E, S] = implicit ((A, S) => Control[E]) => S => Control[E]
+  type StatefulCPS[A, E, S] = given ((A, S) => Control[E]) => S => Control[E]
 
   final def run[A](c: Control[A]): A = c.run()
 
@@ -23,7 +25,7 @@ package object effekt {
 
   implicit final def pure[A](a: => A): Control[A] = new Trivial(a)
 
-  final def resume[A, Res](a: A): CPS[A, Res] = implicit k => k(a)
+  final def resume[A, Res](a: A): CPS[A, Res] = given k => k(a)
   final def resume[A, Res, S](a: A, s: S)(implicit k: ((A, S) => Control[Res])): Control[Res] = k(a, s)
 
   // capture continuations
@@ -31,7 +33,7 @@ package object effekt {
   // TODO rename Prompt to Delimiter?
   @scala.annotation.implicitNotFound("No prompt found for 'use'. Maybe you forgot to handle the effect?")
   trait Prompt { type Res }
-  def use[A](implicit p: Prompt) = ContinuationScope[A, p.type](p)
+  def use[A] given (p: Prompt) = ContinuationScope[A, p.type](p)
 
   // this complication is only necessary since we can't write `use {}` and have p inferred
   // as `use(p) {}`. So we write `use in {}` to mean `use(p) in {}`

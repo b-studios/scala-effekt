@@ -7,7 +7,7 @@ package effekt
  * `A` typically have the type
  *
  * {{{
- *    implicit Use[E] => Control[A]
+ *    given Use[E] => Control[A]
  * }}}
  *
  * Given the capability to use the effect `E`, the result of
@@ -18,10 +18,10 @@ package effekt
  *
  * {{{
  *  // safe use of `run`
- *  handle(ambHandler) { implicit a => flip() }.run()
+ *  handle(ambHandler) { given a => flip() }.run()
  *
  *  // unsafe use of `run`
- *  handle(ambHandler) { implicit a => flip().run() }
+ *  handle(ambHandler) { given a => flip().run() }
  * }}}
  *
  * =Implementation Details=
@@ -79,7 +79,7 @@ object Control {
 
         val (init, tail) = k splitAt c
 
-        val handled: Control[c.Res] = f { a =>
+        val handled: Control[c.Res] = f given { a =>
           new Control[c.Res] {
             def apply[R2](k: MetaCont[c.Res, R2]): Result[R2] =
               (init append k).apply(a)
@@ -94,7 +94,7 @@ object Control {
   private[effekt] final def handle(h: Prompt)(f: h.Res using h.type): Control[h.Res] =
     new Control[h.Res] {
       def apply[R2](k: MetaCont[h.Res, R2]): Result[R2] = {
-        Impure(f(h), HandlerCont[h.Res, R2](h)(k))
+        Impure(f given h, HandlerCont[h.Res, R2](h)(k))
       }
     }
 

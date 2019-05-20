@@ -1,6 +1,7 @@
+lazy val dottyVersion = dottyLatestNightlyBuild.get
 lazy val commonSettings = Seq(
-  scalaVersion := "0.8.0-RC1",
-  version := "0.2-SNAPSHOT",
+  scalaVersion := dottyVersion,
+  version := "0.3-SNAPSHOT",
   organization := "de.b-studios",
   scalacOptions ++= Seq(
     "-deprecation",
@@ -8,13 +9,15 @@ lazy val commonSettings = Seq(
     "-feature",
     "-unchecked"
   ),
-  fork in test := true,
-  parallelExecution in Test := false,
+  libraryDependencies ++= Seq(
+    "ch.epfl.lamp" %% "dotty-compiler" % dottyVersion,
+    "ch.epfl.lamp" % "dotty-interfaces" % dottyVersion
+  ),
   mainClass in (Compile, run) := Some("effekt.examples.shallow.fluent")
 )
 
 
-lazy val effektSettings = commonSettings ++ publishSettings
+lazy val effektSettings = commonSettings //++ publishSettings
 
 lazy val root = project
   .in(file("."))
@@ -49,7 +52,7 @@ lazy val publishSettings = Seq(
 )
 
 lazy val noPublishSettings = Seq(
-  publish := (),
-  publishLocal := (),
+  publish := Nil,
+  publishLocal := Nil,
   publishArtifact := false
 )
