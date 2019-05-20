@@ -16,10 +16,9 @@ package object effekt {
 
   final def run[A](c: Control[A]): A = c.run()
 
-  final def handle(h: Handler)(f: h.R using h.type): Control[h.Res] = h.handle(f)
+  final def handle[R, Res](h: Handler[R, Res])(f: R using h.type): Control[Res] = h.handle(f)
 
-  final def handling[R0](f: R0 using Prompt { type Res = R0 }): Control[R0] =
-    Control.handle(new Prompt { type Res = R0 })(f)
+  final def handling[Res](f: Res using Prompt[Res]): Control[Res] = Control.handle(new Prompt[Res] {})(f)
 
   final def pure[A](a: => A): Control[A] = new Trivial(a)
 
@@ -28,20 +27,9 @@ package object effekt {
 
   // capture continuations
   // ===
-  // TODO rename Prompt to Delimiter?
   @scala.annotation.implicitNotFound("No prompt found for 'use'. Maybe you forgot to handle the effect?")
-  trait Prompt { type Res }
-  def use[A](p: Prompt)(body: CPS[A, p.Res]) = Control.use(p) { body }
-
-  // this complication is only necessary since we can't write `use {}` and have p inferred
-  // as `use(p) {}`. So we write `use in {}` to mean `use(p) in {}`
-  // In summary, we use value inference to guide type inference.
-  //
-  // sadly, even with the new Dotty syntax for `given` this does not work, since we use
-  // the path-dependent p.Res _before_ `given (p: P)`
-  case class ContinuationScope[A, P <: Prompt](p: P) {
-    def in(body: CPS[A, p.Res]): Control[A] = Control.use(p) { body }
-  }
+  trait Prompt[Res]
+  def use[A, Res](body: CPS[A, Res]) given (p: Prompt[Res]) = Control.use(p) { body }
 
   // ambient state
   // ===

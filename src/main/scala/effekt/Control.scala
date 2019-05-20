@@ -73,15 +73,15 @@ final class Trivial[+A](a: => A) extends Control[A] {
 
 object Control {
 
-  private[effekt] final def use[A](c: Prompt)(f: CPS[A, c.Res]): Control[A] =
+  private[effekt] final def use[A, Res](c: Prompt[Res])(f: CPS[A, Res]): Control[A] =
     new Control[A] {
       def apply[R](k: MetaCont[A, R]): Result[R] = {
 
         val (init, tail) = k splitAt c
 
-        val handled: Control[c.Res] = f given { a =>
-          new Control[c.Res] {
-            def apply[R2](k: MetaCont[c.Res, R2]): Result[R2] =
+        val handled: Control[Res] = f given { a =>
+          new Control[Res] {
+            def apply[R2](k: MetaCont[Res, R2]): Result[R2] =
               (init append k).apply(a)
           }
         }
@@ -91,10 +91,10 @@ object Control {
       }
     }
 
-  private[effekt] final def handle(h: Prompt)(f: h.Res using h.type): Control[h.Res] =
-    new Control[h.Res] {
-      def apply[R2](k: MetaCont[h.Res, R2]): Result[R2] = {
-        Impure(f given h, HandlerCont[h.Res, R2](h)(k))
+  private[effekt] final def handle[Res](h: Prompt[Res])(f: Res using h.type): Control[Res] =
+    new Control[Res] {
+      def apply[R2](k: MetaCont[Res, R2]): Result[R2] = {
+        Impure(f given h, HandlerCont[Res, R2](h)(k))
       }
     }
 

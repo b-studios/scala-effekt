@@ -1,8 +1,6 @@
 package effekt
 
-trait Handler extends Prompt { h =>
-  type R
-  type Res
+trait Handler[R, Res] extends Prompt[Res] { h =>
   def unit: R => Control[Res]
 
   def use[A](body: CPS[A, Res]): Control[A] = Control.use(this) { body }
@@ -13,7 +11,7 @@ trait Handler extends Prompt { h =>
   def apply(f: R using this.type): Control[Res] = handle(f)
 }
 
-trait StatefulHandler[S] extends Handler with Stateful[S] {
+trait StatefulHandler[R, Res, S] extends Handler[R, Res] with Stateful[S] {
 
   // on stateful handlers
   //   use(k -> ... k.resume(a) ...) should be equivalent to
@@ -25,7 +23,7 @@ trait StatefulHandler[S] extends Handler with Stateful[S] {
 
   def useStateful[A](body: StatefulCPS[A, Res, S]): Control[A] = {
     val before = get()
-    Control.use[A](this) { given k => (body given ((a, s) => {
+    Control.use(this) { given k => (body given ((a, s) => {
       put(s); k(a)
     }))(before)}
   }
@@ -40,15 +38,9 @@ trait StatefulHandler[S] extends Handler with Stateful[S] {
 
 object Handler {
 
-  trait Basic[R0, Res0] extends Handler { outer =>
-    type R = R0
-    type Res = Res0
-  }
+  trait Basic[R, Res] extends Handler[R, Res]
 
-  trait Stateful[R0, Res0, S] extends StatefulHandler[S] {
-    type R = R0
-    type Res = Res0
-  }
+  trait Stateful[R, Res, S] extends StatefulHandler[R, Res, S]
 }
 
 trait Stateful[S] {
