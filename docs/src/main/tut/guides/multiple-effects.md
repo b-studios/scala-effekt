@@ -19,81 +19,57 @@ and looked like this:
 ```tut:book:silent
 import effekt._
 
-trait Amb extends Eff {
-  def flip(): Op[Boolean]
+trait Amb {
+  def flip(): Control[Boolean]
 }
 ```
 
 ```tut:book:silent:decorate(.boilerplate)
-object Amb {
-  def flip()(implicit u: Use[Amb]) = use(u) { u.handler.flip() }
-}
-def ambList[R] = new Handler.Basic[R, List[R]] with Amb {
-  def unit = a => List(a)
+def ambList[R] = new Handler[R, List[R]] with Amb {
+  def unit = a => pure(List(a))
 
-  def flip() = _ => resume => for {
-    ts <- resume(true)(())
-    fs <- resume(false)(())
-  } yield ts ++ fs
+  def flip() = use { resume => for {
+      ts <- resume(true)
+      fs <- resume(false)
+    } yield ts ++ fs
+  }
 }
 ```
 We also defined a handler for the ambiguity effect as an implementation
 of the `Amb` trait, called `ambList`. To see how to combine two
 different effects, we will now first define a second (quite standard)
-effect: Mutable state. As before we start with the effect signature
-and the corresponding companion object:
+effect: Mutable state. As before we start with the effect signature.
 
 ```tut:book:silent
-trait State[S] extends Eff {
-  def get(): Op[S]
-  def put(s: S): Op[Unit]
-}
-object State {
-  def get[S]()(implicit u: Use[State[S]]) = use(u) { u.handler.get() }
-  def put[S](s: S)(implicit u: Use[State[S]]) = use(u) { u.handler.put(s) }
+trait State[S] {
+  def get(): Control[S]
+  def put(s: S): Control[Unit]
 }
 ```
 Having defined the effect signature, we can implement a handler that,
 like the state monad, does not actually use mutable state but passes
-the current value around through the whole program. Since state is so
-important and often used, in **Effekt** every handler is already
-equipped with a *handler state* that is automatically passed around
-through all handler calls.
+the current value around through the whole program.
 
-We simply need to define the type of the state by instantiating the
-type member `State`. Let us look again at the implementation of the
-type alias `Op`:
-
-```
-type Op[A] =
-  State =>                          // the handler state
-  (A => State => Control[Res]) =>   // the continuation
-  Control[Res]                      // the result type
-```
-
-To handle an effect, we get hold to the current state as well as a
-continuation which takes the return value and an updated state.
-Using this definition, we can implement a state handler as:
 
 ```tut:book:silent
-def state[R, S] = new Handler.Stateful[R, R, S] with State[S] {
-  def unit = a => a
-  def put(s: S) = state => resume => resume(())(s)
-  def get()     = state => resume => resume(state)(state)
-}
+def state[R, S](init: S)(prog: State[S] => Control[R]) =
+  new Handler[R, S => Control[R]] with State[S] {
+    def unit = a => pure(s => pure(a))
+    def put(s: S) = use { resume => pure { state => resume(()) flatMap { _ apply s } } }
+    def get()     = use { resume => pure { state => resume(state) flatMap { _ apply state } } }
+  } apply prog flatMap { _ apply init }
 ```
 
 ## Using `Amb` and `State` in one example
 Let us now use the two effects to write a program that combines them.
 
 ```tut:book:silent
-import State._, Amb._
 
-def example(implicit u1: Use[State[Int]], u2: Use[Amb]): Control[Int] = for {
-  x <- get()
-  b <- flip()
-  _ <- if (b) put(x + 1) else pure(())
-  y <- get()
+def example(implicit s: State[Int], amb: Amb): Control[Int] = for {
+  x <- s.get()
+  b <- amb.flip()
+  _ <- if (b) s.put(x + 1) else pure(())
+  y <- s.get()
 } yield (x + y)
 ```
 The example program requires capabilities for both effects, a state
@@ -113,8 +89,8 @@ effects and handlers is that we can decide very late.
 Let's experiment with the two options:
 
 ```tut:book:silent
-val result1: Control[List[Int]] = ambList { implicit a =>
-  state(0) { implicit s =>
+val result1: Control[List[Int]] = ambList { implicit a: Amb =>
+  state(0) { implicit s: State[Int] =>
     example
   }
 }
@@ -132,8 +108,8 @@ and thus the second element in the resulting list is `0`.
 Commuting the two handlers, we get different results:
 
 ```tut:book:silent
-val result2 = state(0) { implicit s =>
-  ambList { implicit a =>
+val result2 = state(0) { implicit s: State[Int] =>
+  ambList { implicit a: Amb =>
     example
   }
 }
@@ -143,6 +119,4 @@ result2.run()
 ```
 
 Now, ambiguity is run inside of state and the change of state carries
-over to the second coin flipping result. The result type however is the
-same, since `Id[List[_]] = List[Id[_]]`. Please note, that this does
-not hold in general for two arbitrary effect handlers.
+over to the second coin flipping result.

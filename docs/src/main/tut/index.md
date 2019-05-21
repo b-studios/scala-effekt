@@ -34,28 +34,27 @@ case class Tweet(msg: String)
 ```
 **Effect signature**
 ```tut:book:silent
-trait Twitter extends Eff {
-  def userTweets(userId: Long): Op[List[Tweet]]
+trait Twitter {
+  def userTweets(userId: Long): Control[List[Tweet]]
 }
+def Twitter(implicit t: Twitter) = t
 ```
 ```tut:invisible
-def userTweets(userId: Long)(implicit u: Use[Twitter]): Control[List[Tweet]] =
-  use(u)(u.handler.userTweets(userId))
-def twitterStub[R] = new Twitter with Handler.Basic[R, R] {
-  def unit = a => a
-  def userTweets(userId: Long): Op[List[Tweet]] = state => resume =>
-    resume(List(Tweet("hi")))(state)
+class TwitterStub[R] extends Twitter with Handler[R, R] {
+  def unit = a => pure(a)
+  def userTweets(userId: Long): Control[List[Tweet]] = pure(List(Tweet("hi")))
 }
+def twitterStub[R] = new TwitterStub[R]
 ```
 **Effect usage**
 ```tut:book:silent
-def query(implicit u: Use[Twitter]): Control[List[Tweet]] =
+def query(T: Twitter): Control[List[Tweet]] =
   for {
-    ts1 <- userTweets(133452)
-    ts2 <- userTweets(111345)
+    ts1 <- T.userTweets(133452)
+    ts2 <- T.userTweets(111345)
   } yield ts1 ++ ts2
 
-val result = twitterStub { implicit u => query }
+val result = twitterStub { query }
 ```
 </div>
 </div>

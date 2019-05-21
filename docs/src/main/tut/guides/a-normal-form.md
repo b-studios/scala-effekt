@@ -51,41 +51,31 @@ we use to mark elements of our language as either `value`s or
 
 ```tut:book:silent
 import effekt._
-trait Transform extends Eff {
-  def value(e: Exp): Op[Exp]
-  def computation(e: Exp): Op[Exp]
+trait Transform {
+  def value(e: Exp): Control[Exp]
+  def computation(e: Exp): Control[Exp]
 }
-```
-```tut:book:silent:decorate(.boilerplate)
-object Transform {
-  def value(e: Exp)(implicit c: Use[Transform]): Control[Exp] =
-    use(c) { c.handler.value(e) }
-
-  def computation(e: Exp)(implicit c: Use[Transform]): Control[Exp] =
-    use(c) { c.handler.computation(e) }
-}
-import Transform._
 ```
 
 We also define a recursive traversal function that uses `Transform`
 to visit each node in our tree:
 
 ```tut:book:silent
-def visit(e: Exp)(implicit h: Use[Transform]): Control[Exp] = e match {
+def visit(e: Exp)(implicit t: Transform): Control[Exp] = e match {
 
-    case v : Var => value(v)
-    case l : Lit => value(l)
+    case v : Var => t.value(v)
+    case l : Lit => t.value(l)
 
     case Let(name, v, b) => for {
       vv <- visit(v)
       bv <- visit(b)
-      e  <- value(Let(name, vv, bv))(h)
+      e  <- t.value(Let(name, vv, bv))
     } yield e
 
     case Sub(l, r) => for {
       lv  <- visit(l)
       rv  <- visit(r)
-      e <- computation(Sub(lv, rv))(h)
+      e <- t.computation(Sub(lv, rv))
     } yield e
 }
 ```
@@ -101,50 +91,39 @@ such as `x1`, `x2` above. Generating fresh variable names / symbols
 can be seen as an effect, so we define another effect signature for
 `SymGen`:
 
-```tut:book:silent
-trait SymGen extends Eff {
-  def fresh(): Op[String]
-}
 ```
-```tut:book:silent:decorate(.boilerplate)
-object SymGen {
-  def fresh()(implicit c: Use[SymGen]): Control[String] =
-    use(c) { c.handler.fresh() }
+trait SymGen extends Eff {
+  def fresh(): Control[String]
 }
-import SymGen._
 ```
 
 A handler for `fresh` can be implemented using stateful-handlers, as
 provided by effekt:
 
-```tut:book:silent
+```
 class SymState[R] extends SymGen with Handler.Stateful[R, R, Int] {
   def unit = identity
   def fresh() = state => resume => resume("x" + state)(state + 1)
 }
-```
-```tut:book:silent:decorate(.boilerplate)
-def SymState[R](init: Int)(b: Use[SymGen] => Control[R]): Control[R] =
-    (new SymState).apply(init)(b)
+def SymState[R](b: SymGen => Control[R]): Control[R] =
+    (new SymState).apply(0)(b)
 ```
 
 ## Defining an ANF handler for `Transform`
 With the ability to generate fresh names, we are now ready to define
 an ANF transformation as a handler for `Transform`:
 
-```tut:book:silent
-class ANF(implicit symGen: Use[SymGen]) extends Transform with Handler.Basic[Exp, Exp] {
-  def unit = identity
-  def value(e: Exp) = _ => resume => resume(e)(())
-  def computation(e: Exp) = _ => resume => for {
-    x <- fresh()
-    body <- resume(Var(x))(())
-  } yield Let(x, e, body)
-}
 ```
-```tut:book:silent:decorate(.boilerplate)
-def ANF(b: Use[Transform] => Control[Exp])(implicit c: Use[SymGen]): Control[Exp] =
-    (new ANF).apply(b)
+class ANF(implicit symGen: SymGen) extends Transform with Handler[Exp, Exp] {
+  def unit = identity
+  def value(e: Exp) = use { resume => resume(e) }
+  def computation(e: Exp) =use { resume => for {
+    x <- symGen.fresh()
+    body <- resume(Var(x))
+  } yield Let(x, e, body) }
+}
+def ANF(prog: Use[Transform] => Control[Exp])(implicit c: Use[SymGen]): Control[Exp] =
+    (new ANF).apply(prog)
 ```
 
 Note that this handler itself is effectful and uses the `SymGen` effect. To do so, it
@@ -159,16 +138,16 @@ the ANF handler is used.
 Finally the anf-transformation can be defined in terms of the `SymState` handler and
 the `ANF` handler:
 
-```tut:book:silent
-def anfTransform(e: Exp): Control[Exp] = SymState(0) { implicit sym =>
+```
+def anfTransform(e: Exp): Control[Exp] = SymState { implicit sym =>
   ANF { implicit anf => visit(e) }
 }
 ```
 
 Calling `anfTransform` on our running example, we obtain:
 
-```tut
-anfTransform(ex).run()
+```
+run { anfTransform(ex) }
 ```
 
 which exactly corresponds to our manual translation from above.

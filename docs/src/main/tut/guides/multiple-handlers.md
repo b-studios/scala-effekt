@@ -6,6 +6,8 @@ section: "guides"
 
 # Handling Multiple Effects at Once
 
+**THIS EXAMPLE IS OUTDATED! It needs to be updated, once specialized state is supported again**
+
 Sometimes the granularity of handlers does not coincide with the
 granularity of effect signatures. For instance, we might want to
 offer fine grained interfaces for reading and writing operations
@@ -21,23 +23,14 @@ You can play around with the full source code for this example at this
 ```tut:book:silent
 import effekt._
 
-trait Reader[S] extends Eff {
-  def read(): Op[S]
+trait Reader[S] {
+  def read(): Control[S]
 }
-trait Writer[S] extends Eff {
-  def write(s: S): Op[Unit]
+trait Writer[S] {
+  def write(s: S): Control[Unit]
 }
 ```
 
-```tut:book:silent:decorate(.boilerplate)
-object Reader {
-  def read[S]()(implicit u: Use[Reader[S]]) = use(u) { u.handler.read() }
-}
-object Writer {
-  def write[S](s: S)(implicit u: Use[Writer[S]]) = use(u) { u.handler.write(s) }
-}
-import Reader._, Writer._
-```
 (We omit the standard companion object definitions as seen in the
 earlier tutorials.)
 
@@ -49,8 +42,8 @@ might implement multiple of such signatures. Below, we define a
 simple handler for `Reader` and `Writer` that uses a list to mediate
 between the two effects.
 
-```tut:book:silent
-def rwHandler[R, S] = new Reader[S] with Writer[S] with Handler.Stateful[R, R, List[S]] {
+```
+def rwHandler[R, S] = new Handler[R, List[R]] with Reader[S] with Writer[S] {
 
   def unit = a => a
 
@@ -66,7 +59,7 @@ def rwHandler[R, S] = new Reader[S] with Writer[S] with Handler.Stateful[R, R, L
 
 To show the usage of the combined handler, let's first define a
 simple example program.
-```tut:book:silent
+```
 def example(implicit r: Use[Reader[Int]], w: Use[Writer[Int]]): Control[Int] =
   for {
     _ <- write(2)
@@ -79,7 +72,7 @@ def example(implicit r: Use[Reader[Int]], w: Use[Writer[Int]]): Control[Int] =
 
 Handling the example with our combined handler, we get:
 
-```tut
+```
 rwHandler(Nil) { implicit rw => example }.run()
 ```
 

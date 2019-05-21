@@ -5,6 +5,9 @@ section: "guides"
 ---
 
 # Pipes: Connecting Producers and Consumers
+
+**THIS EXAMPLE IS OUTDATED! It needs to be updated, once specialized state is supported again**
+
 In this quick guide, we'll re-implement the piping example from the
 paper ["Handlers in Action"](http://homepages.inf.ed.ac.uk/slindley/papers/handlers.pdf)
 by Ohad Kammar and colleagues.
@@ -16,46 +19,36 @@ information is of type `Int`.
 First of all, let's define the effect signatures for sending and
 receiving of information:
 
-```tut:book:silent
+```
 import effekt._
 
-trait Send extends Eff {
-  def send(n: Int): Op[Unit]
+trait Send {
+  def send(n: Int): Control[Unit]
 }
-trait Receive extends Eff {
-  def receive(): Op[Int]
+trait Receive {
+  def receive(): Control[Int]
 }
 ```
 
-```tut:book:silent:decorate(.boilerplate)
-object Send {
-  def send(n: Int)(implicit u: Use[Send]) = use(u) { u.handler.send(n) }
-}
-
-object Receive {
-  def receive()(implicit u: Use[Receive]) = use(u) { u.handler.receive() }
-}
-import Send._, Receive._
-```
 
 Now, using these effect signatures we can define an example producer and
 a corresponding example consumer:
 
-```tut:book:silent
-def producer(implicit s: Use[Send]): Control[Unit] =
+```
+def producer(s: Send): Control[Unit] =
   for {
-    _ <- send(1)
-    _ <- send(2)
-    _ <- send(3)
+    _ <- s.send(1)
+    _ <- s.send(2)
+    _ <- s.send(3)
   } yield ()
 
-def consumer(implicit s: Use[Receive]): Control[Unit] =
+def consumer(r: Receive): Control[Unit] =
   for {
-    x1 <- receive()
+    x1 <- r.receive()
     _ = println("1: " + x1)
-    x2 <- receive()
+    x2 <- r.receive()
     _ = println("2: " + x2)
-    x3 <- receive()
+    x3 <- r.receive()
     _ = println("3: " + x3)
   } yield ()
 ```
@@ -73,7 +66,7 @@ Now let's implement this behavior in Effekt. To this end, we define
 processes as handlers and use the state of the handler to store the
 opposite end:
 
-```tut:book:silent
+```
 trait Process[R0, P[_]] extends Handler {
   type R     = R0
   type Res   = R
@@ -83,7 +76,7 @@ trait Process[R0, P[_]] extends Handler {
 ```
 In our case, the type constructor `P[_]` will be one of the following:
 
-```tut:book:silent
+```
 object Process {
   case class Prod[R](apply: Unit => Cons[R] => R)
   case class Cons[R](apply: Int  => Prod[R] => R)
@@ -99,7 +92,7 @@ as `Control[R0]` since it needs to be effectful.
 The two handlers corresponding to receiving and producing processes
 now can be defined as:
 
-```tut:book:silent
+```
 def down[R] = new Receive with Process[R, Prod] {
   def receive() = {
     case Prod(prod) => resume => prod(())(Cons(resume))
@@ -117,11 +110,11 @@ Stunning symmetry, isn't it? :)
 Finally, the pipe can be created by connecting `up` and `down` to
 handle two program fragments using `Receive` and `Send` correspondingly.
 
-```tut:book:silent
+```
 def pipe[R](d: Use[Receive] => Control[R], u: Use[Send] => Control[R]): Control[R] =
   down[R](Prod(_ => cons => up(cons) { u })) { d }
 ```
 Running our above example with `pipe` yields:
-```tut
+```
 pipe(d => consumer(d), u => producer(u)).run()
 ```

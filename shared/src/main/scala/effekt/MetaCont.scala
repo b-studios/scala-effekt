@@ -6,48 +6,28 @@ sealed trait MetaCont[-A, +B] extends Serializable {
 
   def append[C](s: MetaCont[B, C]): MetaCont[A, C]
 
-  def splitAt(c: Capability): (MetaCont[A, c.Res], HandlerFrame.Aux[c.type], MetaCont[c.Res, B])
+  def splitAt[Res](c: Prompt[Res]): (MetaCont[A, Res], MetaCont[Res, B])
 
-  def map[C](f: C => A): MetaCont[C, B] = flatMap(f andThen pure)
+  def map[C](f: C => A): MetaCont[C, B] = flatMap(x => pure(f(x)))
 
   def flatMap[C](f: Frame[C, A]): MetaCont[C, B] = FramesCont(List(f), this)
 
-  def unwind(t: Throwable): Result[B]
+  def unwind(t: Throwable): Result[B] = sys error "not yet backported"
 }
 
 private[effekt]
-case class ReturnCont[-A, +B](f: A => B) extends MetaCont[A, B] {
-  final def apply(a: A): Result[B] = Pure(f(a))
+case class ReturnCont[A]() extends MetaCont[A, A] {
+  final def apply(a: A): Result[A] = Pure(a)
 
-  final def append[C](s: MetaCont[B, C]): MetaCont[A, C] = s map f
+  final def append[B](s: MetaCont[A, B]): MetaCont[A, B] = s
 
-  final def splitAt(c: Capability) = sys error s"Prompt $c not found on the stack."
-
-  final def unwind(t: Throwable) = throw t
-
-  override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(g andThen f)
+  final def splitAt[Res](c: Prompt[Res]) = sys error s"Prompt $c not found on the stack."
 
   override def toString = "[]"
 }
 
 private[effekt]
-case class CastCont[-A, +B]() extends MetaCont[A, B] {
-
-  final def apply(a: A): Result[B] = Pure(a.asInstanceOf[B])
-
-  final def append[C](s: MetaCont[B, C]): MetaCont[A, C] = s.asInstanceOf[MetaCont[A, C]]
-
-  final def splitAt(c: Capability) = sys error s"Prompt $c not found on the stack."
-
-  final def unwind(t: Throwable) = throw t
-
-  override def map[C](g: C => A): MetaCont[C, B] = ReturnCont(x => g(x).asInstanceOf[B])
-
-  override def toString = "{}"
-}
-
-private[effekt]
-case class FramesCont[-A, B, +C](frames: List[Frame[_, _]], tail: MetaCont[B, C]) extends MetaCont[A, C] {
+case class FramesCont[-A, B, +C](frames: List[Frame[Nothing, Any]], tail: MetaCont[B, C]) extends MetaCont[A, C] {
 
   final def apply(a: A): Result[C] = {
     val first :: rest = frames
@@ -61,59 +41,46 @@ case class FramesCont[-A, B, +C](frames: List[Frame[_, _]], tail: MetaCont[B, C]
 
   final def append[D](s: MetaCont[C, D]): MetaCont[A, D] = FramesCont(frames, tail append s)
 
-  final def splitAt(c: Capability) = tail.splitAt(c) match {
-    case (head, matched, tail) => (FramesCont(frames, head), matched, tail)
+  final def splitAt[Res](c: Prompt[Res]) = tail.splitAt(c) match {
+    case (head, tail) => (FramesCont(frames, head), tail)
   }
 
   override def flatMap[D](f: Frame[D, A]): MetaCont[D, C] = FramesCont(f :: frames, tail)
 
-  final def unwind(t: Throwable) = tail.unwind(t)
-
   override def toString = s"fs :: ${tail}"
 }
 
-
 private[effekt]
-case class HandlerCont[R, A](h: HandlerFrame { type Res = R }, tail: MetaCont[R, A]) extends MetaCont[R, A] {
-  final def apply(r: R): Result[A] = tail(r)
+case class HandlerCont[Res, +A](h: Prompt[Res])(tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+  final def apply(r: Res): Result[A] = tail(r)
 
-  final def append[C](s: MetaCont[A, C]): MetaCont[R, C] = HandlerCont(h, tail append s)
+  final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = HandlerCont(h)(tail append s)
 
-  final def splitAt(c: Capability) =
-
-    // We found the corrsponding handler!
-    // ---
+  final def splitAt[Res2](c: Prompt[Res2]) = c match {
     // Here we deduce type equality from referential equality
-    if (h.cap eq c) {
-      val head = CastCont[R, c.Res]()
-      val handler = h.asInstanceOf[HandlerFrame.Aux[c.type]]
-      val rest = tail.asInstanceOf[MetaCont[c.Res, A]]
-      (head, handler, rest)
-
-    // Not the right handler
-    // ---
-    // remove cleanup from this handler and prepend to found handler.
-    // this way we assert that the cleanup actions will be called, even
-    // if the continuation is discarded in the handler implementation.
-    } else tail.splitAt(c) match {
-      case (head, m, tail) =>
-      val handler = h.removeCleanup.asInstanceOf[HandlerFrame { type Res = R }]
-      val matched = m.prependCleanup(h.cleanupActions)
-      (HandlerCont(handler, head), matched, tail)
-    }
-
-  final def unwind(t: Throwable) = {
-    val handler = h.cap.handler
-
-    if (handler._catch.isDefinedAt(t)) {
-      val fixed = handler._catch(t)
-      h.cleanup()
-      fixed(tail.asInstanceOf[MetaCont[handler.Res, A]])
-    } else {
-      h.cleanup()
-      tail.unwind(t)
+    case _: h.type => (HandlerCont(h)(ReturnCont()), tail)
+    case _ => tail.splitAt(c) match {
+      case (head, tail) => (HandlerCont(h)(head), tail)
     }
   }
 
-  override def toString = s"${h.cap} :: ${tail}"
+  override def toString = s"${h} :: ${tail}"
+}
+
+// we will NEVER split at a state cont. Instead a statecont
+// just calls into the Stateful interface on capture
+private[effekt]
+case class StateCont[Res, S, +A](h: Stateful[S], state: S, tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+  final def apply(r: Res): Result[A] = tail(r)
+
+  final def append[C](rest: MetaCont[A, C]): MetaCont[Res, C] = {
+    h put state
+    StateCont(h, state, tail append rest)
+  }
+
+  final def splitAt[Res2](c: Prompt[Res2]) = tail.splitAt(c) match {
+    case (head, tail) => (StateCont(h, h.get(), head), tail)
+  }
+
+  override def toString = s"${state} :: ${tail}"
 }
