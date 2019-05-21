@@ -6,8 +6,6 @@ section: "guides"
 
 # Pipes: Connecting Producers and Consumers
 
-**THIS EXAMPLE IS OUTDATED! It needs to be updated, once specialized state is supported again**
-
 In this quick guide, we'll re-implement the piping example from the
 paper ["Handlers in Action"](http://homepages.inf.ed.ac.uk/slindley/papers/handlers.pdf)
 by Ohad Kammar and colleagues.
@@ -19,7 +17,7 @@ information is of type `Int`.
 First of all, let's define the effect signatures for sending and
 receiving of information:
 
-```
+```tut:book:silent
 import effekt._
 
 trait Send {
@@ -34,7 +32,7 @@ trait Receive {
 Now, using these effect signatures we can define an example producer and
 a corresponding example consumer:
 
-```
+```tut:book:silent
 def producer(s: Send): Control[Unit] =
   for {
     _ <- s.send(1)
@@ -66,17 +64,15 @@ Now let's implement this behavior in Effekt. To this end, we define
 processes as handlers and use the state of the handler to store the
 opposite end:
 
-```
-trait Process[R0, P[_]] extends Handler {
-  type R     = R0
-  type Res   = R
-  type State = P[Control[R]]
-  def unit = identity
+```tut:book:silent
+class Process[R, P[_]](p: P[Control[R]]) extends Handler[R, R] with State {
+  val other = init(p)
+  def unit = r => pure(r)
 }
 ```
 In our case, the type constructor `P[_]` will be one of the following:
 
-```
+```tut:book:silent
 object Process {
   case class Prod[R](apply: Unit => Cons[R] => R)
   case class Cons[R](apply: Int  => Prod[R] => R)
@@ -92,29 +88,46 @@ as `Control[R0]` since it needs to be effectful.
 The two handlers corresponding to receiving and producing processes
 now can be defined as:
 
-```
-def down[R] = new Receive with Process[R, Prod] {
-  def receive() = {
-    case Prod(prod) => resume => prod(())(Cons(resume))
-  }
-}
+```tut:book:silent
+def down[R](p: Prod[Control[R]]) = new Process[R, Prod](p) with Receive {
+  def receive() = use { resume =>
+    val next: Cons[Control[R]] = Cons { n => prod => for {
+      _ <- other.value = prod
+      r <- resume(n)
+    } yield r }
 
-def up[R] = new Send with Process[R, Cons] {
-  def send(n: Int) = {
-    case Cons(cons) => resume => cons(n)(Prod(resume))
+    for {
+      prod <- other.value
+      res  <- prod.apply(())(next)
+    } yield res
+  }
+}
+def up[R](p: Cons[Control[R]]) = new Process[R, Cons](p) with Send {
+  def send(n: Int) = use { resume =>
+    val next: Prod[Control[R]] = Prod { _ => cons => for {
+      _ <- other.value = cons
+      r <- resume(())
+    } yield r }
+
+    for {
+      cons <- other.value
+      res  <- cons.apply(n)(next)
+    } yield res
   }
 }
 ```
+
+
 Stunning symmetry, isn't it? :)
 
 Finally, the pipe can be created by connecting `up` and `down` to
 handle two program fragments using `Receive` and `Send` correspondingly.
 
-```
-def pipe[R](d: Use[Receive] => Control[R], u: Use[Send] => Control[R]): Control[R] =
+```tut:book:silent
+def pipe[R](d: Receive => Control[R], u: Send => Control[R]): Control[R] =
   down[R](Prod(_ => cons => up(cons) { u })) { d }
 ```
 Running our above example with `pipe` yields:
-```
+```tut
 pipe(d => consumer(d), u => producer(u)).run()
 ```

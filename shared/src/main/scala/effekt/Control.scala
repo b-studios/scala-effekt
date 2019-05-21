@@ -97,17 +97,17 @@ object Control {
       }
     }
 
-  private[effekt] final def handle[Res](h: Prompt[Res])(f: Res using h.type): Control[Res] =
+  private[effekt] final def delimitCont[Res](h: Prompt[Res])(f: Res using h.type): Control[Res] =
     new Control[Res] {
       def apply[R2](k: MetaCont[Res, R2]): Result[R2] = {
         Impure(f(h), HandlerCont[Res, R2](h)(k))
       }
     }
 
-  private[effekt] final def stateful[S, R](s: Stateful[S])(f: s.type => Control[R]): Control[R] =
-    new Control[R] {
-      def apply[R2](k: MetaCont[R, R2]): Result[R2] = {
-        Impure(f(s), StateCont(s, null.asInstanceOf[S], k))
+  private[effekt] final def delimitState[Res](state: State)(f: Control[Res]): Control[Res] =
+    new Control[Res] {
+      def apply[R2](k: MetaCont[Res, R2]): Result[R2] = {
+        Impure(f, StateCont[Res, R2](state, k))
       }
     }
 }

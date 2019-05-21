@@ -91,8 +91,8 @@ such as `x1`, `x2` above. Generating fresh variable names / symbols
 can be seen as an effect, so we define another effect signature for
 `SymGen`:
 
-```
-trait SymGen extends Eff {
+```tut:book:silent
+trait SymGen {
   def fresh(): Control[String]
 }
 ```
@@ -100,29 +100,33 @@ trait SymGen extends Eff {
 A handler for `fresh` can be implemented using stateful-handlers, as
 provided by effekt:
 
-```
-class SymState[R] extends SymGen with Handler.Stateful[R, R, Int] {
-  def unit = identity
-  def fresh() = state => resume => resume("x" + state)(state + 1)
+```tut:book:silent
+class SymState[R] extends SymGen with Handler[R, R] with State {
+  val count = init(0)
+  private def inc = for {
+    x <- count.value
+    _ <- count.value = x + 1
+  } yield x
+
+  def unit = r => pure(r)
+  def fresh() = use { resume => inc flatMap { n => resume("x" + n) } }
 }
-def SymState[R](b: SymGen => Control[R]): Control[R] =
-    (new SymState).apply(0)(b)
 ```
 
 ## Defining an ANF handler for `Transform`
 With the ability to generate fresh names, we are now ready to define
 an ANF transformation as a handler for `Transform`:
 
-```
-class ANF(implicit symGen: SymGen) extends Transform with Handler[Exp, Exp] {
-  def unit = identity
+```tut:book:silent
+class ANF(implicit sym: SymGen) extends Transform with Handler[Exp, Exp] {
+  def unit = r => pure(r)
   def value(e: Exp) = use { resume => resume(e) }
-  def computation(e: Exp) =use { resume => for {
-    x <- symGen.fresh()
+  def computation(e: Exp) = use { resume => for {
+    x <- sym.fresh()
     body <- resume(Var(x))
   } yield Let(x, e, body) }
 }
-def ANF(prog: Use[Transform] => Control[Exp])(implicit c: Use[SymGen]): Control[Exp] =
+def ANF(prog: Transform => Control[Exp])(implicit sym: SymGen): Control[Exp] =
     (new ANF).apply(prog)
 ```
 
@@ -138,15 +142,15 @@ the ANF handler is used.
 Finally the anf-transformation can be defined in terms of the `SymState` handler and
 the `ANF` handler:
 
-```
-def anfTransform(e: Exp): Control[Exp] = SymState { implicit sym =>
-  ANF { implicit anf => visit(e) }
+```tut:book:silent
+def anfTransform(e: Exp): Control[Exp] = new SymState handle { implicit sym: SymGen =>
+  new ANF handle { implicit anf: Transform => visit(e) }
 }
 ```
 
 Calling `anfTransform` on our running example, we obtain:
 
-```
+```tut
 run { anfTransform(ex) }
 ```
 

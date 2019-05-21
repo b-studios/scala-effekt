@@ -26,10 +26,19 @@ trait Handler[R, Res] extends Prompt[Res] { outer =>
    */
   def _finally: () => Unit = Handler.noCleanup
 
-  def handle(f: R using this.type): Control[Res] =
-    Control.handle(this) { h => f(this) flatMap unit }
+  def handle(prog: R using this.type): Control[Res] = this match {
+    // If the handler is stateful, also install a state frame.
+    case self : State =>
+      Control.delimitState(self) {
+        Control.delimitCont(this) { _ =>
+          prog(this) flatMap unit
+        }
+      }
+    case _ =>
+      Control.delimitCont(this) { h => prog(this) flatMap unit }
+  }
 
-  def apply(f: R using this.type): Control[Res] = handle(f)
+  def apply(prog: R using this.type): Control[Res] = handle(prog)
 }
 object Handler {
 
@@ -38,10 +47,30 @@ object Handler {
   val noCleanup = () => ()
 }
 
-trait Stateful[S] {
-  def get(): S
-  def put(s: S): Unit
+// for an effect safe version, see
+//     https://github.com/b-studios/scala-effekt/blob/dotty-typed/src/main/scala/effekt/package.scala#L50-L85
+trait State { state =>
 
-  def value: S = get()
-  def value_=(s: S): Unit = put(s)
+  def init[T](value: T): Field[T] = {
+    val field = new Field[T]()
+    data = data.updated(field, value)
+    field
+  }
+
+  private[effekt] type StateRep = Map[Field[_], Any]
+  private[effekt] var data = Map.empty[Field[_], Any]
+  private[effekt] def backup: StateRep = data
+  private[effekt] def restore(value: StateRep): Unit = data = value
+
+  // all the field data is stored in `data`
+  class Field[T] private[State] () {
+    def value: Control[T] = pure(data(this).asInstanceOf[T])
+    def value_=(value: T): Control[Unit] = pure {
+      data = data.updated(this, value)
+    }
+    def update(f: T => T): Control[Unit] = for {
+      old <- value
+      _   <- value_=(f(old))
+    } yield ()
+  }
 }

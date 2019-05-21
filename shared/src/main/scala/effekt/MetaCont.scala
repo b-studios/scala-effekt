@@ -67,20 +67,26 @@ case class HandlerCont[Res, +A](h: Prompt[Res])(tail: MetaCont[Res, A]) extends 
   override def toString = s"${h} :: ${tail}"
 }
 
-// we will NEVER split at a state cont. Instead a statecont
-// just calls into the Stateful interface on capture
 private[effekt]
-case class StateCont[Res, S, +A](h: Stateful[S], state: S, tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+case class StateCont[Res, +A](p: State, tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
   final def apply(r: Res): Result[A] = tail(r)
 
-  final def append[C](rest: MetaCont[A, C]): MetaCont[Res, C] = {
-    h put state
-    StateCont(h, state, tail append rest)
-  }
+  final def append[C](k: MetaCont[A, C]): MetaCont[Res, C] = StateCont(p, tail append k)
 
   final def splitAt[Res2](c: Prompt[Res2]) = tail.splitAt(c) match {
-    case (head, tail) => (StateCont(h, h.get(), head), tail)
+    case (head, tail) => (StateContCaptured(p, p.backup, head), tail)
+  }
+}
+
+private[effekt]
+case class StateContCaptured[Res, S, +A](p: State { type StateRep = S }, state: S, tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+  final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = {
+    // don't know why this cast is necessary
+    p restore state.asInstanceOf[Map[p.Field[_], Any]]
+    StateCont(p, tail append s)
   }
 
-  override def toString = s"${state} :: ${tail}"
+  // these should not be called.
+  final def apply(r: Res): Result[A] = ???
+  final def splitAt[Res2](c: Prompt[Res2]) = ???
 }

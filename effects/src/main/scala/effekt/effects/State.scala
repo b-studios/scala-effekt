@@ -11,36 +11,24 @@ trait Writer[S] {
 
 
 /**
- * A simple state effect.
- *
- * Can be used like:
- *
- * {{{
- *   def prog(implicit s: State[Int]) = for {
- *     x <- s.value
- *     _ <- s.value = 42
- *     y <- s.value
- *   } yield (x, y)
- *
- *   handle(state)(0) { implicit s => prog }
- * }}}
+ * A simple state effect using builtin state.
  */
 trait State[S] extends Reader[S] with Writer[S] {
-  def value_=(s: S): Control[Unit]
-  def value: Control[S]
-  def ask() = value
-  def tell(s: S) = this.value = s
+  def put(s: S): Control[Unit]
+  def get(): Control[S]
+  def ask() = get()
+  def tell(s: S) = put(s)
 }
-//object State extends ReaderSyntax with WriterSyntax {
-//
-//  implicit class StateOps[S](val u: State[S]) extends AnyVal {
-//    def value: Control[S] = get[S]()(u)
-//    def value_=(s: S): Control[Unit] = put[S](s)(u)
-//  }
-//
-//  def state[R, S] = new Handler.Stateful[R, R, S] with State[S] {
-//    def unit = a => a
-//    def put(s: S) = state => resume => resume(())(s)
-//    def get() = state => resume => resume(state)(state)
-//  }
-//}
+object State {
+
+  def state[R, S](s0: S) = new Handler[R, R] with State[S] with effekt.State {
+    val cell = init(s0)
+    def unit = a => pure(a)
+    def put(s: S) = use { resume => for {
+        _ <- cell.value = s
+        r <- resume(())
+      } yield r
+    }
+    def get() = use { resume => cell.value flatMap resume }
+  }
+}

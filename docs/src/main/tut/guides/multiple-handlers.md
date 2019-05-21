@@ -6,8 +6,6 @@ section: "guides"
 
 # Handling Multiple Effects at Once
 
-**THIS EXAMPLE IS OUTDATED! It needs to be updated, once specialized state is supported again**
-
 Sometimes the granularity of handlers does not coincide with the
 granularity of effect signatures. For instance, we might want to
 offer fine grained interfaces for reading and writing operations
@@ -42,16 +40,25 @@ might implement multiple of such signatures. Below, we define a
 simple handler for `Reader` and `Writer` that uses a list to mediate
 between the two effects.
 
-```
-def rwHandler[R, S] = new Handler[R, List[R]] with Reader[S] with Writer[S] {
+```tut:book:silent
+def rwHandler[R, S] = new Handler[R, R] with Reader[S] with Writer[S] with State {
 
-  def unit = a => a
+  // create a new field
+  val out = init(List.empty[S])
 
-  def read() = {
-    case s :: rest => resume => resume(s)(rest)
+  def unit = r => pure(r)
+
+  def read() = out.value flatMap {
+    case s :: rest => for {
+      _ <- out.value = rest
+    } yield s
     case _ => sys error "Not enough elements written to perform read"
   }
-  def write(s: S) = rest => resume => resume(())(s :: rest)
+
+  def write(s: S) = for {
+    rest <- out.value
+    _ <- out.value = s :: rest
+  } yield ()
 }
 ```
 
@@ -59,20 +66,24 @@ def rwHandler[R, S] = new Handler[R, List[R]] with Reader[S] with Writer[S] {
 
 To show the usage of the combined handler, let's first define a
 simple example program.
-```
-def example(implicit r: Use[Reader[Int]], w: Use[Writer[Int]]): Control[Int] =
+```tut:book:silent
+def example(implicit r: Reader[Int], w: Writer[Int]): Control[Int] =
   for {
-    _ <- write(2)
-    _ <- write(3)
-    x <- read()
-    _ <- write(x * 2)
-    y <- read()
+    _ <- w.write(2)
+    _ <- w.write(3)
+    x <- r.read()
+    _ <- w.write(x * 2)
+    y <- r.read()
   } yield y
 ```
 
 Handling the example with our combined handler, we get:
 
-```
-rwHandler(Nil) { implicit rw => example }.run()
+```tut
+run {
+  rwHandler handle { implicit rw: Reader[Int] with Writer[Int] =>
+    example
+  }
+}
 ```
 
