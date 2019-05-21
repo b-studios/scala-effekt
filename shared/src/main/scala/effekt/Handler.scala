@@ -44,6 +44,17 @@ object Handler {
 
   trait Basic[R0, Res0] extends Handler[R0, Res0]
 
+  trait Stateful[R, Res, S] extends Handler[R, Res] with State {
+    val init: S
+    val state = Field(init)
+    def useState[A](body : S => (A => S => Control[Res]) => Control[Res]): Control[A] = use { resume =>
+      for {
+        before <- state.value
+        res <- body(before)(a => after => (state.value = after) andThen resume(a))
+      } yield res
+    }
+  }
+
   val noCleanup = () => ()
 }
 
@@ -51,7 +62,7 @@ object Handler {
 //     https://github.com/b-studios/scala-effekt/blob/dotty-typed/src/main/scala/effekt/package.scala#L50-L85
 trait State { state =>
 
-  def init[T](value: T): Field[T] = {
+  def Field[T](value: T): Field[T] = {
     val field = new Field[T]()
     data = data.updated(field, value)
     field

@@ -102,7 +102,7 @@ provided by effekt:
 
 ```tut:book:silent
 class SymState[R] extends SymGen with Handler[R, R] with State {
-  val count = init(0)
+  val count = Field(0)
   private def inc = for {
     x <- count.value
     _ <- count.value = x + 1

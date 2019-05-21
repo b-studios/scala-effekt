@@ -65,8 +65,7 @@ processes as handlers and use the state of the handler to store the
 opposite end:
 
 ```tut:book:silent
-class Process[R, P[_]](p: P[Control[R]]) extends Handler[R, R] with State {
-  val other = init(p)
+class Process[R, P[_]](val init: P[Control[R]]) extends Handler.Stateful[R, R, P[Control[R]]] {
   def unit = r => pure(r)
 }
 ```
@@ -90,29 +89,15 @@ now can be defined as:
 
 ```tut:book:silent
 def down[R](p: Prod[Control[R]]) = new Process[R, Prod](p) with Receive {
-  def receive() = use { resume =>
-    val next: Cons[Control[R]] = Cons { n => prod => for {
-      _ <- other.value = prod
-      r <- resume(n)
-    } yield r }
-
-    for {
-      prod <- other.value
-      res  <- prod.apply(())(next)
-    } yield res
+  def receive() = useState {
+    case Prod(prod) => resume => prod(())(Cons(resume))
   }
 }
-def up[R](p: Cons[Control[R]]) = new Process[R, Cons](p) with Send {
-  def send(n: Int) = use { resume =>
-    val next: Prod[Control[R]] = Prod { _ => cons => for {
-      _ <- other.value = cons
-      r <- resume(())
-    } yield r }
 
-    for {
-      cons <- other.value
-      res  <- cons.apply(n)(next)
-    } yield res
+
+def up[R](p: Cons[Control[R]]) = new Process[R, Cons](p) with Send {
+  def send(n: Int) = useState {
+    case Cons(cons) => resume => cons(n)(Prod(resume))
   }
 }
 ```

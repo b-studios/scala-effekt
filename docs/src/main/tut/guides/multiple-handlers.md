@@ -44,7 +44,7 @@ between the two effects.
 def rwHandler[R, S] = new Handler[R, R] with Reader[S] with Writer[S] with State {
 
   // create a new field
-  val out = init(List.empty[S])
+  val out = Field(List.empty[S])
 
   def unit = r => pure(r)
 
