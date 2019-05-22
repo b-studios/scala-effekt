@@ -11,7 +11,7 @@ To use **Effekt** (tested with Scala 2.11 and Scala 2.12), include the
 following line to your `build.sbt` file:
 
 ```
-libraryDependencies += "de.b-studios" %% "effekt" % "0.3-SNAPSHOT"
+libraryDependencies += "de.b-studios" %% "effekt" % "0.4-SNAPSHOT"
 ```
 
 To learn how to use the library, see [Your First Effect](http://b-studios.de/scala-effekt/guides/getting-started.html).
