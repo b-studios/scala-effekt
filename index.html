@@ -29,7 +29,6 @@ result actually perform the side-effects always gives the same results.</p>
         <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">Twitter</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">userTweets</span><span class="o">(</span><span class="n">userId</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Tweet</span><span class="o">]]</span>
 <span class="o">}</span>
-<span class="k">def</span> <span class="nc">Twitter</span><span class="o">(</span><span class="k">implicit</span> <span class="n">t</span><span class="k">:</span> <span class="kt">Twitter</span><span class="o">)</span> <span class="k">=</span> <span class="n">t</span>
 </code></pre>
         </div>
 

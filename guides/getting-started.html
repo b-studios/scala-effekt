@@ -57,18 +57,20 @@ contained in the <code class="highlighter-rouge">Control</code> <em>monad</em> w
 <h2 id="defining-handlers">Defining Handlers</h2>
 <p>Let us now define our own handler for the <code class="highlighter-rouge">Amb</code> effect. A handler is
 just an implementation of the effect interface. However, it also
-needs to give the type to interpret the effect into (<code class="highlighter-rouge">List[R]</code>) and
-a function <code class="highlighter-rouge">unit</code> that lifts pure values of type <code class="highlighter-rouge">R</code> into the effect interpretation.</p>
+needs to give the type to interpret the effect into (<code class="highlighter-rouge">List[R]</code>).
+Note how we make sure that the result of the handled program is
+a list by mapping <code class="highlighter-rouge">r =&gt; List(r)</code> over it before applying the handler.
+This way we convert the result type from <code class="highlighter-rouge">R</code> into the semantic
+domain <code class="highlighter-rouge">List[R]</code>.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">ambList</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">List</span><span class="o">[</span><span class="kt">R</span><span class="o">]]</span> <span class="k">with</span> <span class="nc">Amb</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">unit</span> <span class="k">=</span> <span class="n">a</span> <span class="k">=&gt;</span> <span class="n">pure</span><span class="o">(</span><span class="nc">List</span><span class="o">(</span><span class="n">a</span><span class="o">))</span>
-
-  <span class="k">def</span> <span class="n">flip</span><span class="o">()</span> <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
-      <span class="n">ts</span> <span class="k">&lt;-</span> <span class="n">resume</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span>
-      <span class="n">fs</span> <span class="k">&lt;-</span> <span class="n">resume</span><span class="o">(</span><span class="kc">false</span><span class="o">)</span>
-    <span class="o">}</span> <span class="k">yield</span> <span class="n">ts</span> <span class="o">++</span> <span class="n">fs</span>
-  <span class="o">}</span>
-<span class="o">}</span>
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">ambList</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="n">prog</span><span class="k">:</span> <span class="kt">Amb</span> <span class="o">=&gt;</span> <span class="nc">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">R</span><span class="o">]]</span> <span class="k">=</span>
+  <span class="k">new</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">R</span><span class="o">]]</span> <span class="k">with</span> <span class="nc">Amb</span> <span class="o">{</span>
+    <span class="k">def</span> <span class="n">flip</span><span class="o">()</span> <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
+       <span class="n">ts</span> <span class="k">&lt;-</span> <span class="n">resume</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span>
+        <span class="n">fs</span> <span class="k">&lt;-</span> <span class="n">resume</span><span class="o">(</span><span class="kc">false</span><span class="o">)</span>
+      <span class="o">}</span> <span class="k">yield</span> <span class="n">ts</span> <span class="o">++</span> <span class="n">fs</span>
+    <span class="o">}</span>
+  <span class="o">}</span> <span class="n">handle</span> <span class="o">{</span> <span class="n">amb</span> <span class="k">=&gt;</span> <span class="n">prog</span><span class="o">(</span><span class="n">amb</span><span class="o">)</span> <span class="n">map</span> <span class="o">{</span> <span class="n">r</span> <span class="k">=&gt;</span> <span class="nc">List</span><span class="o">(</span><span class="n">r</span><span class="o">)</span> <span class="o">}</span> <span class="o">}</span>
 </code></pre>
 </div>
 

@@ -94,14 +94,13 @@ can be seen as an effect, so we define another effect signature for
 <p>A handler for <code class="highlighter-rouge">fresh</code> can be implemented using stateful-handlers, as
 provided by effekt:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">SymState</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="nc">extends</span> <span class="nc">SymGen</span> <span class="k">with</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">R</span><span class="o">]</span> <span class="k">with</span> <span class="nc">State</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">SymState</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="nc">extends</span> <span class="nc">SymGen</span> <span class="k">with</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="k">with</span> <span class="nc">State</span> <span class="o">{</span>
   <span class="k">val</span> <span class="n">count</span> <span class="k">=</span> <span class="nc">Field</span><span class="o">(</span><span class="mi">0</span><span class="o">)</span>
   <span class="k">private</span> <span class="k">def</span> <span class="n">inc</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
     <span class="n">x</span> <span class="k">&lt;-</span> <span class="n">count</span><span class="o">.</span><span class="n">value</span>
     <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">count</span><span class="o">.</span><span class="n">value</span> <span class="k">=</span> <span class="n">x</span> <span class="o">+</span> <span class="mi">1</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">x</span>
 
-  <span class="k">def</span> <span class="n">unit</span> <span class="k">=</span> <span class="n">r</span> <span class="k">=&gt;</span> <span class="n">pure</span><span class="o">(</span><span class="n">r</span><span class="o">)</span>
   <span class="k">def</span> <span class="n">fresh</span><span class="o">()</span> <span class="k">=</span> <span class="n">inc</span> <span class="n">map</span> <span class="o">{</span> <span class="s">"x"</span> <span class="o">+</span> <span class="k">_</span> <span class="o">}</span>
 <span class="o">}</span>
 </code></pre>
@@ -111,8 +110,7 @@ provided by effekt:</p>
 <p>With the ability to generate fresh names, we are now ready to define
 an ANF transformation as a handler for <code class="highlighter-rouge">Transform</code>:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ANF</span><span class="o">(</span><span class="k">implicit</span> <span class="n">sym</span><span class="k">:</span> <span class="kt">SymGen</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Transform</span> <span class="k">with</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">Exp</span>, <span class="kt">Exp</span><span class="o">]</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">unit</span> <span class="k">=</span> <span class="n">r</span> <span class="k">=&gt;</span> <span class="n">pure</span><span class="o">(</span><span class="n">r</span><span class="o">)</span>
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ANF</span><span class="o">(</span><span class="k">implicit</span> <span class="n">sym</span><span class="k">:</span> <span class="kt">SymGen</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Transform</span> <span class="k">with</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">value</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="n">resume</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="o">}</span>
   <span class="k">def</span> <span class="n">computation</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
     <span class="n">x</span> <span class="k">&lt;-</span> <span class="n">sym</span><span class="o">.</span><span class="n">fresh</span><span class="o">()</span>

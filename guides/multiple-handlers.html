@@ -34,12 +34,10 @@ might implement multiple of such signatures. Below, we define a
 simple handler for <code class="highlighter-rouge">Reader</code> and <code class="highlighter-rouge">Writer</code> that uses a list to mediate
 between the two effects.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">rwHandler</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">S</span><span class="o">]</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">R</span><span class="o">]</span> <span class="k">with</span> <span class="nc">Reader</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="k">with</span> <span class="nc">Writer</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="k">with</span> <span class="nc">State</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">rwHandler</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">S</span><span class="o">]</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="k">with</span> <span class="nc">Reader</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="k">with</span> <span class="nc">Writer</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="k">with</span> <span class="nc">State</span> <span class="o">{</span>
 
   <span class="c1">// create a new field
 </span>  <span class="k">val</span> <span class="n">out</span> <span class="k">=</span> <span class="nc">Field</span><span class="o">(</span><span class="nc">List</span><span class="o">.</span><span class="n">empty</span><span class="o">[</span><span class="kt">S</span><span class="o">])</span>
-
-  <span class="k">def</span> <span class="n">unit</span> <span class="k">=</span> <span class="n">r</span> <span class="k">=&gt;</span> <span class="n">pure</span><span class="o">(</span><span class="n">r</span><span class="o">)</span>
 
   <span class="k">def</span> <span class="n">read</span><span class="o">()</span> <span class="k">=</span> <span class="n">out</span><span class="o">.</span><span class="n">value</span> <span class="n">flatMap</span> <span class="o">{</span>
     <span class="k">case</span> <span class="n">s</span> <span class="o">::</span> <span class="n">rest</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
