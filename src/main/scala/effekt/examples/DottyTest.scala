@@ -73,4 +73,34 @@ object DottyTest extends App {
   }
 
   println(run { stateTest }) // List(5, 4)
+
+  trait Out[A] {
+    def out(a: A): Control[Unit]
+  }
+  def out[A](a: A) given (o: Out[A]) = o.out(a)
+
+  class ListWriter[R, A] extends Handler.Stateful[R, List[A]](Nil) with Out[A] {
+    // Oh. Now it would be helpful to have the unit / return clauses again
+    // to return the state when we are done.
+    def out(a: A) = useState { s => resume((), a :: s) }
+  }
+
+  // it is still possible, but feels a bit more akward.
+  def ListWriter[R, A](prog: R using Out[A]): Control[(R, List[A])] = {
+    val writer = new ListWriter[R, A]
+    for {
+      r <- handle(writer) { prog }
+      s <- writer.state.value
+    } yield (r, s)
+  }
+
+  val generator: Unit using Out[Int] = for {
+    _ <- out(1)
+    _ <- out(2)
+    _ <- out(3)
+    _ <- out(4)
+    _ <- out(5)
+  } yield ()
+
+  println { run { ListWriter { generator } } }
 }

@@ -35,8 +35,7 @@ object Handler {
 
   trait Basic[Res] extends Handler[Res]
 
-  trait Stateful[Res, S] extends Handler[Res] with State {
-    val init: S
+  trait Stateful[Res, S](init: S) extends Handler[Res] with State {
     val state = Field(init)
 
     def useState[A](body : S => given (A => S => Control[Res]) => Control[Res]): Control[A] = use { given resume =>
