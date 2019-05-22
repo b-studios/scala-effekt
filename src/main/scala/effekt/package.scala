@@ -27,6 +27,7 @@ package object effekt {
     def _catch: PartialFunction[Throwable, Control[Res]]
   }
 
+
   // Aliases
   // ===
 
@@ -38,10 +39,9 @@ package object effekt {
 
   type CPS[A, E] = given (A => Control[E]) => Control[E]
 
-  final def resume[A, Res](a: A): CPS[A, Res] = given k => k(a)
 
-  final def resume[A, Res, S](a: A, s: S) given (k: ((A, S) => Control[Res])): Control[Res] = k(a, s)
-
+  // Main API
+  // ===
 
   final def pure[A](a: => A): Control[A] = new Trivial(a)
 
@@ -49,25 +49,29 @@ package object effekt {
 
   final def handle[Res](h: Handler[Res])(f: Res using h.type): Control[Res] = h.handle(f)
 
+  final def resume[A, Res](a: A): CPS[A, Res] = given k => k(a)
+
+  final def resume[A, Res, S](a: A, s: S) given (k: ((A, S) => Control[Res])): Control[Res] = k(a, s)
+
 
   // Low Level API
   // ===
 
   // Continuations
   // ===
-  final def handling[Res](f: Res using ContMarker[Res]): Control[Res] = Control.handle(new ContMarker[Res] {})(f)
+  final def handling[Res](f: Res using ContMarker[Res]): Control[Res] = Control.delimitCont(new ContMarker[Res] {})(f)
 
   def use[A, Res](body: CPS[A, Res]) given (p: ContMarker[Res]) = Control.use(p) { body }
 
   // State
   // ===
-  def stateful[S, R](init: S)(body: Stateful[S] => Control[R]): Control[R] = {
-    val state = new Stateful[S] {
-      private var state: S = init
-      def get(): S = state
-      def put(s: S): Unit = state = s
-    }
-
-    Control.stateful(state) { body }
+  // State
+  final def region[R](prog: State => Control[R]): Control[R] = {
+    val s = new State {}
+    Control.delimitState(s) { prog(s) }
   }
+
+  // Catch
+  final def _try[Res](prog: Control[Res])(handler: PartialFunction[Throwable, Control[Res]]): Control[Res] =
+    prog _catch handler
 }
