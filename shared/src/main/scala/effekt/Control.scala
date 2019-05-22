@@ -61,6 +61,9 @@ sealed trait Control[+A] { outer =>
 
   def >>[B](f: Control[B]): Control[B] = andThen(f)
 
+  def _catch[B >: A](handler: PartialFunction[Throwable, Control[B]]): Control[B] =
+    Control.delimitCatch(new CatchMarker[B] { def _catch = handler })(this)
+
   private[effekt] def apply[R](k: MetaCont[A, R]): Result[R]
 }
 
@@ -97,17 +100,24 @@ object Control {
       }
     }
 
-  private[effekt] final def delimitCont[Res](h: ContMarker[Res])(f: Res using h.type): Control[Res] =
+  private[effekt] final def delimitCont[Res](marker: ContMarker[Res])(f: Res using marker.type): Control[Res] =
     new Control[Res] {
       def apply[R2](k: MetaCont[Res, R2]): Result[R2] = {
-        Impure(f(h), HandlerCont[Res, R2](h)(k))
+        Impure(f(marker), HandlerCont[Res, R2](marker)(k))
       }
     }
 
-  private[effekt] final def delimitState[Res](state: State)(f: Control[Res]): Control[Res] =
+  private[effekt] final def delimitState[Res](marker: StateMarker)(f: Control[Res]): Control[Res] =
     new Control[Res] {
       def apply[R2](k: MetaCont[Res, R2]): Result[R2] = {
-        Impure(f, StateCont[Res, R2](state, k))
+        Impure(f, StateCont[Res, R2](marker, k))
+      }
+    }
+
+  private[effekt] final def delimitCatch[Res](marker: CatchMarker[Res])(f: Control[Res]): Control[Res] =
+    new Control[Res] {
+      def apply[R2](k: MetaCont[Res, R2]): Result[R2] = {
+        Impure(f, CatchCont[Res, R2](marker, k))
       }
     }
 }

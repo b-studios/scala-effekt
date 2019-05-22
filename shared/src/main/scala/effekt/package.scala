@@ -13,6 +13,10 @@ package object effekt {
     def restore(value: StateRep): Unit
   }
 
+  trait CatchMarker[Res] {
+    def _catch: PartialFunction[Throwable, Control[Res]]
+  }
+
   type using[+A, -E] = E => Control[A]
 
   type CPS[+A, E] = (A => Control[E]) => Control[E]
@@ -26,7 +30,7 @@ package object effekt {
 
   // Lowlevel API
 
-  // Prompts
+  // Continuations
   final def handling[Res](f: Res using ContMarker[Res]): Control[Res] = Control.delimitCont(new ContMarker[Res] {})(f)
 
   final def use[A, Res](body: CPS[A, Res])(implicit p: ContMarker[Res]) = Control.use(p) { body }
@@ -36,4 +40,8 @@ package object effekt {
     val s = new State {}
     Control.delimitState(s) { prog(s) }
   }
+
+  // Catch
+  final def _try[Res](prog: Control[Res])(handler: PartialFunction[Throwable, Control[Res]]): Control[Res] =
+    prog _catch handler
 }

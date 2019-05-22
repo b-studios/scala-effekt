@@ -21,18 +21,13 @@ trait Handler[R, Res] extends ContMarker[Res] { outer =>
 
   def _catch: PartialFunction[Throwable, Control[Res]] = PartialFunction.empty
 
-  /**
-   * Handlers may perform cleanup actions (similar to finally-clauses).
-   */
-  def _finally: () => Unit = Handler.noCleanup
-
   def handle(prog: R using this.type): Control[Res] = this match {
     // If the handler is stateful, also install a state frame.
     case self : State =>
       Control.delimitState(self) {
-        Control.delimitCont(this) { _ =>
-          prog(this) flatMap unit
-        }
+          Control.delimitCont(this) { _ =>
+            prog(this) flatMap unit
+          }
       }
     case _ =>
       Control.delimitCont(this) { h => prog(this) flatMap unit }
@@ -41,8 +36,6 @@ trait Handler[R, Res] extends ContMarker[Res] { outer =>
   def apply(prog: R using this.type): Control[Res] = handle(prog)
 }
 object Handler {
-
-  trait Basic[R0, Res0] extends Handler[R0, Res0]
 
   trait Stateful[R, Res, S] extends Handler[R, Res] with State {
     val init: S
@@ -54,8 +47,6 @@ object Handler {
       } yield res
     }
   }
-
-  val noCleanup = () => ()
 }
 
 // for an effect safe version, see
