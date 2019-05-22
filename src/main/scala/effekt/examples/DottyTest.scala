@@ -87,12 +87,50 @@ object DottyTest extends App {
 
   // it is still possible, but feels a bit more akward.
   def ListWriter[R, A](prog: R using Out[A]): Control[(R, List[A])] = {
-    val writer = new ListWriter[R, A]
-    for {
-      r <- handle(writer) { prog }
+    val writer = new ListWriter[(R, List[A]), A]
+    handle(writer) { for {
+      r <- prog
       s <- writer.state.value
-    } yield (r, s)
+    } yield (r, s) }
   }
+
+  // another, equally akward way of obtaining the final state.
+  // However, this one show cases how to define a handler that depends on
+  // another effect.
+  class ListWriter2[R, A] given State extends Handler[R] with Out[A] {
+    private val state = Field(List.empty[A])
+    def results: Control[List[A]] = state.value
+    def out(a: A) = state update { a :: _ }
+  }
+  def ListWriter2[R, A](prog: R using Out[A]): Control[(R, List[A])] = region {
+    handle(new ListWriter2[(R, List[A]), A]) { given W => for {
+      r <- prog
+      s <- W.results
+    } yield (r, s) }
+  }
+
+  // Using the "low level" API
+  def ListWriter3[R, A](prog: R using Out[A]): Control[(R, List[A])] =
+    region {
+      val state = Field(List.empty[A])
+      for {
+        r <- handling[R] {
+          prog given { a => use { state update { a :: _ } andThen { resume[Unit, R](()) } } }
+        }
+        s <- state.value
+      } yield (r, s)
+    }
+
+  // Since it is tail-resumptive, we can drop the handler
+  def ListWriter4[R, A](prog: R using Out[A]): Control[(R, List[A])] =
+    region {
+      val buffer = Field(List.empty[A])
+      for {
+        r <- prog given { a => buffer update { a :: _ } }
+        s <- buffer.value
+      } yield (r, s)
+    }
+
 
   val generator: Unit using Out[Int] = for {
     _ <- out(1)
@@ -102,5 +140,5 @@ object DottyTest extends App {
     _ <- out(5)
   } yield ()
 
-  println { run { ListWriter { generator } } }
+  println { run { ListWriter4 { generator } } }
 }
