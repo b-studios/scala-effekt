@@ -4,16 +4,17 @@ package effekt
  * Baseclass for effect handlers
   *
  * Handlers can be stateful, that is, they can carry state across
- * several handled operations. To do so, handlers need to
- * instantiate the abstract type member `State` to the desired type
- * of state or `Unit` if unused. Alternatively, the helper traits
- * [[Handler.Basic]] or [[Handler.Stateful]] can be used.
+ * several handled operations. To do so, the helper trait
+ * [[Handler.Stateful]] can be used.
  *
  * @see An example of an effect signature and the corresponding
  *      handler implementation can be found in the
  *      [[http://b-studios.de/scala-effekt/guides/getting-started.html getting started guide]].
  */
 trait Handler[R, Res] extends ContMarker[Res] { outer =>
+
+  // TODO think about making handlers also instance of `CatchMarker` to allow
+  //      catch clauses to refer to handler state and methods.
 
   def unit: R => Control[Res]
 
