@@ -44,41 +44,31 @@ we use to mark elements of our language as either <code class="highlighter-rouge
 <code class="highlighter-rouge">computation</code>s:</p>
 
 <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">import</span> <span class="nn">effekt._</span>
-<span class="k">trait</span> <span class="nc">Transform</span> <span class="k">extends</span> <span class="nc">Eff</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">value</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span><span class="k">:</span> <span class="kt">Op</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span>
-  <span class="k">def</span> <span class="n">computation</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span><span class="k">:</span> <span class="kt">Op</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span>
+<span class="k">trait</span> <span class="nc">Transform</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">value</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span>
+  <span class="k">def</span> <span class="n">computation</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-scala boilerplate highlighter-rouge"><pre class="highlight"><code><span class="k">object</span> <span class="nc">Transform</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">value</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">c</span><span class="k">:</span> <span class="kt">Use</span><span class="o">[</span><span class="kt">Transform</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="k">=</span>
-    <span class="n">use</span><span class="o">(</span><span class="n">c</span><span class="o">)</span> <span class="o">{</span> <span class="n">c</span><span class="o">.</span><span class="n">handler</span><span class="o">.</span><span class="n">value</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="o">}</span>
-
-  <span class="k">def</span> <span class="n">computation</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">c</span><span class="k">:</span> <span class="kt">Use</span><span class="o">[</span><span class="kt">Transform</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="k">=</span>
-    <span class="n">use</span><span class="o">(</span><span class="n">c</span><span class="o">)</span> <span class="o">{</span> <span class="n">c</span><span class="o">.</span><span class="n">handler</span><span class="o">.</span><span class="n">computation</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="o">}</span>
-<span class="o">}</span>
-<span class="k">import</span> <span class="nn">Transform._</span>
 </code></pre>
 </div>
 
 <p>We also define a recursive traversal function that uses <code class="highlighter-rouge">Transform</code>
 to visit each node in our tree:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">visit</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">h</span><span class="k">:</span> <span class="kt">Use</span><span class="o">[</span><span class="kt">Transform</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="k">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">visit</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">t</span><span class="k">:</span> <span class="kt">Transform</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="k">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
 
-    <span class="k">case</span> <span class="n">v</span> <span class="k">:</span> <span class="kt">Var</span> <span class="o">=&gt;</span> <span class="n">value</span><span class="o">(</span><span class="n">v</span><span class="o">)</span>
-    <span class="k">case</span> <span class="n">l</span> <span class="k">:</span> <span class="kt">Lit</span> <span class="o">=&gt;</span> <span class="n">value</span><span class="o">(</span><span class="n">l</span><span class="o">)</span>
+    <span class="k">case</span> <span class="n">v</span> <span class="k">:</span> <span class="kt">Var</span> <span class="o">=&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">value</span><span class="o">(</span><span class="n">v</span><span class="o">)</span>
+    <span class="k">case</span> <span class="n">l</span> <span class="k">:</span> <span class="kt">Lit</span> <span class="o">=&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">value</span><span class="o">(</span><span class="n">l</span><span class="o">)</span>
 
     <span class="k">case</span> <span class="nc">Let</span><span class="o">(</span><span class="n">name</span><span class="o">,</span> <span class="n">v</span><span class="o">,</span> <span class="n">b</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
       <span class="n">vv</span> <span class="k">&lt;-</span> <span class="n">visit</span><span class="o">(</span><span class="n">v</span><span class="o">)</span>
       <span class="n">bv</span> <span class="k">&lt;-</span> <span class="n">visit</span><span class="o">(</span><span class="n">b</span><span class="o">)</span>
-      <span class="n">e</span>  <span class="k">&lt;-</span> <span class="n">value</span><span class="o">(</span><span class="nc">Let</span><span class="o">(</span><span class="n">name</span><span class="o">,</span> <span class="n">vv</span><span class="o">,</span> <span class="n">bv</span><span class="o">))(</span><span class="n">h</span><span class="o">)</span>
+      <span class="n">e</span>  <span class="k">&lt;-</span> <span class="n">t</span><span class="o">.</span><span class="n">value</span><span class="o">(</span><span class="nc">Let</span><span class="o">(</span><span class="n">name</span><span class="o">,</span> <span class="n">vv</span><span class="o">,</span> <span class="n">bv</span><span class="o">))</span>
     <span class="o">}</span> <span class="k">yield</span> <span class="n">e</span>
 
     <span class="k">case</span> <span class="nc">Sub</span><span class="o">(</span><span class="n">l</span><span class="o">,</span> <span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
       <span class="n">lv</span>  <span class="k">&lt;-</span> <span class="n">visit</span><span class="o">(</span><span class="n">l</span><span class="o">)</span>
       <span class="n">rv</span>  <span class="k">&lt;-</span> <span class="n">visit</span><span class="o">(</span><span class="n">r</span><span class="o">)</span>
-      <span class="n">e</span> <span class="k">&lt;-</span> <span class="n">computation</span><span class="o">(</span><span class="nc">Sub</span><span class="o">(</span><span class="n">lv</span><span class="o">,</span> <span class="n">rv</span><span class="o">))(</span><span class="n">h</span><span class="o">)</span>
+      <span class="n">e</span> <span class="k">&lt;-</span> <span class="n">t</span><span class="o">.</span><span class="n">computation</span><span class="o">(</span><span class="nc">Sub</span><span class="o">(</span><span class="n">lv</span><span class="o">,</span> <span class="n">rv</span><span class="o">))</span>
     <span class="o">}</span> <span class="k">yield</span> <span class="n">e</span>
 <span class="o">}</span>
 </code></pre>
@@ -95,30 +85,25 @@ such as <code class="highlighter-rouge">x1</code>, <code class="highlighter-roug
 can be seen as an effect, so we define another effect signature for
 <code class="highlighter-rouge">SymGen</code>:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">SymGen</span> <span class="k">extends</span> <span class="nc">Eff</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">fresh</span><span class="o">()</span><span class="k">:</span> <span class="kt">Op</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span>
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">SymGen</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">fresh</span><span class="o">()</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-scala boilerplate highlighter-rouge"><pre class="highlight"><code><span class="k">object</span> <span class="nc">SymGen</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">fresh</span><span class="o">()(</span><span class="k">implicit</span> <span class="n">c</span><span class="k">:</span> <span class="kt">Use</span><span class="o">[</span><span class="kt">SymGen</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span>
-    <span class="n">use</span><span class="o">(</span><span class="n">c</span><span class="o">)</span> <span class="o">{</span> <span class="n">c</span><span class="o">.</span><span class="n">handler</span><span class="o">.</span><span class="n">fresh</span><span class="o">()</span> <span class="o">}</span>
-<span class="o">}</span>
-<span class="k">import</span> <span class="nn">SymGen._</span>
 </code></pre>
 </div>
 
 <p>A handler for <code class="highlighter-rouge">fresh</code> can be implemented using stateful-handlers, as
 provided by effekt:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">SymState</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="nc">extends</span> <span class="nc">SymGen</span> <span class="k">with</span> <span class="nc">Handler</span><span class="o">.</span><span class="nc">Stateful</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">R</span>, <span class="kt">Int</span><span class="o">]</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">unit</span> <span class="k">=</span> <span class="n">identity</span>
-  <span class="k">def</span> <span class="n">fresh</span><span class="o">()</span> <span class="k">=</span> <span class="n">state</span> <span class="k">=&gt;</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="n">resume</span><span class="o">(</span><span class="s">"x"</span> <span class="o">+</span> <span class="n">state</span><span class="o">)(</span><span class="n">state</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span>
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">SymState</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="nc">extends</span> <span class="nc">SymGen</span> <span class="k">with</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">R</span><span class="o">]</span> <span class="k">with</span> <span class="nc">State</span> <span class="o">{</span>
+  <span class="k">val</span> <span class="n">count</span> <span class="k">=</span> <span class="nc">Field</span><span class="o">(</span><span class="mi">0</span><span class="o">)</span>
+  <span class="k">private</span> <span class="k">def</span> <span class="n">inc</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+    <span class="n">x</span> <span class="k">&lt;-</span> <span class="n">count</span><span class="o">.</span><span class="n">value</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">count</span><span class="o">.</span><span class="n">value</span> <span class="k">=</span> <span class="n">x</span> <span class="o">+</span> <span class="mi">1</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="n">x</span>
+
+  <span class="k">def</span> <span class="n">unit</span> <span class="k">=</span> <span class="n">r</span> <span class="k">=&gt;</span> <span class="n">pure</span><span class="o">(</span><span class="n">r</span><span class="o">)</span>
+  <span class="k">def</span> <span class="n">fresh</span><span class="o">()</span> <span class="k">=</span> <span class="n">inc</span> <span class="n">map</span> <span class="o">{</span> <span class="s">"x"</span> <span class="o">+</span> <span class="k">_</span> <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-scala boilerplate highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="nc">SymState</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="n">init</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)(</span><span class="n">b</span><span class="k">:</span> <span class="kt">Use</span><span class="o">[</span><span class="kt">SymGen</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="nc">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="k">=</span>
-    <span class="o">(</span><span class="k">new</span> <span class="nc">SymState</span><span class="o">).</span><span class="n">apply</span><span class="o">(</span><span class="n">init</span><span class="o">)(</span><span class="n">b</span><span class="o">)</span>
 </code></pre>
 </div>
 
@@ -126,18 +111,16 @@ provided by effekt:</p>
 <p>With the ability to generate fresh names, we are now ready to define
 an ANF transformation as a handler for <code class="highlighter-rouge">Transform</code>:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ANF</span><span class="o">(</span><span class="k">implicit</span> <span class="n">symGen</span><span class="k">:</span> <span class="kt">Use</span><span class="o">[</span><span class="kt">SymGen</span><span class="o">])</span> <span class="k">extends</span> <span class="nc">Transform</span> <span class="k">with</span> <span class="nc">Handler</span><span class="o">.</span><span class="nc">Basic</span><span class="o">[</span><span class="kt">Exp</span>, <span class="kt">Exp</span><span class="o">]</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">unit</span> <span class="k">=</span> <span class="n">identity</span>
-  <span class="k">def</span> <span class="n">value</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">=</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="n">resume</span><span class="o">(</span><span class="n">e</span><span class="o">)(())</span>
-  <span class="k">def</span> <span class="n">computation</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">=</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
-    <span class="n">x</span> <span class="k">&lt;-</span> <span class="n">fresh</span><span class="o">()</span>
-    <span class="n">body</span> <span class="k">&lt;-</span> <span class="n">resume</span><span class="o">(</span><span class="nc">Var</span><span class="o">(</span><span class="n">x</span><span class="o">))(())</span>
-  <span class="o">}</span> <span class="k">yield</span> <span class="nc">Let</span><span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">e</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span>
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ANF</span><span class="o">(</span><span class="k">implicit</span> <span class="n">sym</span><span class="k">:</span> <span class="kt">SymGen</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Transform</span> <span class="k">with</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">Exp</span>, <span class="kt">Exp</span><span class="o">]</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">unit</span> <span class="k">=</span> <span class="n">r</span> <span class="k">=&gt;</span> <span class="n">pure</span><span class="o">(</span><span class="n">r</span><span class="o">)</span>
+  <span class="k">def</span> <span class="n">value</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="n">resume</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="o">}</span>
+  <span class="k">def</span> <span class="n">computation</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
+    <span class="n">x</span> <span class="k">&lt;-</span> <span class="n">sym</span><span class="o">.</span><span class="n">fresh</span><span class="o">()</span>
+    <span class="n">body</span> <span class="k">&lt;-</span> <span class="n">resume</span><span class="o">(</span><span class="nc">Var</span><span class="o">(</span><span class="n">x</span><span class="o">))</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="nc">Let</span><span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">e</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span> <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-scala boilerplate highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="nc">ANF</span><span class="o">(</span><span class="n">b</span><span class="k">:</span> <span class="kt">Use</span><span class="o">[</span><span class="kt">Transform</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="nc">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">c</span><span class="k">:</span> <span class="kt">Use</span><span class="o">[</span><span class="kt">SymGen</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="k">=</span>
-    <span class="o">(</span><span class="k">new</span> <span class="nc">ANF</span><span class="o">).</span><span class="n">apply</span><span class="o">(</span><span class="n">b</span><span class="o">)</span>
+<span class="k">def</span> <span class="nc">ANF</span><span class="o">(</span><span class="n">prog</span><span class="k">:</span> <span class="kt">Transform</span> <span class="o">=&gt;</span> <span class="nc">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">sym</span><span class="k">:</span> <span class="kt">SymGen</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="k">=</span>
+    <span class="o">(</span><span class="k">new</span> <span class="nc">ANF</span><span class="o">).</span><span class="n">apply</span><span class="o">(</span><span class="n">prog</span><span class="o">)</span>
 </code></pre>
 </div>
 
@@ -153,15 +136,15 @@ the ANF handler is used.</p>
 <p>Finally the anf-transformation can be defined in terms of the <code class="highlighter-rouge">SymState</code> handler and
 the <code class="highlighter-rouge">ANF</code> handler:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">anfTransform</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="k">=</span> <span class="nc">SymState</span><span class="o">(</span><span class="mi">0</span><span class="o">)</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">sym</span> <span class="k">=&gt;</span>
-  <span class="nc">ANF</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">anf</span> <span class="k">=&gt;</span> <span class="n">visit</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="o">}</span>
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">anfTransform</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">SymState</span> <span class="n">handle</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">sym</span><span class="k">:</span> <span class="kt">SymGen</span> <span class="o">=&gt;</span>
+  <span class="k">new</span> <span class="nc">ANF</span> <span class="n">handle</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">anf</span><span class="k">:</span> <span class="kt">Transform</span> <span class="o">=&gt;</span> <span class="n">visit</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="o">}</span>
 <span class="o">}</span>
 </code></pre>
 </div>
 
 <p>Calling <code class="highlighter-rouge">anfTransform</code> on our running example, we obtain:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">anfTransform</span><span class="o">(</span><span class="n">ex</span><span class="o">).</span><span class="n">run</span><span class="o">()</span>
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">run</span> <span class="o">{</span> <span class="n">anfTransform</span><span class="o">(</span><span class="n">ex</span><span class="o">)</span> <span class="o">}</span>
 <span class="n">res2</span><span class="k">:</span> <span class="kt">Exp</span> <span class="o">=</span> <span class="nc">Let</span><span class="o">(</span><span class="n">x0</span><span class="o">,</span><span class="nc">Sub</span><span class="o">(</span><span class="nc">Lit</span><span class="o">(</span><span class="mi">3</span><span class="o">),</span><span class="nc">Lit</span><span class="o">(</span><span class="mi">2</span><span class="o">)),</span><span class="nc">Let</span><span class="o">(</span><span class="n">x1</span><span class="o">,</span><span class="nc">Sub</span><span class="o">(</span><span class="nc">Var</span><span class="o">(</span><span class="n">x0</span><span class="o">),</span><span class="nc">Lit</span><span class="o">(</span><span class="mi">4</span><span class="o">)),</span><span class="nc">Let</span><span class="o">(</span><span class="n">x2</span><span class="o">,</span><span class="nc">Sub</span><span class="o">(</span><span class="nc">Lit</span><span class="o">(</span><span class="mi">1</span><span class="o">),</span><span class="nc">Var</span><span class="o">(</span><span class="n">x1</span><span class="o">)),</span><span class="nc">Var</span><span class="o">(</span><span class="n">x2</span><span class="o">))))</span>
 </code></pre>
 </div>

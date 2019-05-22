@@ -26,20 +26,21 @@ result actually perform the side-effects always gives the same results.</p>
       <div class="col-md-7">
 
         <p><strong>Effect signature</strong></p>
-        <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">Twitter</span> <span class="k">extends</span> <span class="nc">Eff</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">userTweets</span><span class="o">(</span><span class="n">userId</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">Op</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Tweet</span><span class="o">]]</span>
+        <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">Twitter</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">userTweets</span><span class="o">(</span><span class="n">userId</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Tweet</span><span class="o">]]</span>
 <span class="o">}</span>
+<span class="k">def</span> <span class="nc">Twitter</span><span class="o">(</span><span class="k">implicit</span> <span class="n">t</span><span class="k">:</span> <span class="kt">Twitter</span><span class="o">)</span> <span class="k">=</span> <span class="n">t</span>
 </code></pre>
         </div>
 
         <p><strong>Effect usage</strong></p>
-        <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">query</span><span class="o">(</span><span class="k">implicit</span> <span class="n">u</span><span class="k">:</span> <span class="kt">Use</span><span class="o">[</span><span class="kt">Twitter</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Tweet</span><span class="o">]]</span> <span class="k">=</span>
+        <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">query</span><span class="o">(</span><span class="n">T</span><span class="k">:</span> <span class="kt">Twitter</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Tweet</span><span class="o">]]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
-    <span class="n">ts1</span> <span class="k">&lt;-</span> <span class="n">userTweets</span><span class="o">(</span><span class="mi">133452</span><span class="o">)</span>
-    <span class="n">ts2</span> <span class="k">&lt;-</span> <span class="n">userTweets</span><span class="o">(</span><span class="mi">111345</span><span class="o">)</span>
+    <span class="n">ts1</span> <span class="k">&lt;-</span> <span class="n">T</span><span class="o">.</span><span class="n">userTweets</span><span class="o">(</span><span class="mi">133452</span><span class="o">)</span>
+    <span class="n">ts2</span> <span class="k">&lt;-</span> <span class="n">T</span><span class="o">.</span><span class="n">userTweets</span><span class="o">(</span><span class="mi">111345</span><span class="o">)</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">ts1</span> <span class="o">++</span> <span class="n">ts2</span>
 
-<span class="k">val</span> <span class="n">result</span> <span class="k">=</span> <span class="n">twitterStub</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">u</span> <span class="k">=&gt;</span> <span class="n">query</span> <span class="o">}</span>
+<span class="k">val</span> <span class="n">result</span> <span class="k">=</span> <span class="n">twitterStub</span> <span class="o">{</span> <span class="n">query</span> <span class="o">}</span>
 </code></pre>
         </div>
       </div>
@@ -51,7 +52,7 @@ result actually perform the side-effects always gives the same results.</p>
 <p>To use <strong>Effekt</strong> (tested with Scala 2.11 and Scala 2.12), include the
 following line to your <code class="highlighter-rouge">build.sbt</code> file:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>libraryDependencies += "de.b-studios" %% "effekt" % "0.3-SNAPSHOT"
+<div class="highlighter-rouge"><pre class="highlight"><code>libraryDependencies += "de.b-studios" %% "effekt" % "0.4-SNAPSHOT"
 </code></pre>
 </div>
 

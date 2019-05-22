@@ -14,24 +14,15 @@ effect signatures for <code class="highlighter-rouge">Reader</code> and <code cl
 
 <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">import</span> <span class="nn">effekt._</span>
 
-<span class="k">trait</span> <span class="nc">Reader</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="nc">extends</span> <span class="nc">Eff</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">read</span><span class="o">()</span><span class="k">:</span> <span class="kt">Op</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span>
+<span class="k">trait</span> <span class="nc">Reader</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">read</span><span class="o">()</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span>
 <span class="o">}</span>
-<span class="k">trait</span> <span class="nc">Writer</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="nc">extends</span> <span class="nc">Eff</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">write</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">S</span><span class="o">)</span><span class="k">:</span> <span class="kt">Op</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
+<span class="k">trait</span> <span class="nc">Writer</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">write</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">S</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
 <span class="o">}</span>
 </code></pre>
 </div>
 
-<div class="language-scala boilerplate highlighter-rouge"><pre class="highlight"><code><span class="k">object</span> <span class="nc">Reader</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">read</span><span class="o">[</span><span class="kt">S</span><span class="o">]()(</span><span class="k">implicit</span> <span class="n">u</span><span class="k">:</span> <span class="kt">Use</span><span class="o">[</span><span class="kt">Reader</span><span class="o">[</span><span class="kt">S</span><span class="o">]])</span> <span class="k">=</span> <span class="n">use</span><span class="o">(</span><span class="n">u</span><span class="o">)</span> <span class="o">{</span> <span class="n">u</span><span class="o">.</span><span class="n">handler</span><span class="o">.</span><span class="n">read</span><span class="o">()</span> <span class="o">}</span>
-<span class="o">}</span>
-<span class="k">object</span> <span class="nc">Writer</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">write</span><span class="o">[</span><span class="kt">S</span><span class="o">](</span><span class="n">s</span><span class="k">:</span> <span class="kt">S</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">u</span><span class="k">:</span> <span class="kt">Use</span><span class="o">[</span><span class="kt">Writer</span><span class="o">[</span><span class="kt">S</span><span class="o">]])</span> <span class="k">=</span> <span class="n">use</span><span class="o">(</span><span class="n">u</span><span class="o">)</span> <span class="o">{</span> <span class="n">u</span><span class="o">.</span><span class="n">handler</span><span class="o">.</span><span class="n">write</span><span class="o">(</span><span class="n">s</span><span class="o">)</span> <span class="o">}</span>
-<span class="o">}</span>
-<span class="k">import</span> <span class="nn">Reader._</span><span class="o">,</span> <span class="nc">Writer</span><span class="o">.</span><span class="k">_</span>
-</code></pre>
-</div>
 <p>(We omit the standard companion object definitions as seen in the
 earlier tutorials.)</p>
 
@@ -43,15 +34,24 @@ might implement multiple of such signatures. Below, we define a
 simple handler for <code class="highlighter-rouge">Reader</code> and <code class="highlighter-rouge">Writer</code> that uses a list to mediate
 between the two effects.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">rwHandler</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">S</span><span class="o">]</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">Reader</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="k">with</span> <span class="nc">Writer</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="k">with</span> <span class="nc">Handler</span><span class="o">.</span><span class="nc">Stateful</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">R</span>, <span class="kt">List</span><span class="o">[</span><span class="kt">S</span><span class="o">]]</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">rwHandler</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">S</span><span class="o">]</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">R</span><span class="o">]</span> <span class="k">with</span> <span class="nc">Reader</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="k">with</span> <span class="nc">Writer</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="k">with</span> <span class="nc">State</span> <span class="o">{</span>
 
-  <span class="k">def</span> <span class="n">unit</span> <span class="k">=</span> <span class="n">a</span> <span class="k">=&gt;</span> <span class="n">a</span>
+  <span class="c1">// create a new field
+</span>  <span class="k">val</span> <span class="n">out</span> <span class="k">=</span> <span class="nc">Field</span><span class="o">(</span><span class="nc">List</span><span class="o">.</span><span class="n">empty</span><span class="o">[</span><span class="kt">S</span><span class="o">])</span>
 
-  <span class="k">def</span> <span class="n">read</span><span class="o">()</span> <span class="k">=</span> <span class="o">{</span>
-    <span class="k">case</span> <span class="n">s</span> <span class="o">::</span> <span class="n">rest</span> <span class="k">=&gt;</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="n">resume</span><span class="o">(</span><span class="n">s</span><span class="o">)(</span><span class="n">rest</span><span class="o">)</span>
+  <span class="k">def</span> <span class="n">unit</span> <span class="k">=</span> <span class="n">r</span> <span class="k">=&gt;</span> <span class="n">pure</span><span class="o">(</span><span class="n">r</span><span class="o">)</span>
+
+  <span class="k">def</span> <span class="n">read</span><span class="o">()</span> <span class="k">=</span> <span class="n">out</span><span class="o">.</span><span class="n">value</span> <span class="n">flatMap</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="n">s</span> <span class="o">::</span> <span class="n">rest</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
+      <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">out</span><span class="o">.</span><span class="n">value</span> <span class="k">=</span> <span class="n">rest</span>
+    <span class="o">}</span> <span class="k">yield</span> <span class="n">s</span>
     <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="n">sys</span> <span class="n">error</span> <span class="s">"Not enough elements written to perform read"</span>
   <span class="o">}</span>
-  <span class="k">def</span> <span class="n">write</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">S</span><span class="o">)</span> <span class="k">=</span> <span class="n">rest</span> <span class="k">=&gt;</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="n">resume</span><span class="o">(())(</span><span class="n">s</span> <span class="o">::</span> <span class="n">rest</span><span class="o">)</span>
+
+  <span class="k">def</span> <span class="n">write</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">S</span><span class="o">)</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+    <span class="n">rest</span> <span class="k">&lt;-</span> <span class="n">out</span><span class="o">.</span><span class="n">value</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">out</span><span class="o">.</span><span class="n">value</span> <span class="k">=</span> <span class="n">s</span> <span class="o">::</span> <span class="n">rest</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
 <span class="o">}</span>
 </code></pre>
 </div>
@@ -60,20 +60,24 @@ between the two effects.</p>
 
 <p>To show the usage of the combined handler, let’s first define a
 simple example program.</p>
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">example</span><span class="o">(</span><span class="k">implicit</span> <span class="n">r</span><span class="k">:</span> <span class="kt">Use</span><span class="o">[</span><span class="kt">Reader</span><span class="o">[</span><span class="kt">Int</span><span class="o">]],</span> <span class="n">w</span><span class="k">:</span> <span class="kt">Use</span><span class="o">[</span><span class="kt">Writer</span><span class="o">[</span><span class="kt">Int</span><span class="o">]])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span>
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">example</span><span class="o">(</span><span class="k">implicit</span> <span class="n">r</span><span class="k">:</span> <span class="kt">Reader</span><span class="o">[</span><span class="kt">Int</span><span class="o">],</span> <span class="n">w</span><span class="k">:</span> <span class="kt">Writer</span><span class="o">[</span><span class="kt">Int</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">write</span><span class="o">(</span><span class="mi">2</span><span class="o">)</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">write</span><span class="o">(</span><span class="mi">3</span><span class="o">)</span>
-    <span class="n">x</span> <span class="k">&lt;-</span> <span class="n">read</span><span class="o">()</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">write</span><span class="o">(</span><span class="n">x</span> <span class="o">*</span> <span class="mi">2</span><span class="o">)</span>
-    <span class="n">y</span> <span class="k">&lt;-</span> <span class="n">read</span><span class="o">()</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">w</span><span class="o">.</span><span class="n">write</span><span class="o">(</span><span class="mi">2</span><span class="o">)</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">w</span><span class="o">.</span><span class="n">write</span><span class="o">(</span><span class="mi">3</span><span class="o">)</span>
+    <span class="n">x</span> <span class="k">&lt;-</span> <span class="n">r</span><span class="o">.</span><span class="n">read</span><span class="o">()</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">w</span><span class="o">.</span><span class="n">write</span><span class="o">(</span><span class="n">x</span> <span class="o">*</span> <span class="mi">2</span><span class="o">)</span>
+    <span class="n">y</span> <span class="k">&lt;-</span> <span class="n">r</span><span class="o">.</span><span class="n">read</span><span class="o">()</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">y</span>
 </code></pre>
 </div>
 
 <p>Handling the example with our combined handler, we get:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">rwHandler</span><span class="o">(</span><span class="nc">Nil</span><span class="o">)</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">rw</span> <span class="k">=&gt;</span> <span class="n">example</span> <span class="o">}.</span><span class="n">run</span><span class="o">()</span>
+<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">run</span> <span class="o">{</span>
+     <span class="o">|</span>   <span class="n">rwHandler</span> <span class="n">handle</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">rw</span><span class="k">:</span> <span class="kt">Reader</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">with</span> <span class="nc">Writer</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=&gt;</span>
+     <span class="o">|</span>     <span class="n">example</span>
+     <span class="o">|</span>   <span class="o">}</span>
+     <span class="o">|</span> <span class="o">}</span>
 <span class="n">res1</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="mi">6</span>
 </code></pre>
 </div>
