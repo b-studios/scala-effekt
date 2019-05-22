@@ -6,7 +6,7 @@ sealed trait MetaCont[-A, +B] extends Serializable {
 
   def append[C](s: MetaCont[B, C]): MetaCont[A, C]
 
-  def splitAt[Res](c: Prompt[Res]): (MetaCont[A, Res], MetaCont[Res, B])
+  def splitAt[Res](c: ContMarker[Res]): (MetaCont[A, Res], MetaCont[Res, B])
 
   def map[C](f: C => A): MetaCont[C, B] = flatMap(x => pure(f(x)))
 
@@ -21,7 +21,7 @@ case class ReturnCont[A]() extends MetaCont[A, A] {
 
   final def append[B](s: MetaCont[A, B]): MetaCont[A, B] = s
 
-  final def splitAt[Res](c: Prompt[Res]) = sys error s"Prompt $c not found on the stack."
+  final def splitAt[Res](c: ContMarker[Res]) = sys error s"Prompt $c not found on the stack."
 
   override def toString = "[]"
 }
@@ -41,7 +41,7 @@ case class FramesCont[-A, B, +C](frames: List[Frame[Nothing, Any]], tail: MetaCo
 
   final def append[D](s: MetaCont[C, D]): MetaCont[A, D] = FramesCont(frames, tail append s)
 
-  final def splitAt[Res](c: Prompt[Res]) = tail.splitAt(c) match {
+  final def splitAt[Res](c: ContMarker[Res]) = tail.splitAt(c) match {
     case (head, tail) => (FramesCont(frames, head), tail)
   }
 
@@ -51,12 +51,12 @@ case class FramesCont[-A, B, +C](frames: List[Frame[Nothing, Any]], tail: MetaCo
 }
 
 private[effekt]
-case class HandlerCont[Res, +A](h: Prompt[Res])(tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+case class HandlerCont[Res, +A](h: ContMarker[Res])(tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
   final def apply(r: Res): Result[A] = tail(r)
 
   final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = HandlerCont(h)(tail append s)
 
-  final def splitAt[Res2](c: Prompt[Res2]) = c match {
+  final def splitAt[Res2](c: ContMarker[Res2]) = c match {
     // Here we deduce type equality from referential equality
     case _: h.type => (HandlerCont(h)(ReturnCont()), tail)
     case _ => tail.splitAt(c) match {
@@ -68,25 +68,21 @@ case class HandlerCont[Res, +A](h: Prompt[Res])(tail: MetaCont[Res, A]) extends 
 }
 
 private[effekt]
-case class StateCont[Res, +A](p: State, tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+case class StateCont[Res, +A](p: StateMarker, tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
   final def apply(r: Res): Result[A] = tail(r)
 
   final def append[C](k: MetaCont[A, C]): MetaCont[Res, C] = StateCont(p, tail append k)
 
-  final def splitAt[Res2](c: Prompt[Res2]) = tail.splitAt(c) match {
+  final def splitAt[Res2](c: ContMarker[Res2]) = tail.splitAt(c) match {
     case (head, tail) => (StateContCaptured(p, p.backup, head), tail)
   }
 }
 
 private[effekt]
-case class StateContCaptured[Res, S, +A](p: State { type StateRep = S }, state: S, tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
-  final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = {
-    // don't know why this cast is necessary
-    p restore state.asInstanceOf[Map[p.Field[_], Any]]
-    StateCont(p, tail append s)
-  }
+case class StateContCaptured[Res, S, +A](p: StateMarker { type StateRep = S }, state: S, tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+  final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = StateCont({ p restore state ; p }, tail append s)
 
   // these should not be called.
   final def apply(r: Res): Result[A] = ???
-  final def splitAt[Res2](c: Prompt[Res2]) = ???
+  final def splitAt[Res2](c: ContMarker[Res2]) = ???
 }

@@ -109,7 +109,7 @@ class SymState[R] extends SymGen with Handler[R, R] with State {
   } yield x
 
   def unit = r => pure(r)
-  def fresh() = use { resume => inc flatMap { n => resume("x" + n) } }
+  def fresh() = inc map { "x" + _ }
 }
 ```
 

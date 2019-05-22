@@ -79,7 +79,7 @@ final class Trivial[+A](a: => A) extends Control[A] {
 
 object Control {
 
-  private[effekt] final def use[A, Res](c: Prompt[Res])(f: CPS[A, Res]): Control[A] =
+  private[effekt] final def use[A, Res](c: ContMarker[Res])(f: CPS[A, Res]): Control[A] =
     new Control[A] {
       def apply[R](k: MetaCont[A, R]): Result[R] = {
 
@@ -97,7 +97,7 @@ object Control {
       }
     }
 
-  private[effekt] final def delimitCont[Res](h: Prompt[Res])(f: Res using h.type): Control[Res] =
+  private[effekt] final def delimitCont[Res](h: ContMarker[Res])(f: Res using h.type): Control[Res] =
     new Control[Res] {
       def apply[R2](k: MetaCont[Res, R2]): Result[R2] = {
         Impure(f(h), HandlerCont[Res, R2](h)(k))

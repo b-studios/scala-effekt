@@ -13,7 +13,7 @@ package effekt
  *      handler implementation can be found in the
  *      [[http://b-studios.de/scala-effekt/guides/getting-started.html getting started guide]].
  */
-trait Handler[R, Res] extends Prompt[Res] { outer =>
+trait Handler[R, Res] extends ContMarker[Res] { outer =>
 
   def unit: R => Control[Res]
 
@@ -60,7 +60,15 @@ object Handler {
 
 // for an effect safe version, see
 //     https://github.com/b-studios/scala-effekt/blob/dotty-typed/src/main/scala/effekt/package.scala#L50-L85
-trait State { state =>
+//
+// All field access and updates are "pure" in the sense of control-effects.
+// They were originally wrapped in Control to track the state in the effect row.
+// They are still wrapped in Control to make the API more uniform
+trait State extends StateMarker {
+
+  type StateRep = Map[Field[_], Any]
+  def backup: StateRep = data
+  def restore(value: StateRep): Unit = data = value
 
   def Field[T](value: T): Field[T] = {
     val field = new Field[T]()
@@ -68,14 +76,11 @@ trait State { state =>
     field
   }
 
-  private[effekt] type StateRep = Map[Field[_], Any]
-  private[effekt] var data = Map.empty[Field[_], Any]
-  private[effekt] def backup: StateRep = data
-  private[effekt] def restore(value: StateRep): Unit = data = value
+  private var data = Map.empty[Field[_], Any]
 
   // all the field data is stored in `data`
   class Field[T] private[State] () {
-    def value: Control[T] = pure(data(this).asInstanceOf[T])
+    def value: Control[T] = pure { data(this).asInstanceOf[T] }
     def value_=(value: T): Control[Unit] = pure {
       data = data.updated(this, value)
     }
