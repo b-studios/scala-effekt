@@ -42,7 +42,7 @@ implicit function types are available:
 
 ```
 type using[A, E <: Eff] = implicit Use[E] => Control[A]
-def prog: Int using Amb = flip() map { x => if (x) 2 else 3 }
+def prog: Int using Amb = Amb.flip() map { x => if (x) 2 else 3 }
 ```
 
 Pretty neat, isn't it?
@@ -56,8 +56,7 @@ the operation's continuation delimited by the handler itself:
 
 ```
 object ambList extends Amb {
-  def flip[R]() = _ => resume => resume(true)
-  ...
+  def flip[R]() = use { resume => resume(true) }
 }
 ```
 The continuation may be called zero to arbitrary many times. To
