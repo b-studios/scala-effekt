@@ -34,7 +34,7 @@ handler implementations to the use-site (<code class="highlighter-rouge">flip</c
 implicit function types are available:</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>type using[A, E &lt;: Eff] = implicit Use[E] =&gt; Control[A]
-def prog: Int using Amb = flip() map { x =&gt; if (x) 2 else 3 }
+def prog: Int using Amb = Amb.flip() map { x =&gt; if (x) 2 else 3 }
 </code></pre>
 </div>
 
@@ -48,8 +48,7 @@ you to play around with dotty and <strong>effekt</strong>.</p>
 the operation’s continuation delimited by the handler itself:</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>object ambList extends Amb {
-  def flip[R]() = _ =&gt; resume =&gt; resume(true)
-  ...
+  def flip[R]() = use { resume =&gt; resume(true) }
 }
 </code></pre>
 </div>
