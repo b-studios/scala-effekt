@@ -11,7 +11,7 @@ To use **Effekt** (with Dotty), include the
 following line to your `build.sbt` file (also see https://github.com/lampepfl/dotty-example-project to set up a Dotty project):
 
 ```
-libraryDependencies += "de.b-studios" % "effekt_0.2" % "0.1-SNAPSHOT"
+libraryDependencies += "de.b-studios" % "effekt_0.2" % "0.4-SNAPSHOT"
 ```
 
 To learn how to use the library, see [Your First Effect](http://b-studios.de/scala-effekt/guides/getting-started.html).

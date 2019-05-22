@@ -1,7 +1,7 @@
 lazy val dottyVersion = dottyLatestNightlyBuild.get
 lazy val commonSettings = Seq(
-  scalaVersion := dottyVersion,
-  version := "0.3-SNAPSHOT",
+  scalaVersion := "0.15.0-bin-20190521-3bcaf1d-NIGHTLY",
+  version := "0.4-SNAPSHOT",
   organization := "de.b-studios",
   scalacOptions ++= Seq(
     "-deprecation",
