@@ -1,17 +1,16 @@
 package effekt
 
-trait Handler[R, Res] extends ContMarker[Res] { h =>
-  def unit: R => Control[Res]
+trait Handler[Res] extends ContMarker[Res] { h =>
 
   def use[A](body: CPS[A, Res]): Control[A] = Control.use(this) { body }
 
-  def handle(f: R using this.type): Control[Res] =
-    Control.handle(this) { (f given this) flatMap unit }
+  def handle(f: Res using this.type): Control[Res] =
+    Control.handle(this) { f }
 
-  def apply(f: R using this.type): Control[Res] = handle(f)
+  def apply(f: Res using this.type): Control[Res] = handle(f)
 }
 
-trait StatefulHandler[R, Res, S] extends Handler[R, Res] with Stateful[S] {
+trait StatefulHandler[Res, S] extends Handler[Res] with Stateful[S] {
 
   // on stateful handlers
   //   use(k -> ... k.resume(a) ...) should be equivalent to
@@ -28,19 +27,19 @@ trait StatefulHandler[R, Res, S] extends Handler[R, Res] with Stateful[S] {
     }))(before)}
   }
 
-  def handle(init: S)(f: R using this.type): Control[Res] = {
+  def handle(init: S)(f: Res using this.type): Control[Res] = {
     put(init)
     Control.stateful(this) { _ =>
-      Control.handle(this) { (f given this) flatMap unit }
+      Control.handle(this) {  f }
     }
   }
 }
 
 object Handler {
 
-  trait Basic[R, Res] extends Handler[R, Res]
+  trait Basic[Res] extends Handler[Res]
 
-  trait Stateful[R, Res, S] extends StatefulHandler[R, Res, S]
+  trait Stateful[Res, S] extends StatefulHandler[Res, S]
 }
 
 trait Stateful[S] {

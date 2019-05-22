@@ -38,9 +38,7 @@ object Var {
 
 // Effects
 
-trait Id[R] extends Handler.Basic[R, R] {
-  def unit = a => pure(a)
-}
+trait Id[R] extends Handler.Basic[R]
 
 
 // First effect: The contextual speaker

@@ -23,18 +23,18 @@ object DottyTest extends App {
 
   def raise[A](msg: String): A using Exc = given e => e.raise(msg)
 
-  trait Maybe[R] extends Exc with Handler.Basic[R,  Option[R]] {
-    def unit = r => pure(Some(r))
+  trait Maybe[R] extends Exc with Handler[Option[R]] {
     def raise[A](msg: String) = use { pure(None) }
   }
-  def Maybe[R](f: R using Exc) = handle(new Maybe[R] {})(f)
+  def Maybe[R](prog: R using Exc) = handle(new Maybe[R] {}) {
+    prog map { r => Some(r) }
+  }
 
   trait Amb {
     def flip(): Control[Boolean]
   }
 
-  trait AmbList[R] extends Amb with Handler.Basic[R,  List[R]] {
-    def unit = r => pure(List(r))
+  trait AmbList[R] extends Amb with Handler[List[R]] {
     def flip() = use {
       for { xs <- resume(true); ys <- resume(false) }
         yield xs ++ ys
@@ -42,7 +42,9 @@ object DottyTest extends App {
   }
   def flip(): Boolean using Amb = given a => a.flip()
 
-  def AmbList[R](f: R using Amb) = handle(new AmbList[R] {})(f)
+  def AmbList[R](prog: R using Amb) = handle(new AmbList[R] {}) {
+    prog map { r => List(r) }
+  }
 
   println(run { Maybe { div(0, 4) } })
   println(run { Maybe { div(4, 0) } })
