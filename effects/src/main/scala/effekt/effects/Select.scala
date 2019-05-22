@@ -6,10 +6,7 @@ trait Select[A] {
 }
 object Select {
 
-  class SelectOption[R, A] extends Select[A] with Handler[R, Option[R]] {
-
-    def unit = a => pure(Some(a))
-
+  class SelectOption[R, A] extends Select[A] with Handler[Option[R]] {
     def select(as: List[A]) = use { resume => {
       def tryFirst(as: List[A]): Control[Option[R]] =
         if (as.isEmpty) {
@@ -22,20 +19,21 @@ object Select {
     }}
   }
 
+  def selectOption[R, A](prog: Select[A] => Control[R]): Control[Option[R]] =
+    new SelectOption[R, A] handle { select => prog(select) map { r => Some(r) } }
+
   import cats._
-  def selectAlternative[A, R, F[_]: Alternative] = new Handler[R, F[R]] with Select[A] {
-
-    val altF = Alternative[F]
-
-    def unit = a => pure(altF.pure(a))
-
+  class SelectAlternative[F[_]: Alternative, R, A] extends Handler[F[R]] with Select[A] {
     def select(as: List[A]) = use { resume =>
-      as.map { a => resume(a) }.foldLeft(pure(altF.empty[R])) {
+      as.map { a => resume(a) }.foldLeft(pure(Alternative[F].empty[R])) {
         case (ys1, ys2) => for {
           y1 <- ys1
           y2 <- ys2
-        } yield altF.combineK(y1, y2)
+        } yield Alternative[F].combineK(y1, y2)
       }
     }
   }
+
+  def selectAlternative[A, R, F[_]: Alternative](prog: Select[A] => Control[R]): Control[F[R]] =
+    new SelectAlternative[F, R, A] handle { select => prog(select) map { Alternative[F].pure } }
 }

@@ -41,12 +41,10 @@ simple handler for `Reader` and `Writer` that uses a list to mediate
 between the two effects.
 
 ```tut:book:silent
-def rwHandler[R, S] = new Handler[R, R] with Reader[S] with Writer[S] with State {
+def rwHandler[R, S] = new Handler[R] with Reader[S] with Writer[S] with State {
 
   // create a new field
   val out = Field(List.empty[S])
-
-  def unit = r => pure(r)
 
   def read() = out.value flatMap {
     case s :: rest => for {

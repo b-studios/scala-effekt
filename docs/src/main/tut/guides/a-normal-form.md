@@ -101,14 +101,13 @@ A handler for `fresh` can be implemented using stateful-handlers, as
 provided by effekt:
 
 ```tut:book:silent
-class SymState[R] extends SymGen with Handler[R, R] with State {
+class SymState[R] extends SymGen with Handler[R] with State {
   val count = Field(0)
   private def inc = for {
     x <- count.value
     _ <- count.value = x + 1
   } yield x
 
-  def unit = r => pure(r)
   def fresh() = inc map { "x" + _ }
 }
 ```
@@ -118,8 +117,7 @@ With the ability to generate fresh names, we are now ready to define
 an ANF transformation as a handler for `Transform`:
 
 ```tut:book:silent
-class ANF(implicit sym: SymGen) extends Transform with Handler[Exp, Exp] {
-  def unit = r => pure(r)
+class ANF(implicit sym: SymGen) extends Transform with Handler[Exp] {
   def value(e: Exp) = use { resume => resume(e) }
   def computation(e: Exp) = use { resume => for {
     x <- sym.fresh()

@@ -25,7 +25,7 @@ package object effekt {
 
   final def run[A](c: Control[A]): A = c.run()
 
-  final def handle[R, Res](h: Handler[R, Res])(f: R using h.type): Control[Res] = h.handle(f)
+  final def handle[Res](h: Handler[Res])(f: Res using h.type): Control[Res] = h.handle(f)
 
 
   // Lowlevel API

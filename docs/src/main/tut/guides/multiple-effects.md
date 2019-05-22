@@ -25,15 +25,14 @@ trait Amb {
 ```
 
 ```tut:book:silent:decorate(.boilerplate)
-def ambList[R] = new Handler[R, List[R]] with Amb {
-  def unit = a => pure(List(a))
-
-  def flip() = use { resume => for {
-      ts <- resume(true)
-      fs <- resume(false)
-    } yield ts ++ fs
-  }
-}
+def ambList[R](prog: Amb => Control[R]): Control[List[R]] =
+  new Handler[List[R]] with Amb {
+    def flip() = use { resume => for {
+       ts <- resume(true)
+        fs <- resume(false)
+      } yield ts ++ fs
+    }
+  } handle { amb => prog(amb) map { r => List(r) } }
 ```
 We also defined a handler for the ambiguity effect as an implementation
 of the `Amb` trait, called `ambList`. To see how to combine two
@@ -52,12 +51,11 @@ the current value around through the whole program.
 
 
 ```tut:book:silent
-def state[R, S](init: S)(prog: State[S] => Control[R]) =
-  new Handler[R, S => Control[R]] with State[S] {
-    def unit = a => pure(s => pure(a))
-    def put(s: S) = use { resume => pure { state => resume(()) flatMap { _ apply s } } }
-    def get()     = use { resume => pure { state => resume(state) flatMap { _ apply state } } }
-  } apply prog flatMap { _ apply init }
+def state[R, S](init: S)(prog: State[S] => Control[R]): Control[R] =
+  new Handler[S => Control[R]] with State[S] {
+    def put(s: S) = use { resume => pure { s2 => resume(()) flatMap { _ apply s } } }
+    def get()     = use { resume => pure { s2 => resume(s2) flatMap { _ apply s2 } } }
+  } handle { state => prog(state) map { r => s => pure(r) } } flatMap { _ apply init }
 ```
 
 ## Using `Amb` and `State` in one example

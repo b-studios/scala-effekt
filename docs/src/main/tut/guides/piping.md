@@ -65,9 +65,7 @@ processes as handlers and use the state of the handler to store the
 opposite end:
 
 ```tut:book:silent
-class Process[R, P[_]](val init: P[Control[R]]) extends Handler.Stateful[R, R, P[Control[R]]] {
-  def unit = r => pure(r)
-}
+class Process[R, P[_]](val init: P[Control[R]]) extends Handler.Stateful[R, P[Control[R]]]
 ```
 In our case, the type constructor `P[_]` will be one of the following:
 

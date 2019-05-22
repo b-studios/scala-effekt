@@ -11,34 +11,27 @@ package effekt
  *      handler implementation can be found in the
  *      [[http://b-studios.de/scala-effekt/guides/getting-started.html getting started guide]].
  */
-trait Handler[R, Res] extends ContMarker[Res] { outer =>
-
-  // TODO think about making handlers also instance of `CatchMarker` to allow
-  //      catch clauses to refer to handler state and methods.
-
-  def unit: R => Control[Res]
+trait Handler[Res] extends ContMarker[Res] { outer =>
 
   def use[A](body: CPS[A, Res]): Control[A] = Control.use(this)(body)
 
-  def _catch: PartialFunction[Throwable, Control[Res]] = PartialFunction.empty
-
-  def handle(prog: R using this.type): Control[Res] = this match {
+  def handle(prog: Res using this.type): Control[Res] = this match {
     // If the handler is stateful, also install a state frame.
     case self : State =>
       Control.delimitState(self) {
-          Control.delimitCont(this) { _ =>
-            prog(this) flatMap unit
-          }
+        Control.delimitCont(this) { _ =>
+          prog(this)
+        }
       }
     case _ =>
-      Control.delimitCont(this) { h => prog(this) flatMap unit }
+      Control.delimitCont(this) { h => prog(this) }
   }
 
-  def apply(prog: R using this.type): Control[Res] = handle(prog)
+  def apply(prog: Res using this.type): Control[Res] = handle(prog)
 }
 object Handler {
 
-  trait Stateful[R, Res, S] extends Handler[R, Res] with State {
+  trait Stateful[Res, S] extends Handler[Res] with State {
     val init: S
     val state = Field(init)
     def useState[A](body : S => (A => S => Control[Res]) => Control[Res]): Control[A] = use { resume =>

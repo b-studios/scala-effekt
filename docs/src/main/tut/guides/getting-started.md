@@ -63,19 +63,21 @@ contained in the `Control` *monad* which is **Effekt** specific.
 ## Defining Handlers
 Let us now define our own handler for the `Amb` effect. A handler is
 just an implementation of the effect interface. However, it also
-needs to give the type to interpret the effect into (`List[R]`) and
-a function `unit` that lifts pure values of type `R` into the effect interpretation.
+needs to give the type to interpret the effect into (`List[R]`).
+Note how we make sure that the result of the handled program is
+a list by mapping `r => List(r)` over it before applying the handler.
+This way we convert the result type from `R` into the semantic
+domain `List[R]`.
 
 ```tut:book:silent
-def ambList[R] = new Handler[R, List[R]] with Amb {
-  def unit = a => pure(List(a))
-
-  def flip() = use { resume => for {
-      ts <- resume(true)
-      fs <- resume(false)
-    } yield ts ++ fs
-  }
-}
+def ambList[R](prog: Amb => Control[R]): Control[List[R]] =
+  new Handler[List[R]] with Amb {
+    def flip() = use { resume => for {
+       ts <- resume(true)
+        fs <- resume(false)
+      } yield ts ++ fs
+    }
+  } handle { amb => prog(amb) map { r => List(r) } }
 ```
 
 Notice how we use the trait `Handler` which provides us with the

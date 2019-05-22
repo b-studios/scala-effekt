@@ -37,11 +37,9 @@ case class Tweet(msg: String)
 trait Twitter {
   def userTweets(userId: Long): Control[List[Tweet]]
 }
-def Twitter(implicit t: Twitter) = t
 ```
 ```tut:invisible
-class TwitterStub[R] extends Twitter with Handler[R, R] {
-  def unit = a => pure(a)
+class TwitterStub[R] extends Twitter with Handler[R] {
   def userTweets(userId: Long): Control[List[Tweet]] = pure(List(Tweet("hi")))
 }
 def twitterStub[R] = new TwitterStub[R]

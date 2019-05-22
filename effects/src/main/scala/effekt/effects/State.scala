@@ -21,9 +21,8 @@ trait State[S] extends Reader[S] with Writer[S] {
 }
 object State {
 
-  def state[R, S](s0: S) = new Handler[R, R] with State[S] with effekt.State {
+  def state[R, S](s0: S) = new Handler[R] with State[S] with effekt.State {
     val cell = Field(s0)
-    def unit = a => pure(a)
     def put(s: S) = use { resume => for {
         _ <- cell.value = s
         r <- resume(())
