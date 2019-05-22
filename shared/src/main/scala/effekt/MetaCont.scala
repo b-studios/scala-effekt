@@ -17,7 +17,7 @@ sealed trait MetaCont[-A, +B] extends Serializable {
 
 private[effekt]
 case class ReturnCont[A]() extends MetaCont[A, A] {
-  final def apply(a: A): Result[A] = Pure(a)
+  final def apply(a: A): Result[A] = Value(a)
 
   final def append[B](s: MetaCont[A, B]): MetaCont[A, B] = s
 
@@ -35,9 +35,9 @@ case class FramesCont[-A, B, +C](frames: List[Frame[Nothing, Any]], tail: MetaCo
     val first :: rest = frames
     val result = first.asInstanceOf[Frame[A, B]](a)
     if (rest.isEmpty) {
-      Impure(result, tail)
+      Computation(result, tail)
     } else {
-      Impure(result, FramesCont(rest, tail))
+      Computation(result, FramesCont(rest, tail))
     }
   }
 

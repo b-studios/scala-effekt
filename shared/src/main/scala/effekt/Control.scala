@@ -61,6 +61,13 @@ sealed trait Control[+A] { outer =>
 
   def >>[B](f: Control[B]): Control[B] = andThen(f)
 
+  def foreach(f: A => Unit): Control[Unit] = map(f)
+
+  def withFilter(p: A => Boolean): Control[A] = flatMap {
+    case a if p(a) => pure(a)
+    case a => new Error(new Throwable("Could not match " + a))
+  }
+
   def _catch[B >: A](handler: PartialFunction[Throwable, Control[B]]): Control[B] =
     Control.delimitCatch(new CatchMarker[B] { def _catch = handler })(this)
 
@@ -74,9 +81,15 @@ final class Trivial[+A](a: => A) extends Control[A] {
   override def map[B](f: A => B): Control[B] = new Trivial(f(a))
 
   // !!! this affects side effects raised by f !!!
-//  override def flatMap[B](f: A => Control[B]): Control[B] = f(a)
-
+  //  override def flatMap[B](f: A => Control[B]): Control[B] = f(a)
   override def run(): A = a
+}
+
+private[effekt]
+final class Error(t: Throwable) extends Control[Nothing] {
+  def apply[R](k: MetaCont[Nothing, R]): Result[R] = Abort(t)
+  override def map[B](f: Nothing => B): Control[B] = this.asInstanceOf[Control[B]]
+  override def flatMap[B](f: Nothing => Control[B]): Control[B] = this.asInstanceOf[Control[B]]
 }
 
 
@@ -96,28 +109,28 @@ object Control {
         }
 
         // continue with tail
-        Impure(handled, tail)
+        Computation(handled, tail)
       }
     }
 
   private[effekt] final def delimitCont[Res](marker: ContMarker[Res])(f: Res using marker.type): Control[Res] =
     new Control[Res] {
       def apply[R2](k: MetaCont[Res, R2]): Result[R2] = {
-        Impure(f(marker), HandlerCont[Res, R2](marker)(k))
+        Computation(f(marker), HandlerCont[Res, R2](marker)(k))
       }
     }
 
   private[effekt] final def delimitState[Res](marker: StateMarker)(f: Control[Res]): Control[Res] =
     new Control[Res] {
       def apply[R2](k: MetaCont[Res, R2]): Result[R2] = {
-        Impure(f, StateCont[Res, R2](marker, k))
+        Computation(f, StateCont[Res, R2](marker, k))
       }
     }
 
   private[effekt] final def delimitCatch[Res](marker: CatchMarker[Res])(f: Control[Res]): Control[Res] =
     new Control[Res] {
       def apply[R2](k: MetaCont[Res, R2]): Result[R2] = {
-        Impure(f, CatchCont[Res, R2](marker, k))
+        Computation(f, CatchCont[Res, R2](marker, k))
       }
     }
 }
