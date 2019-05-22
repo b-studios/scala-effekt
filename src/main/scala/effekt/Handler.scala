@@ -1,6 +1,6 @@
 package effekt
 
-trait Handler[R, Res] extends Prompt[Res] { h =>
+trait Handler[R, Res] extends ContMarker[Res] { h =>
   def unit: R => Control[Res]
 
   def use[A](body: CPS[A, Res]): Control[A] = Control.use(this) { body }
@@ -21,7 +21,7 @@ trait StatefulHandler[R, Res, S] extends Handler[R, Res] with Stateful[S] {
     Control.use(this) { given k => body given (a => { put(before); k(a) }) }
   }
 
-  def useStateful[A](body: StatefulCPS[A, Res, S]): Control[A] = {
+  def useStateful[A](body: given ((A, S) => Control[Res]) => S => Control[Res]): Control[A] = {
     val before = get()
     Control.use(this) { given k => (body given ((a, s) => {
       put(s); k(a)
