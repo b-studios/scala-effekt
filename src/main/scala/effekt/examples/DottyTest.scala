@@ -51,4 +51,26 @@ object DottyTest extends App {
 
   println(run { res_1 })
   println(run { res_2 })
+
+  val stateTest = AmbList {
+    region {
+      val s1 = Field(1)
+      val s2 = Field(2)
+
+      for {
+        _ <- s1 update { _ + 1 }
+        b <- flip()
+        r <- if (b) for {
+          _ <- s2 update { _ + 1 }
+          x <- s1.value
+          y <- s2.value
+        } yield x + y else for {
+          x <- s1.value
+          y <- s2.value
+        } yield x + y
+      } yield r
+    }
+  }
+
+  println(run { stateTest }) // List(5, 4)
 }

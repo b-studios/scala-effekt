@@ -51,7 +51,7 @@ package object effekt {
 
   final def resume[A, Res](a: A): CPS[A, Res] = given k => k(a)
 
-  final def resume[A, Res, S](a: A, s: S) given (k: ((A, S) => Control[Res])): Control[Res] = k(a, s)
+  final def resume[A, Res, S](a: A, s: S) given (k: (A => S => Control[Res])): Control[Res] = k(a)(s)
 
 
   // Low Level API
@@ -66,10 +66,11 @@ package object effekt {
   // State
   // ===
   // State
-  final def region[R](prog: State => Control[R]): Control[R] = {
+  final def region[R](prog: given State => Control[R]): Control[R] = {
     val s = new State {}
-    Control.delimitState(s) { prog(s) }
+    Control.delimitState(s) { prog given s }
   }
+  def Field[T](value: T) given (s: State): s.Field[T] = s.Field(value)
 
   // Catch
   final def _try[Res](prog: Control[Res])(handler: PartialFunction[Throwable, Control[Res]]): Control[Res] =

@@ -39,10 +39,10 @@ object Handler {
     val init: S
     val state = Field(init)
 
-    def useState[A](body : S => (A => S => Control[Res]) => Control[Res]): Control[A] = use { given resume =>
+    def useState[A](body : S => given (A => S => Control[Res]) => Control[Res]): Control[A] = use { given resume =>
       for {
         before <- state.value
-        res <- body(before)(a => after => (state.value = after) andThen resume(a))
+        res <- body(before) given (a => after => (state.value = after) andThen resume(a))
       } yield res
     }
   }
