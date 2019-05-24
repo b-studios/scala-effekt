@@ -4,7 +4,7 @@ lazy val commonSettings = Seq(
   scalaVersion := "2.12.8",
   version := "0.4-SNAPSHOT",
   organization := "de.b-studios",
-  crossScalaVersions := Seq("2.11.12", "2.12.1"),
+  crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0"),
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding", "UTF-8",
@@ -14,12 +14,21 @@ lazy val commonSettings = Seq(
     "-language:implicitConversions",
     "-unchecked",
     "-Xfatal-warnings",
-    "-Yno-adapted-args",
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
-    "-Ywarn-value-discard",
-    "-Xfuture"
+    "-Ywarn-value-discard"
   ),
+  scalacOptions ++= {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, v)) if v <= 12 =>
+        Seq(
+          "-Xfuture",
+          "-Yno-adapted-args"
+        )
+      case _ =>
+        Nil
+    }
+  },
   fork in test := true,
   parallelExecution in Test := false
 )
@@ -93,7 +102,7 @@ lazy val effectsJS = effects.js
 
 lazy val effectsSettings = Seq(
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-core" % "1.6.0"
+    "org.typelevel" %% "cats-core" % "2.0.0-M4"
   )
 )
 
