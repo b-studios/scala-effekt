@@ -9,7 +9,7 @@ package object effekt {
   // Currently effectively blocked by https://github.com/lampepfl/dotty/issues/5288
   type /[+A, -E] = Control[A, E]
 
-  type CPS[A, R] = implicit (A => R) => R
+  type CPS[A, R] = given (A => R) => R
 
   // Trick described in https://github.com/lampepfl/dotty/issues/3920#issuecomment-360772033 to
   // help infer singleton types. Also works on trait parameters.
@@ -22,7 +22,7 @@ package object effekt {
   @forceInline
   final def pure[A](a: => A): A / Pure = new Trivial(a)
 
-  final def resume[A, R](a: A): CPS[A, R] = implicit k => k(a)
+  final def resume[A, R](a: A): CPS[A, R] = given k => k(a)
 
   // Just a marker trait used by the delimcc implementation
   trait Prompt {
@@ -35,7 +35,7 @@ package object effekt {
   // ===
   @scala.annotation.implicitNotFound("No enclosing handler found. Maybe you forgot to handle the effect?")
   trait Effect extends Prompt { effect =>
-    def apply[A](body: CPS[A, Result / Effects]): A / effect.type = Control.use(this) { implicit k => body(k) }
+    def apply[A](body: CPS[A, Result / Effects]): A / effect.type = Control.use(this) { body }
 
     // for backwards compatability
     def use[A](body: CPS[A, Result / Effects]): A / effect.type = apply { body }
