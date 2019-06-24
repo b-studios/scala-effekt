@@ -31,14 +31,11 @@ package object effekt {
   // Just a marker trait used by the delimcc implementation
   // Sadly the design with type members is necessary to allow
   // mutually recursive type dependencies, like `Effects = state & FX` in StateHandler
-  trait Prompt extends Eff {
-    type Result
-    type Effects
-  }
+  trait Prompt[Result, Effects]
 
   // delimited dynamic state
   // ===
-  def region[R, E](prog: (s: State) => R / (s.state & E)): R / E = {
+  def region[R, E](prog: (s: State) => R / (s.type & E)): R / E = {
     val s = new State {}
     Control.delimitState(s) { prog(s) }
   }

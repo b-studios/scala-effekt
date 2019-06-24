@@ -78,15 +78,15 @@ final class Error(t: Throwable) extends Control[Nothing, Pure] {
 
 object Control {
 
-  private[effekt] final def use[A](p: Prompt)(f: CPS[A, p.Result / p.Effects]): A / p.effect =
-    new Control[A, p.effect] {
+  private[effekt] final def shift[A, E, FX](p: Prompt[E, FX])(f: CPS[A, E / FX]): A / p.type =
+    new Control[A, p.type] {
       def apply[R](k: MetaCont[A, R]): Result[R] = {
 
         val (init, tail) = k splitAt p
 
-        val handled: Control[p.Result, p.Effects] = f given { a =>
-          new Control[p.Result, p.Effects] {
-            def apply[R2](k: MetaCont[p.Result, R2]): Result[R2] =
+        val handled: Control[E, FX] = f given { a =>
+          new Control[E, FX] {
+            def apply[R2](k: MetaCont[E, R2]): Result[R2] =
               (init append k).apply(a)
           }
         }
@@ -96,14 +96,14 @@ object Control {
       }
     }
 
-  private[effekt] final def delimitCont(p: Prompt)(f: p.Result / (p.effect & p.Effects)): p.Result / p.Effects =
-    new Control[p.Result, p.Effects] {
-      def apply[R2](k: MetaCont[p.Result, R2]): Result[R2] = {
-        Computation(f, PromptCont[p.Result, R2](p)(k))
+  private[effekt] final def resetWith[E, FX](p: Prompt[E, FX])(f: E / (p.type & FX)): E / FX =
+    new Control[E, FX] {
+      def apply[R2](k: MetaCont[E, R2]): Result[R2] = {
+        Computation(f, PromptCont[E, R2](p)(k))
       }
     }
 
-  private[effekt] final def delimitState[R, E](s: State)(f: R / (s.state & E)): R / E =
+  private[effekt] final def delimitState[R, E](s: State)(f: R / (s.type & E)): R / E =
     new Control[R, E] {
       def apply[R2](k: MetaCont[R, R2]): Result[R2] = {
         Computation(f, StateCont[R, R2](s, k))

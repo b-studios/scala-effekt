@@ -49,7 +49,7 @@ object scheduler extends App {
 
   class Scheduler[FX] extends Process with Handler[Unit, Pool[FX]] {
 
-    type effects = FX
+    type Effects = FX
 
     def unit = _ => pure { Pool(ps => execute(ps)) }
 
@@ -152,15 +152,15 @@ object schedulerState extends App {
 
   class Scheduler[FX] extends Process with StatefulHandler[Unit, Unit] {
 
-    type effects = FX
+    type Effects = FX
 
-    type Pool = Unit / Effects
+    type Pool = Unit / (state.type & Effects)
 
     val ps = Field[List[Pool]](Nil)
 
     def unit = _ => pure(())
 
-    def run(): Unit / Effects = ps.value flatMap {
+    def run(): Unit / (state.type & Effects) = ps.value flatMap {
       case Nil => pure(())
       case process :: rest => for {
         _ <- ps.value = rest

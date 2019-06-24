@@ -27,6 +27,8 @@ object DottyTest extends App {
     heads <- if (caught) amb.flip() else exc.raise("Too drunk")
   } yield if (heads) "Heads" else "Tails"
 
+
+
   // can be inferred
   def drunkFlip2 given Amb given Exc = for {
     caught <- Amb.flip()
@@ -51,13 +53,13 @@ object DottyTest extends App {
 
   // Effect Handlers
   class Maybe[R, FX] extends Exc with Handler[R, Option[R]] {
-    type effects = FX
+    type Effects = FX
     def unit = r => pure(Some(r))
     def raise(msg: String): Nothing / effect = use { pure(None) }
   }
 
   class Collect[R, FX] extends Amb with Handler[R, List[R]] {
-    type effects = FX
+    type Effects = FX
     def unit = r => pure(List(r))
     def flip(): Boolean / effect = use {
       for { xs <- resume(true); ys <- resume(false) }

@@ -9,7 +9,9 @@ package effekt
 // is necessary to allow typing the scheduler example.
 //
 // The state effect is parametric in Result and Effects!
-trait State extends Stateful {
+trait State {
+
+  type state = this.type
 
   def Field[T](value: T): Field[T] = {
     val field = new Field[T]()

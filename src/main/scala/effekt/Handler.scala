@@ -20,40 +20,42 @@ package effekt
 
 // For uniformity, we give up prompt composition and favor inheritance here.
 // However, this way we don't guarantee accidental handling with the _same_ handler!
-trait Handler[R, E] extends Prompt {
-  type effects // needs to be set by the implementor
+trait Handler[R, E] extends Eff {
+  type Effects // needs to be set by the implementor
 
-  // that's considered implementation details
-  type Result = E
-  type Effects = effects
+  val prompt = new Prompt[E, Effects] {}
+  type effect = prompt.type
 
+  def unit: R => E / Effects
+  def use[A](body: CPS[A, E / Effects]): A / effect = Control.shift(prompt) { body }
 
-  def unit: R => E / effects
-  def use[A](body: CPS[A, E / effects]): A / effect = Control.use(this) { body }
-
-  def handle[H >: this.type <: Eff](prog: given (h: H) => R / (h.effect & effects)): E / effects =
-    Control.delimitCont(this) { prog given this flatMap unit }
+  def handle[H >: this.type <: Eff](prog: given (h: H) => R / (h.effect & Effects)): E / Effects =
+    Control.resetWith(prompt) { prog given this flatMap unit }
 }
 
 object Handler {
   trait Basic[R, FX] extends Handler[R, R] {
-    type effects = FX
+    type Effects = FX
     def unit = r => pure(r)
   }
 }
 
-trait StatefulHandler[R, E] extends Prompt with State {
-  type effects
+trait StatefulHandler[R, E] extends Eff {
+  type Effects
 
-  type Result = E
-  type Effects = state & effects
+  val state  = new State {}
+  val prompt = new Prompt[E, state.type & Effects] {}
 
-  def unit: R => E / (state & effects)
-  def use[A](body: CPS[A, E / (state & effects)]): A / effect = Control.use(this) { body }
+  type effect = prompt.type
 
-  def handle[H >: this.type <: Eff](prog: given (h: H) => R / (h.effect & effects)): E / effects =
-    Control.delimitState(this) {
-      Control.delimitCont(this) {
+  def unit: R => E / (state.type & Effects)
+
+  def Field[T](value: T) = state.Field(value)
+  def use[A](body: CPS[A, E / (state.type & Effects)]): A / effect = Control.shift(prompt) { body }
+
+  def handle[H >: this.type <: Eff](prog: given (h: H) => R / (h.effect & Effects)): E / Effects =
+    Control.delimitState(state) {
+      Control.resetWith(prompt) {
         prog given this flatMap unit
       }
     }

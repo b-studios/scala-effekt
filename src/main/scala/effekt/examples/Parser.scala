@@ -95,7 +95,7 @@ object parsing extends App {
   // Using the state monad interpretation, since it also allows thunking of recursive nonterminals.
   class RecursiveDecent[R, FX](val input: Seq[Token]) extends Parser[Token] with StatefulHandler[R, Option[R]] {
 
-    type effects = FX
+    type Effects = FX
 
     val pos = Field(0)
 
@@ -133,19 +133,19 @@ object parsing extends App {
   def Out[R] given (cap: Out[R]) : cap.type = cap
 
   class FirstOnly[R, FX] extends Out[R] with Handler[Unit, Option[R]] {
-    type effects = FX
+    type Effects = FX
     def unit = r => pure(None)
     def write(value: R): Unit / effect = use { pure(Some(value)) }
   }
 
   class All[R, FX] extends Out[R] with Handler[Unit, List[R]] {
-    type effects = FX
+    type Effects = FX
     def unit = r => pure(Nil)
     def write(value: R): Unit / effect = use { resume(()) map { xs => value :: xs }}
   }
 
   class Reader[T, R, FX](val input: Seq[T]) extends Input[T] with StatefulHandler[R, R] {
-    type effects = FX
+    type Effects = FX
     val pos = Field(0)
     def unit = r => pure(r)
     def read(): T / effect = use { for {
@@ -161,7 +161,7 @@ object parsing extends App {
   class BreadthFirst[FX, P <: Process, I <: Input[Token]] given (val p: P) given (val in: I)
       extends Parser[Token] with Handler[Unit, Unit] {
 
-    type effects = p.effect & in.effect & FX
+    type Effects = p.effect & in.effect & FX
 
     def unit = r => pure(())
 
