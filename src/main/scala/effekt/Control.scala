@@ -78,8 +78,8 @@ final class Error(t: Throwable) extends Control[Nothing, Pure] {
 
 object Control {
 
-  private[effekt] final def use[A](p: Prompt)(f: CPS[A, p.Result / p.Effects]): A / p.type =
-    new Control[A, p.type] {
+  private[effekt] final def use[A](p: Prompt)(f: CPS[A, p.Result / p.Effects]): A / p.effect =
+    new Control[A, p.effect] {
       def apply[R](k: MetaCont[A, R]): Result[R] = {
 
         val (init, tail) = k splitAt p
@@ -96,17 +96,17 @@ object Control {
       }
     }
 
-  private[effekt] final def delimitCont(p: Prompt)(f: p.Result / (p.type & p.Effects)): p.Result / p.Effects =
+  private[effekt] final def delimitCont(p: Prompt)(f: p.Result / (p.effect & p.Effects)): p.Result / p.Effects =
     new Control[p.Result, p.Effects] {
       def apply[R2](k: MetaCont[p.Result, R2]): Result[R2] = {
         Computation(f, PromptCont[p.Result, R2](p)(k))
       }
     }
 
-  private[effekt] final def delimitState[R, E](state: State)(f: R / (state.type & E)): R / E =
+  private[effekt] final def delimitState[R, E](s: State)(f: R / (s.state & E)): R / E =
     new Control[R, E] {
       def apply[R2](k: MetaCont[R, R2]): Result[R2] = {
-        Computation(f, StateCont[R, R2](state, k))
+        Computation(f, StateCont[R, R2](s, k))
       }
     }
 }
