@@ -67,7 +67,7 @@ object scheduler extends App {
 
   println {
     run {
-      new Scheduler handle {
+      new Scheduler[Pure] handle {
         prog
       } flatMap { p => execute(List(p)) }
     }

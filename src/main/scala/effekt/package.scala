@@ -29,9 +29,13 @@ package object effekt {
   // ===
 
   // Just a marker trait used by the delimcc implementation
-  // Sadly the design with type members is necessary to allow
-  // mutually recursive type dependencies, like `Effects = state & FX` in StateHandler
   trait Prompt[Result, Effects]
+
+  def shift[A, R, FX](p: Prompt[R, FX])(body: CPS[A, R / FX]): A / p.type = Control.shift(p)(body)
+  def reset[R, FX](prog: (p: Prompt[R, FX]) => R / (p.type & FX)): R / FX = {
+    val p = new Prompt[R, FX] {}
+    Control.resetWith(p) { prog(p) }
+  }
 
   // delimited dynamic state
   // ===

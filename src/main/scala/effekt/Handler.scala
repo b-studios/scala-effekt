@@ -20,17 +20,18 @@ package effekt
 
 // For uniformity, we give up prompt composition and favor inheritance here.
 // However, this way we don't guarantee accidental handling with the _same_ handler!
-trait Handler[R, E] extends Eff {
+trait Handler[R, E] extends Eff { self =>
+  type effect = prompt.type // necessary to be able to use resetWith in `handle`
   type Effects // needs to be set by the implementor
+  protected def unit: R => E / Effects
+
+  protected def use[A](body: CPS[A, E / Effects]): A / effect =
+    Control.shift(prompt) { body }
+
+  def handle(prog: given (h: self.type) => R / (h.effect & h.Effects)): E / Effects =
+    Control.resetWith(prompt) { prog given this flatMap unit }
 
   val prompt = new Prompt[E, Effects] {}
-  type effect = prompt.type
-
-  def unit: R => E / Effects
-  def use[A](body: CPS[A, E / Effects]): A / effect = Control.shift(prompt) { body }
-
-  def handle[H >: this.type <: Eff](prog: given (h: H) => R / (h.effect & Effects)): E / Effects =
-    Control.resetWith(prompt) { prog given this flatMap unit }
 }
 
 object Handler {
@@ -40,7 +41,7 @@ object Handler {
   }
 }
 
-trait StatefulHandler[R, E] extends Eff {
+trait StatefulHandler[R, E] extends Eff { self =>
   type Effects
 
   val state  = new State {}
@@ -53,7 +54,7 @@ trait StatefulHandler[R, E] extends Eff {
   def Field[T](value: T) = state.Field(value)
   def use[A](body: CPS[A, E / (state.type & Effects)]): A / effect = Control.shift(prompt) { body }
 
-  def handle[H >: this.type <: Eff](prog: given (h: H) => R / (h.effect & Effects)): E / Effects =
+  def handle(prog: given (h: self.type) => R / (h.effect & h.Effects)): E / Effects =
     Control.delimitState(state) {
       Control.resetWith(prompt) {
         prog given this flatMap unit
