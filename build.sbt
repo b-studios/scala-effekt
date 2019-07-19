@@ -1,5 +1,5 @@
 lazy val commonSettings = Seq(
-  scalaVersion := "0.13.0-bin-20190120-2ce89da-NIGHTLY", // dottyLatestNightlyBuild.get, // "0.12.0-bin-SNAPSHOT"
+  scalaVersion := dottyLatestNightlyBuild.get, // "0.12.0-bin-SNAPSHOT"
   version := "0.2-SNAPSHOT",
   organization := "de.b-studios",
   scalacOptions ++= Seq(
