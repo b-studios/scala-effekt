@@ -1,5 +1,5 @@
 package effekt
-package free
+package examples
 
 import cats.{ Applicative, Functor, Monad, Monoid }
 import cats.implicits._

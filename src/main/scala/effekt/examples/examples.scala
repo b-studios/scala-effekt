@@ -1,10 +1,9 @@
 package effekt
-package free
 
 import cats.{ Applicative, Functor, Monoid, Monad }
 import cats.implicits._
 
-object examples extends App {
+package object examples extends App {
 
   // Examples
   // ========

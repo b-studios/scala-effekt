@@ -1,5 +1,5 @@
 package effekt
-package free
+package examples
 
 import cats.{ Applicative, Functor, Monoid, Monad }
 import cats.implicits._
@@ -7,7 +7,7 @@ import scala.concurrent._
 import scala.concurrent.duration._
 import play.api.libs.json._
 
-import effekt.free.http.Http
+import http.Http
 import github.Github
 import twitter.Twitter
 

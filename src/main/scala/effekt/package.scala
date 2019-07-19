@@ -1,5 +1,3 @@
-package effekt
-
 import scala.annotation.tailrec
 
 // In previous implementations, by forwarding idiomatic effects through monadic
@@ -15,7 +13,7 @@ import scala.annotation.tailrec
 // To focus on the operation semantics, this implementation is not effect safe.
 // establishing static effect safety is a separate (and probably orthogonal)
 // step.
-package object free {
+package object effekt {
 
 
   // Type Aliases
@@ -152,7 +150,7 @@ package object free {
     }
 
     def apply[R](prog: Idiom[R]): Idiom[G[R]] = runIdiomatic(this)(prog)
-    def dynamic[R](prog: Eff[R])(sequence: Sequencer[G, R]): Eff[R] = free.dynamic(this, sequence)(prog)
+    def dynamic[R](prog: Eff[R])(sequence: Sequencer[G, R]): Eff[R] = effekt.dynamic(this, sequence)(prog)
   }
 
 
