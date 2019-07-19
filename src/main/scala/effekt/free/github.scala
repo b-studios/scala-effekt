@@ -14,7 +14,7 @@ import scala.reflect.ClassTag
 // This example is inspired by Markus Hauck's talk:
 //     "Free Monads and Free Applicatives", flatMap(Oslo) 2016.
 //     https://github.com/markus1189/flatmap-oslo-2016
-object github {
+object github extends App {
 
   implicit def lift[R](idiom: Idiom[R]): Eff[R] = embed(idiom)
 
@@ -49,7 +49,7 @@ object github {
   // ===============
   def allUsers(owner: Owner, repo: Repo): Eff[List[(Issue,List[(Comment,User)])]] = for {
 
-    issues <- Github.listIssues(owner,repo)
+    issues <- embed { Github.listIssues(owner,repo) }
 
     _ = println("got issues " + issues)
 
@@ -72,24 +72,24 @@ object github {
         s"Usernames are ${bstudios.name}, ${phischu.name}, and ${klauso.name}"
     }
 
-  object run extends App {
-
-//  log {
-//    import scala.concurrent.ExecutionContext.Implicits.global
-//    val r = new BatchedStatic apply { threeUsers }
-//    println(r)
-//    http.nonblocking(10 seconds) { github.remote { runRequests(10 seconds) { r } }}
-//  }
 
 
-//  log { RequestedLogins { threeUsers } }
+  //  log {
+  //    import scala.concurrent.ExecutionContext.Implicits.global
+  //    val r = new BatchedStatic apply { threeUsers }
+  //    println(r)
+  //    http.nonblocking(10 seconds) { github.remote { runRequests(10 seconds) { r } }}
+  //  }
 
-//  log { http.blocking { githubRemote2 { threeUsers } } }
 
-//  log {
-//    import scala.concurrent.ExecutionContext.Implicits.global
-//    http.nonblocking(10 seconds) { githubRemote { threeUsers } }
-//  }
+  //  log { RequestedLogins { threeUsers } }
+
+  //  log { http.blocking { githubRemote2 { threeUsers } } }
+
+  //  log {
+  //    import scala.concurrent.ExecutionContext.Implicits.global
+  //    http.nonblocking(10 seconds) { githubRemote { threeUsers } }
+  //  }
 
   log {
     import scala.concurrent.ExecutionContext.Implicits.global
@@ -100,8 +100,6 @@ object github {
         }
       }
     }
-  }
-
   }
 
   // Github Remote Handler
@@ -145,7 +143,7 @@ object github {
   // ============
 
   type Parser[T] = JsValue => T
-  private def parseComments: Parser[List[Comment]] = json => {
+  def parseComments: Parser[List[Comment]] = json => {
     val objs = json.validate[List[JsValue]].get
     objs.map { obj =>
       (for {
@@ -156,7 +154,7 @@ object github {
     }
   }
 
-  private def parseComment: Parser[Comment] = obj => {
+  def parseComment: Parser[Comment] = obj => {
     (for {
       url <- (obj \ "url").validate[String]
       body <- (obj \ "body").validate[String]
@@ -164,14 +162,14 @@ object github {
     } yield Comment(Url(url),Body(body),UserLogin(login))).get
   }
 
-  private def parseUser: Parser[User] = json => {
+  def parseUser: Parser[User] = json => {
     (for {
       login <- (json \ "login").validate[String]
       name <- (json \ "name").validate[String] orElse (json \ "login").validate[String]
     } yield User(login,name)).asOpt.get
   }
 
-  private def parseIssues: Parser[List[Issue]] = json => {
+  def parseIssues: Parser[List[Issue]] = json => {
     val objs = json.validate[List[JsValue]].get
     objs.map(obj => (obj \ "number").validate[Int].map(Issue(_)).asOpt).flatten
   }

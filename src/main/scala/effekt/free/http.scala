@@ -45,7 +45,7 @@ object http {
   class Nonblocking(implicit ec: ExecutionContext) extends Applicable[Parallel] {
     def interpret[X] = { case Get(url) => Parallel(List(url), Future { requests.get(url).text }) }
   }
-  def nonblocking[R](timeout: Duration)(prog: Eff[R]): Eff[R] using ExecutionContext =
+  def nonblocking[R](timeout: Duration)(prog: Eff[R]) given ExecutionContext: Eff[R] =
     new Nonblocking().dynamic[R](prog)(new Sequencer {
       def apply[X] = { case Parallel(reqs, future) => resume =>
         println("Requesting in parallel: " + reqs)
@@ -65,12 +65,12 @@ object http {
       prog.fold(Set.empty) { case o : O => _ + cacheKey(o) }
 
     // Idiom[R] => Idiom[DB => R]
-    object fromDB extends Applicable[[X] => DB => X] {
+    object fromDB extends Applicable[[X] =>> DB => X] {
       def interpret[X] = { case o : O => db => db(cacheKey(o)) }
     }
 
     // Idiom[R] => Idiom[R]
-    class Optimized[R] extends DynamicHandler[R, [X] => X] {
+    class Optimized[R] extends DynamicHandler[R, [X] =>> X] {
       def handle[X] = prog => {
         val keys  = computeKeys { prog }.toList
         val batched: Idiom[DB] =

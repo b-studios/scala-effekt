@@ -162,7 +162,7 @@ package object free {
     case Idiom.Impure(op, k) if interpreter.onEffect isDefinedAt op =>
       interpreter.onEffect(op)(interpreter(k))
     case Idiom.Impure(op, k) =>
-      // here we require G to be a functor to convert `gk: G[x => R]` to `x => G[R]`:
+      // here we require G to be a functor to apply `gk: G[x => R]` to `x` (that is convert to `x => G[R]`):
       Idiom.Impure(op, interpreter(k) map { gk => x => interpreter.map(gk) { xr => xr(x) } })
   }
 
@@ -170,7 +170,7 @@ package object free {
   // ----------------
 
   trait Monadic[R] {
-    def onEffect[X]: Op[X] ~> (MonadCont[X, R] => Eff[R])
+    def onEffect[X]: Op[X] ~> ((X => Eff[R]) => Eff[R])
     def apply(prog: Eff[R]): Eff[R] = runMonadic(this)(prog)
   }
   private def runMonadic[R](interpreter: Monadic[R])(prog: Eff[R]): Eff[R] = prog match {
@@ -309,7 +309,7 @@ package object free {
   // Helpers
   // =======
 
-  trait IdiomaticId extends Idiomatic[[X] => X] {
+  trait IdiomaticId extends Idiomatic[[X] =>> X] {
     def onPure[A] = a => a
     def map[A, B] = a => f => f(a)
   }
@@ -344,7 +344,7 @@ package object free {
     def map[A, B] = Functor[F].map
   }
 
-  trait Monoidal[D](implicit val m: Monoid[D]) extends Idiomatic[[X] => D] {
+  trait Monoidal[D](implicit val m: Monoid[D]) extends Idiomatic[[X] =>> D] {
     def onPure[R] = r => pure(m.empty)
     def map[A, B] = d => f => d
   }
