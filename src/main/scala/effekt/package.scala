@@ -19,9 +19,6 @@ package object effekt {
   // Type Aliases
   // ============
 
-  type MonadCont[A, B] = A => Eff[B]
-  type IdiomCont[A, B] = Idiom[A => B]
-
   // interpreters / handlers are *partial* natural transformations: Op ~> Domain
   type ~>[-A, +B] = PartialFunction[A, B]
 
@@ -36,7 +33,7 @@ package object effekt {
   def pure[A](value: A): Idiom[A] = Idiom.pure(value)
 
   // used interally. Directly send a monadic effect
-  def sendM[X](op: Op[X]): Eff[X] = Eff.Impure[X, X](op, Eff.pure)
+  private def sendM[X](op: Op[X]): Eff[X] = Eff.Impure[X, X](op, Eff.pure)
 
   // lift idiomatic computation into monadic computation
   def embed[A](prog: Idiom[A]): Eff[A] = sendEmbed(prog) flatMap identity
@@ -143,6 +140,8 @@ package object effekt {
 
     // this is a simplified form of Idiom[G[X => R]] => Idiom[G[R]]
     def map[A, B]: G[A] => (A => B) => G[B]
+
+    // note that we are not only parametric in the effect result X, but also in R
     def onEffect[X, R]: Op[X] ~> (Idiom[G[X => R]] => Idiom[G[R]])
 
     def lifted[X, R](impl: Op[X] ~> (G[X => R] => G[R])): Op[X] ~> (Idiom[G[X => R]] => Idiom[G[R]]) = {
@@ -166,6 +165,29 @@ package object effekt {
 
   // Monadic Handlers
   // ----------------
+  opaque type EffOp[R] = Eff[R]
+
+  // monadic handler
+  def handler[R](h: PartialFunction[EffOp[R], Eff[R]]): Eff[R] => Eff[R] = handler[R, R](x => Eff.pure(x))(h)
+
+  // TODO duplicated code with runMonadic
+  def handler[R, Res](pure: R => Eff[Res])(h: PartialFunction[EffOp[Res], Eff[Res]]): Eff[R] => Eff[Res] = {
+    case Eff.Pure(v) =>
+      pure(v)
+    case e @ Eff.Impure(op, km) =>
+      val handled = Eff.Impure(op, x => handler(pure)(h) { km(x) } )
+      if (h isDefinedAt handled)
+        h(handled)
+      else
+        handled
+  }
+
+  object -> {
+    def unapply[R, X](c: EffOp[R]): Option[(Op[X], X => Eff[R])] = c match {
+      case Eff.Impure(op: Op[X], km) => Some((op, km))
+      case _ => None
+    }
+  }
 
   trait Monadic[R] {
     def onEffect[X]: Op[X] ~> ((X => Eff[R]) => Eff[R])
@@ -185,7 +207,7 @@ package object effekt {
   // the first bind on an idiomatic computation sends a "Bind"-effect.
 
   // Embed has return type Eff[A] to allow sending effectful values back to the original position. (Time traveling control!)
-  private case class Embed[A](ap: Idiom[A]) extends Op[Eff[A]]
+  case class Embed[A](ap: Idiom[A]) extends Op[Eff[A]]
 
   // Default handler for Bind:
   // It translates applicative effects into monadic effects.

@@ -20,20 +20,14 @@ package object examples extends App {
   type Id[A] = A
 
   // A simple monadic handler that prints the values it receives
-  class PrintPuts[R] extends Monadic[R] {
-    def onEffect[X] = {
-      case Put(n) => resume => println(n); resume(())
-    }
+  def PrintPuts[R] = handler[R] {
+    case Put(n) -> resume => println(n); resume(())
   }
-  def PrintPuts[R] = new PrintPuts[R]
 
   // A handler that constantly returns 42
-  class Get42[R] extends Monadic[R] {
-    def onEffect[X] = {
-      case Get => resume => resume(42)
-    }
+  def Get42[R] = handler[R] {
+    case Get -> resume => resume(42)
   }
-  def Get42[R] = new Get42[R]
 
 
   type WithInt[X] = (X, Int)
@@ -113,19 +107,14 @@ package object examples extends App {
 
 
   // A handler for tick, that calls the continuation twice
-  class AmbiguousTick[R] extends Monadic[List[R]] {
-    def onEffect[X] = {
-      case Tick => resume => {
-        println("tick")
-        for {
-          first <- resume(())
-          second <- resume(())
-        } yield first ++ second
-      }
-    }
+  def AmbiguousTick[R] = handler [R, List[R]] (x => Eff.pure(List(x))) {
+    case Tick -> resume =>
+      println("tick")
+      for {
+        first <- resume(())
+        second <- resume(())
+      } yield first ++ second
   }
-  def AmbiguousTick[R](prog: Eff[R]): Eff[List[R]] =
-    new AmbiguousTick[R] apply (prog map { x => List(x) })
 
   println { run { AmbiguousTick { embed { tick() } }}}
   //> List((), ())

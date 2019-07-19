@@ -17,15 +17,11 @@ object http {
     def get(url: Url) = send(Get(url))
   }
 
-  class Blocking[R] extends Monadic[R] {
-    def onEffect[X] = {
-      case Get(url) => resume => {
-        println("Requesting: " + url)
-        resume(requests.get(url).text)
-      }
-    }
+  def blocking[R] = handler {
+    case Get(url) -> resume =>
+      println("Requesting: " + url)
+      resume(requests.get(url).text)
   }
-  def blocking[R] = new Blocking[R]
 
   case class Parallel[A](requests: List[Url], future: Future[A])
 
