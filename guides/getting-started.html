@@ -2,7 +2,9 @@
 <p>Before you can get started with <strong>Effekt</strong> you need to set up your
 environment and add <strong>Effekt</strong> as a dependency to your <code class="highlighter-rouge">build.sbt</code> file:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>libraryDependencies += "de.b-studios" %% "effekt" % "0.4-SNAPSHOT"
+<div class="highlighter-rouge"><pre class="highlight"><code>resolvers += Opts.resolver.sonatypeSnapshots
+
+libraryDependencies += "de.b-studios" %% "effekt" % "0.4-SNAPSHOT"
 </code></pre>
 </div>
 

@@ -51,7 +51,9 @@ result actually perform the side-effects always gives the same results.</p>
 <p>To use <strong>Effekt</strong> (tested with Scala 2.11 and Scala 2.12), include the
 following line to your <code class="highlighter-rouge">build.sbt</code> file:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>libraryDependencies += "de.b-studios" %% "effekt" % "0.4-SNAPSHOT"
+<div class="highlighter-rouge"><pre class="highlight"><code>resolvers += Opts.resolver.sonatypeSnapshots
+
+libraryDependencies += "de.b-studios" %% "effekt" % "0.4-SNAPSHOT"
 </code></pre>
 </div>
 
