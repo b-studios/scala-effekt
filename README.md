@@ -9,7 +9,7 @@ monad transformer based program structuring techniques.
 To use **Effekt** (tested with Scala 2.11 and Scala 2.12), include the
 following line to your `build.sbt` file:
 
-```
+```scala
 resolvers += Opts.resolver.sonatypeSnapshots
 
 libraryDependencies += "de.b-studios" %% "effekt" % "0.4-SNAPSHOT"
