@@ -9,6 +9,8 @@ Before you can get started with **Effekt** you need to set up your
 environment and add **Effekt** as a dependency to your `build.sbt` file:
 
 ```
+resolvers += Opts.resolver.sonatypeSnapshots
+
 libraryDependencies += "de.b-studios" %% "effekt" % "0.4-SNAPSHOT"
 ```
 
