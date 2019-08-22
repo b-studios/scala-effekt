@@ -102,7 +102,7 @@ lazy val effectsJS = effects.js
 
 lazy val effectsSettings = Seq(
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-core" % "2.0.0-M4"
+    "org.typelevel" %% "cats-core" % "2.0.0-RC1"
   )
 )
 
