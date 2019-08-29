@@ -1,4 +1,4 @@
-addSbtPlugin("com.47deg"  % "sbt-microsites" % "0.9.2")
+addSbtPlugin("com.47deg"  % "sbt-microsites" % "0.9.3")
 
 addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % "0.6.1")
 
