@@ -10,7 +10,7 @@ package object unsafe {
   final def pure[A](a: => A): Control[A] = effekt.pure(a)
 
   type CPS[+A, R] = given (A => R) => R
-  def resume[A, R](a: A) given (k: A => Control[R]): Control[R] = k(a)
+  def resume[A, R] given (k: A => Control[R]): A => Control[R] = a => k(a)
 
   final def run[A](c: Control[A]): A =
     effekt.run { c.asInstanceOf[effekt.Control[A, Pure]] }
@@ -24,8 +24,9 @@ package object unsafe {
     def switch[A](body: CPS[A, Control[R]]): Control[A]
   }
   def Scope[R] given (s: Scope[R]): s.type = s
+  def scope[R] given (s: Scope[R]): s.type = s
 
-  def handle[R, E](prog: given (c: Scope[R]) => Control[R]): Control[R] = {
+  def handle[R](prog: given (c: Scope[R]) => Control[R]): Control[R] = {
     effekt.handle { given scope =>
       prog given new Scope[R] {
         def switch[A](body: CPS[A, Control[R]]) = scope.switch[A] { given k =>
