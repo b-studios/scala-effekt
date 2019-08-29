@@ -84,7 +84,7 @@ object Control {
 
         val (init, tail) = k splitAt p
 
-        val handled: Control[E, FX] = f { a =>
+        val handled: Control[E, FX] = f given { a =>
           new Control[E, FX] {
             def apply[R2](k: MetaCont[E, R2]): Result[R2] =
               (init append k).apply(a)

@@ -18,7 +18,8 @@ package object effekt {
   // ===
   final def pure[A](a: => A): Control[A, Pure] = new Trivial(a)
 
-  type CPS[+A, R] = (A => R) => R
+  type CPS[+A, R] = given (A => R) => R
+  def resume[A, R, E](a: A) given (k: A => Control[R, E]): Control[R, E] = k(a)
 
   final def run[A](c: Control[A, Pure]): A = Result.trampoline(c(ReturnCont()))
 
@@ -33,12 +34,12 @@ package object effekt {
   }
   def Scope[R, E] given (s: Scope[R, E]): s.type = s
 
-  def handle[R, E](prog: (c: Scope[R, E]) => R / (c.effect & E)): R / E = {
+  def handle[R, E](prog: given (c: Scope[R, E]) => R / (c.effect & E)): R / E = {
     val scope = new Scope[R, E] {
       type effect = this.type
       def switch[A](body: CPS[A, Control[R, E]]): Control[A, effect] = Control.shift(this)(body)
     }
-    Control.resetWith(scope) { prog(scope) }
+    Control.resetWith(scope) { prog given scope }
   }
 
 
@@ -81,9 +82,9 @@ package object effekt {
   }
   def State given (s: State): s.type = s
 
-  def region[R, FX](prog: (s: State) => Control[R, s.effect & FX]): Control[R, FX] = {
+  def region[R, FX](prog: given (s: State) => Control[R, s.effect & FX]): Control[R, FX] = {
     val s = new State {}
-    Control.delimitState(s) { prog(s) }
+    Control.delimitState(s) { prog given s }
   }
 
   // internally we ignore the effects

@@ -1,4 +1,4 @@
-package examples
+package examples.safe
 
 import effekt._
 import utils._
@@ -8,12 +8,12 @@ object scheduler extends App {
   // EFFECT SIGNATURES
   // =================
   trait Fiber extends Eff {
-    def suspend(): Control[Unit, effect]
-    def fork(): Control[Boolean, effect]
-    def exit(): Control[Nothing, effect]
+    def suspend(): Unit / effect
+    def fork(): Boolean / effect
+    def exit(): Nothing / effect
 
     // derived effects
-    def fork[E](p: Control[Unit, E]): Control[Unit, E & effect] = for {
+    def fork[E](p: Unit / E): Unit / (E & effect) = for {
       forked <- fork()
       res    <- if (forked) p andThen exit() else pure(())
     } yield res
@@ -22,8 +22,8 @@ object scheduler extends App {
 
   trait Async extends Eff {
     type Promise[T]
-    def async[T, E](prog: Control[T, E]): Control[Promise[T], E & effect]
-    def await[T](p: Promise[T]): Control[T, effect]
+    def async[T, E](prog: T / E): Promise[T] / (E & effect)
+    def await[T](p: Promise[T]): T / effect
   }
   def Async given (A: Async): A.type = A
 
@@ -40,29 +40,25 @@ object scheduler extends App {
 
     lazy val ps = state.Field[Queue](List.empty)
 
-    def exit() = scope { resume => pure(()) }
+    def exit() = scope { pure(()) }
 
-    def fork() = scope { resume =>
+    def fork() = scope {
       ps.update { resume(true) :: resume(false) :: _ } andThen run
     }
 
-    def suspend() = scope { resume =>
+    def suspend() = scope {
       ps.update { _ :+ resume(()) } andThen run
     }
 
-    def run: Control[Unit, state.effect & E] = ps.value flatMap {
+    def run: Unit / (state.effect & E) = ps.value flatMap {
       case Nil => pure(())
       case process :: rest => (ps.value = rest) andThen process andThen run
     }
   }
-  def scheduler[E](st: State)(prog: (f: Fiber) => Control[Unit, f.effect & E]): Control[Unit, st.effect & E] =
-    handle[Unit, st.effect & E] { sc =>
-      prog(new Scheduler[E] { val scope: sc.type = sc; val state: st.type = st })
-    }
 
-  def schedulerI[E](prog: given (f: Fiber) => Unit / (f.effect & E)) given State =
-    handle[Unit, State.effect & E] { s =>
-      prog given new Scheduler[E] { val scope: s.type = s; val state: State.type = State }
+  def scheduler[E](prog: given (f: Fiber) => Unit / (f.effect & E)) given State =
+    handle[Unit, State.effect & E] {
+      prog given new Scheduler[E] { val scope: Scope.type = Scope; val state: State.type = State }
     }
 
   trait Poll extends Async {
@@ -73,7 +69,7 @@ object scheduler extends App {
 
     type Promise[T] = state.Field[Option[T]]
 
-    def async[T, E](prog: Control[T, E]): Control[Promise[T], E & effect] = {
+    def async[T, E](prog: T / E) = {
       val p = state.Field[Option[T]](None)
       fiber.fork { prog map { Some(_) } flatMap p.value_= } map { _ => p }
     }
@@ -83,11 +79,7 @@ object scheduler extends App {
     }
   }
 
-  def poll[R, E](s: State, f: Fiber)(prog: (a: Async) => R / (a.effect & E)): R / (E & s.effect & f.effect) =
-    prog(new Poll { val state: s.type = s; val fiber: f.type = f })
-
-  // using implicits
-  def pollI[R, E](prog: given (a: Async) => R / (a.effect & E)) given Fiber given State =
+  def poll[R, E](prog: given (a: Async) => R / (a.effect & E)) given Fiber given State =
     prog given new Poll { val state: State.type = State; val fiber: Fiber.type = Fiber }
 
   // EXAMPLES
@@ -110,23 +102,11 @@ object scheduler extends App {
     _ <- log("Main 3 with result " + r)
   } yield ()
 
-  def asyncEx(f: Fiber, a: Async) = for {
-    p <- a.async { for {
-        _ <- log("Async 1")
-        _ <- f.suspend()
-        _ <- log("Async 2")
-        _ <- f.suspend()
-      } yield 42 }
-    _ <- log("Main")
-    r <- a.await(p)
-    _ <- log("Main with result " + r)
-  } yield ()
-
   run {
-    region { s =>
-      scheduler[s.effect](s) { f =>
-        poll(s, f) { a =>
-          asyncEx(f, a)
+    region {
+      scheduler[State.effect] {
+        poll {
+          ex
         }
       }
     }
@@ -171,10 +151,10 @@ object scheduler extends App {
     } yield if (b) a else 42
 
   run {
-    region { s =>
-      scheduler[s.effect](s) { f =>
-        poll(s, f) { a =>
-          (interleaveTest given f given a) flatMap log
+    region {
+      scheduler[State.effect] {
+        poll {
+          interleaveTest flatMap log
         }
       }
     }

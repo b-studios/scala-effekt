@@ -1,4 +1,4 @@
-package examples
+package examples.safe
 
 // This is core effect, based on Lambda-up-down by Zhang and Myers 2019.
 package object core extends App {
@@ -28,9 +28,9 @@ package object core extends App {
     handler: A => (B => Control[T, E]) => Control[T, E]
   ) extends IF[A, B] {
     type lbl = label.type
-    override def apply(arg: A): Control[B, this.lbl] = label.switch { k => handler(arg)(k) }
+    override def apply(arg: A): Control[B, this.lbl] = label.switch { given k => handler(arg)(k) }
   }
-  def down[R, E](prog: (l: Label[R, E]) => Control[R, l.type & E]): Control[R, E] = handle(prog)
+  def down[R, E](prog: (l: Label[R, E]) => Control[R, l.type & E]): Control[R, E] = handle(given s => prog(s))
   def up[A, B](f: IF[A, B]): A => Control[B, f.lbl] = a => f.apply(a)
 
 

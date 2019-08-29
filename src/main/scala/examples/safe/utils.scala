@@ -1,4 +1,4 @@
-package examples
+package examples.safe
 
 import effekt._
 
