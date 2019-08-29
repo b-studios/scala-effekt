@@ -6,7 +6,7 @@ sealed trait MetaCont[-A, +B] extends Serializable {
 
   def append[C](s: MetaCont[B, C]): MetaCont[A, C]
 
-  def splitAt[E](c: Prompt[E, _]): (MetaCont[A, E], MetaCont[E, B])
+  def splitAt[E](c: Scope[E, _]): (MetaCont[A, E], MetaCont[E, B])
 
   def map[C](f: C => A): MetaCont[C, B] = flatMap(x => pure(f(x)))
 
@@ -17,7 +17,7 @@ private[effekt]
 case class ReturnCont[A]() extends MetaCont[A, A] {
   final def apply(a: A): Result[A] = Value(a)
   final def append[B](s: MetaCont[A, B]): MetaCont[A, B] = s
-  final def splitAt[E](c: Prompt[E, _]) = sys error s"Prompt $c not found on the stack."
+  final def splitAt[E](c: Scope[E, _]) = sys error s"Prompt $c not found on the stack."
 }
 
 private[effekt]
@@ -35,7 +35,7 @@ case class FramesCont[-A, B, +C](frames: List[Frame[Nothing, Any]], tail: MetaCo
 
   final def append[D](s: MetaCont[C, D]): MetaCont[A, D] = FramesCont(frames, tail append s)
 
-  final def splitAt[E](c: Prompt[E, _]) = tail.splitAt(c) match {
+  final def splitAt[E](c: Scope[E, _]) = tail.splitAt(c) match {
     case (head, tail) => (FramesCont(frames, head), tail)
   }
 
@@ -43,17 +43,17 @@ case class FramesCont[-A, B, +C](frames: List[Frame[Nothing, Any]], tail: MetaCo
 }
 
 private[effekt]
-case class PromptCont[Res, +A](p: Prompt[Res, _])(tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
+case class PromptCont[Res, +A](p: Scope[Res, _])(tail: MetaCont[Res, A]) extends MetaCont[Res, A] {
   final def apply(r: Res): Result[A] = tail(r)
 
   final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = PromptCont(p)(tail append s)
 
   // Here we can see that our semantics is closer to spawn/controller than delimCC
-  final def splitAt[E](c: Prompt[E, _]) = c match {
+  final def splitAt[E](c: Scope[E, _]) = c match {
     // Here we deduce type equality from referential equality
     case _: p.type =>
-      val head = PromptCont(p)(ReturnCont[E]()).asInstanceOf[MetaCont[Res, E]]
-      val rest = tail.asInstanceOf[MetaCont[E, A]]
+      val head = PromptCont(p)(ReturnCont[E]())
+      val rest = tail
       (head, rest)
 
     case _ => tail.splitAt(c) match {
@@ -69,7 +69,7 @@ case class StateCont[Res, +A](p: State, tail: MetaCont[Res, A]) extends MetaCont
 
   final def append[C](k: MetaCont[A, C]): MetaCont[Res, C] = StateCont(p, tail append k)
 
-  final def splitAt[E](c: Prompt[E, _]) = tail.splitAt(c) match {
+  final def splitAt[E](c: Scope[E, _]) = tail.splitAt(c) match {
     case (head, tail) => (StateContCaptured(p, head)(p.backup), tail)
   }
 }
@@ -78,5 +78,5 @@ private[effekt]
 case class StateContCaptured[Res, +A](p: State, tail: MetaCont[Res, A])(state: p.StateRep) extends MetaCont[Res, A] {
   final def apply(r: Res): Result[A] = ???
   final def append[C](s: MetaCont[A, C]): MetaCont[Res, C] = StateCont({ p restore state; p }, tail append s)
-  final def splitAt[E](c: Prompt[E, _]) = ???
+  final def splitAt[E](c: Scope[E, _]) = ???
 }
