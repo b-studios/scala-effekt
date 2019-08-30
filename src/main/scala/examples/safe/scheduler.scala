@@ -61,6 +61,8 @@ object scheduler extends App {
       prog given new Scheduler[E] { val scope: Scope.type = Scope; val state: State.type = State }
     }
 
+  def schedule[E](prog: given (f: Fiber) => Unit / (f.effect & E)) = region { scheduler { prog } }
+
   trait Poll extends Async {
     val state: State
     val fiber: Fiber

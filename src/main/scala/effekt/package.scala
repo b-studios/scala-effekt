@@ -33,6 +33,7 @@ package object effekt {
     def switch[A](body: CPS[A, Control[R, E]]): Control[A, effect]
   }
   inline def Scope[R, E] given (s: Scope[R, E]): s.type = s
+  inline def scope[R, E] given (s: Scope[R, E]): s.type = s
 
   def handle[R, E](prog: given (c: Scope[R, E]) => R / (c.effect & E)): R / E = {
     val scope = new Scope[R, E] {
@@ -81,6 +82,7 @@ package object effekt {
     }
   }
   inline def State given (s: State): s.type = s
+  inline def Field[T](value: T) given (s: State): s.Field[T] = s.Field(value)
 
   def region[R, FX](prog: given (s: State) => Control[R, s.effect & FX]): Control[R, FX] = {
     val s = new State {}
