@@ -156,17 +156,16 @@ object parsers extends App {
     }
 
   def reader[T, R, E](input: Seq[T])(prog: given (in: Input[T]) => R / (in.effect & E)): R / E =
-    region { handle [R, State.effect & E] {
+    region {
       prog given new Input[T] {
-        type effect = Scope.effect
+        type effect = State.effect
         val pos = Field(0)
-        def read() = scope { for {
+        def read() = for {
           cur <- pos.value
           _   <- pos.value = cur + 1
-          res <- resume(input(cur))
-        } yield res }
+        } yield input(cur)
       }
-    }}
+    }
 
   // Reusing the existing scheduler.
   import scheduler._

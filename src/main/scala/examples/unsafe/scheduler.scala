@@ -55,6 +55,8 @@ object scheduler extends App {
   def scheduler(prog: given Fiber => Control[Unit]) given State =
     handle[Unit] { prog given new Scheduler {} }
 
+  def schedule(prog: given Fiber => Control[Unit]) = region { scheduler { prog } }
+
   class Poll given (val s: State) given Fiber extends Async {
     // XXX opaque does not work here?
     type Promise[T] = s.Field[Option[T]]
