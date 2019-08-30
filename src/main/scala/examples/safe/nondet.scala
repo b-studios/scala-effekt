@@ -15,6 +15,31 @@ object nondeterminism extends App {
     r <- if (caught) Amb.flip() else Exc.raise("oops")
   } yield if (r) "heads" else "tails"
 
+  object asTraits {
+    trait Maybe[R, E] extends Exc {
+      val scope: Scope[Option[R], E]
+      type effect = scope.effect
+      def raise(msg: String) = scope { pure(None) }
+    }
+    def maybe[R, E](prog: given (e: Exc) => R / (e.effect & E)) =
+      handle [Option[R], E] {
+        prog given new Maybe[R, E] { val scope: Scope.type = Scope } map { Some(_) }
+      }
+
+    trait Collect[R, E] extends Amb {
+      val scope: Scope[List[R], E]
+      type effect = scope.effect
+      def flip() = scope { for {
+        ts <- resume(true)
+        fs <- resume(false)
+      } yield ts ++ fs }
+    }
+    // XXX removing `given s => ` here makes type inference worse.
+    def collect[R, E](prog: given (a: Amb) => R / (a.effect & E)): List[R] / E =
+      handle { given s =>
+        prog given new Collect[R, E] { val scope: Scope.type = Scope } map { List(_) }
+      }
+  }
 
   trait Handler[R, E] {
     // this is only necessary since we don't use traits with constructor parameters.
@@ -23,7 +48,31 @@ object nondeterminism extends App {
     type effect = scope.effect
   }
 
-  object withhandler {
+  object withHandlerTrait {
+
+    trait Maybe[R, E] extends Exc with Handler[Option[R], E] {
+      type Effects = Pure
+      def raise(msg: String) = scope { pure(None) }
+    }
+    def maybe[R, E](prog: given (e: Exc) => R / (e.effect & E)) = handle [Option[R], E] {
+      prog given new Maybe[R, E] { val scope: Scope.type = Scope } map { Some(_) }
+    }
+
+    trait Collect[R, E] extends Amb with Handler[List[R], E] {
+      type Effects = Pure
+      def flip() = scope { for {
+        ts <- resume(true)
+        fs <- resume(false)
+      } yield ts ++ fs }
+    }
+    // XXX removing `given s => ` here makes type inference worse.
+    def collect[R, E](prog: given (a: Amb) => R / (a.effect & E)): List[R] / E = handle { given s =>
+      prog given new Collect[R, E] { val scope: Scope.type = Scope } map { List(_) }
+    }
+  }
+
+  // this illustrates that we can use upper bounds to specify effects
+  object withHandlerAndBounds {
 
     trait Maybe[R, E] extends Exc with Handler[Option[R], E]{
       // using some state effect
@@ -62,26 +111,5 @@ object nondeterminism extends App {
       }
   }
 
-  object withhandlersimple {
 
-    trait Maybe[R, E] extends Exc with Handler[Option[R], E] {
-      type Effects = Pure
-      def raise(msg: String) = scope { pure(None) }
-    }
-    def maybe[R, E](prog: given (e: Exc) => R / (e.effect & E)) = handle [Option[R], E] {
-      prog given new Maybe[R, E] { val scope: Scope.type = Scope } map { Some(_) }
-    }
-
-    trait Collect[R, E] extends Amb with Handler[List[R], E] {
-      type Effects = Pure
-      def flip() = scope { for {
-        ts <- resume(true)
-        fs <- resume(false)
-      } yield ts ++ fs }
-    }
-    // XXX removing `given s => ` here makes type inference worse.
-    def collect[R, E](prog: given (a: Amb) => R / (a.effect & E)): List[R] / E = handle { given s =>
-      prog given new Collect[R, E] { val scope: Scope.type = Scope } map { List(_) }
-    }
-  }
 }

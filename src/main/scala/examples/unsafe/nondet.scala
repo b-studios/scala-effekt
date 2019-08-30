@@ -15,14 +15,13 @@ object nondeterminism extends App {
     r <- if (caught) Amb.flip() else Exc.raise("oops")
   } yield if (r) "heads" else "tails"
 
-  // Again: Removing the `given s` makes type inference worse
-  def maybe[R](prog: given Exc => Control[R]): Control[Option[R]] = handle { given s =>
+  def maybe[R](prog: given Exc => Control[R]): Control[Option[R]] = handle {
     prog given new Exc {
       def raise(msg: String) = scope { pure(None) }
     } map { Some(_) }
   }
 
-  def collect[R](prog: given Amb => Control[R]): Control[List[R]] = handle { given s =>
+  def collect[R](prog: given Amb => Control[R]): Control[List[R]] = handle {
     prog given new Amb {
       def flip() = scope {
       for {
@@ -34,4 +33,21 @@ object nondeterminism extends App {
 
   println { run { maybe { collect { drunkFlip } } } }
   println { run { collect { maybe { drunkFlip } } } }
+
+  object asTraits {
+    trait Maybe[R] given Scope [Option[R]] extends Exc {
+      def raise(msg: String) = scope { pure(None) }
+    }
+    def maybe[R](prog: given Exc => Control[R]): Control[Option[R]] =
+      handle { prog given new Maybe[R] {} map { Some(_) } }
+
+    trait Collect[R] given Scope [List[R]] extends Amb {
+      def flip() = scope { for {
+        ts <- resume(true)
+        fs <- resume(false)
+      } yield ts ++ fs }
+    }
+    def collect[R, E](prog: given Amb => Control[R]): Control[List[R]] =
+      handle { prog given new Collect[R] {} map { List(_) } }
+  }
 }

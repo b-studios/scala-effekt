@@ -10,7 +10,7 @@ package object unsafe {
   final def pure[A](a: => A): Control[A] = effekt.pure(a)
 
   type CPS[+A, R] = given (A => R) => R
-  def resume[A, R] given (k: A => Control[R]): A => Control[R] = a => k(a)
+  inline def resume[A, R](a: A) given (k: A => Control[R]): Control[R] = k(a)
 
   final def run[A](c: Control[A]): A =
     effekt.run { c.asInstanceOf[effekt.Control[A, Pure]] }
@@ -23,8 +23,9 @@ package object unsafe {
     def apply[A](body: CPS[A, Control[R]]): Control[A] = switch(body)
     def switch[A](body: CPS[A, Control[R]]): Control[A]
   }
-  def Scope[R] given (s: Scope[R]): s.type = s
-  def scope[R] given (s: Scope[R]): s.type = s
+  // XXX inline here improves type inference
+  inline def Scope[R] given (s: Scope[R]): s.type = s
+  inline def scope[R] given (s: Scope[R]): s.type = s
 
   def handle[R](prog: given (c: Scope[R]) => Control[R]): Control[R] = {
     effekt.handle { given scope =>
@@ -52,7 +53,8 @@ package object unsafe {
       } yield ()
     }
   }
-  def State given (s: State): s.type = s
+  inline def State given (s: State): s.type = s
+  inline def Field[T](value: T) given (s: State) = s.Field(value)
 
   def region[R, FX](prog: given (s: State) => Control[R]): Control[R] =
     effekt.region { given typedState =>

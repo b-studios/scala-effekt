@@ -19,7 +19,7 @@ package object effekt {
   final def pure[A](a: => A): Control[A, Pure] = new Trivial(a)
 
   type CPS[+A, R] = given (A => R) => R
-  def resume[A, R, E](a: A) given (k: A => Control[R, E]): Control[R, E] = k(a)
+  inline def resume[A, R, E](a: A) given (k: A => Control[R, E]): Control[R, E] = k(a)
 
   final def run[A](c: Control[A, Pure]): A = Result.trampoline(c(ReturnCont()))
 
@@ -32,7 +32,7 @@ package object effekt {
     def apply[A](body: CPS[A, Control[R, E]]): Control[A, effect] = switch(body)
     def switch[A](body: CPS[A, Control[R, E]]): Control[A, effect]
   }
-  def Scope[R, E] given (s: Scope[R, E]): s.type = s
+  inline def Scope[R, E] given (s: Scope[R, E]): s.type = s
 
   def handle[R, E](prog: given (c: Scope[R, E]) => R / (c.effect & E)): R / E = {
     val scope = new Scope[R, E] {
@@ -80,7 +80,7 @@ package object effekt {
       } yield ()
     }
   }
-  def State given (s: State): s.type = s
+  inline def State given (s: State): s.type = s
 
   def region[R, FX](prog: given (s: State) => Control[R, s.effect & FX]): Control[R, FX] = {
     val s = new State {}
