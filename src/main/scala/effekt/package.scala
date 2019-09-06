@@ -6,10 +6,6 @@ package object effekt {
   // we use intersection types to track effects, so Pure = Top
   type Pure = Any
 
-  // A type DSL to construct implicit, dependent function types
-  // Currently effectively blocked by https://github.com/lampepfl/dotty/issues/5288
-
-  // TODO deprecate / in favor of Control
   type /[+A, -E] = Control[A, E]
 
   type The[A] = A & Singleton
@@ -48,12 +44,6 @@ package object effekt {
   // State is just a built-in version, optimized for fast getting and setting.
   // Additional cost per continuation capture (for backup/restore).
   // With the same public interface we could trade fast capture for slow lookup/write.
-  //
-  // The state interface is important since it separates the delimited from the type of
-  // state. This is not the case with the traditional `State[S]` interface. The separation
-  // is necessary to allow typing the scheduler example.
-  //
-  // The state effect is parametric in Result and Effects!
   trait State extends Eff {
 
     def Field[T](value: T): Field[T] = {
@@ -69,6 +59,8 @@ package object effekt {
 
     // all the field data is stored in `data`
     class Field[T] private[State] () {
+      def get(): T / effect = value
+      def put(v: T): Unit / effect = value = v
       def value: T / effect = pure(data(this).asInstanceOf[T])
       def value_=(value: T): Unit / effect = pure {
         data = data.updated(this, value)

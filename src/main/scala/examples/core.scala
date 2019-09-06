@@ -1,6 +1,6 @@
 package examples
 
-// This is core effect, based on Lambda-up-down by Zhang and Myers 2019.
+// This is core effect, based on Lambda-down-up by Zhang and Myers 2019.
 package object core extends App {
 
   import effekt.{
