@@ -6,6 +6,6 @@ monad transformer based program structuring techniques.
 The version of **Effekt** in this branch (which requires Dotty) is not yet published. 
 So you need to clone the repo and run `sbt` yourselves.
 
-The API is mostly the one as described in [this paper](http://ps.informatik.uni-tuebingen.de/publications/brachthaeuser19effekt/).
+The API is the one described in [this paper](http://ps.informatik.uni-tuebingen.de/publications/brachthaeuser19effekt/).
 
 Make sure to check out the examples.
