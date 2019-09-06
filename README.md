@@ -1,17 +1,11 @@
-[![Build Status](https://travis-ci.org/b-studios/scala-effekt.svg?branch=master)](https://travis-ci.org/b-studios/scala-effekt)
-[![Chat](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scala-effekt/scala-effekt)
-[![Scala.js](http://scala-js.org/assets/badges/scalajs-0.6.15.svg)](http://scala-js.org)
-
 # Scala Effekt
 The **Effekt** library allows you to structure your effectful programs
 in a functional way. It thus represents an alternative to traditional
 monad transformer based program structuring techniques.
 
-To use **Effekt** (with Dotty), include the
-following line to your `build.sbt` file (also see https://github.com/lampepfl/dotty-example-project to set up a Dotty project):
+The version of **Effekt** in this branch (which requires Dotty) is not yet published. 
+So you need to clone the repo and run `sbt` yourselves.
 
-```
-libraryDependencies += "de.b-studios" % "effekt_0.2" % "0.1-SNAPSHOT"
-```
+The API is mostly the one as described in [this paper](http://ps.informatik.uni-tuebingen.de/publications/brachthaeuser19effekt/).
 
-To learn how to use the library, see [Your First Effect](http://b-studios.de/scala-effekt/guides/getting-started.html).
+Make sure to check out the examples.
