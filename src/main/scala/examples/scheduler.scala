@@ -18,14 +18,14 @@ object scheduler extends App {
       res    <- if (forked) p andThen exit() else pure(())
     } yield res
   }
-  def Fiber given (F: Fiber): F.type = F
+  def Fiber(using F: Fiber): F.type = F
 
   trait Async extends Eff {
     type Promise[T]
     def async[T, E](prog: Control[T, E]): Control[Promise[T], E & effect]
     def await[T](p: Promise[T]): Control[T, effect]
   }
-  def Async given (A: Async): A.type = A
+  def Async(using A: Async): A.type = A
 
 
   // EFFECT HANDLERS
@@ -60,9 +60,9 @@ object scheduler extends App {
       prog(new Scheduler[E] { val scope: sc.type = sc; val state: st.type = st })
     }
 
-  def schedulerI[E](prog: given (f: Fiber) => Unit / (f.effect & E)) given State =
+  def schedulerI[E](using prog: (f: Fiber) => Unit / (f.effect & E))(using State) =
     handle[Unit, State.effect & E] { s =>
-      prog given new Scheduler[E] { val scope: s.type = s; val state: State.type = State }
+      prog(new Scheduler[E] { val scope: s.type = s; val state: State.type = State })
     }
 
   trait Poll extends Async {
@@ -86,14 +86,13 @@ object scheduler extends App {
   def poll[R, E](s: State, f: Fiber)(prog: (a: Async) => R / (a.effect & E)): R / (E & s.effect & f.effect) =
     prog(new Poll { val state: s.type = s; val fiber: f.type = f })
 
-  // using implicits
-  def pollI[R, E](prog: given (a: Async) => R / (a.effect & E)) given Fiber given State =
-    prog given new Poll { val state: State.type = State; val fiber: Fiber.type = Fiber }
+  def pollI[R, E](using prog: (a: Async) => R / (a.effect & E))(using Fiber, State) =
+    prog(new Poll { val state: State.type = State; val fiber: Fiber.type = Fiber })
 
   // EXAMPLES
   // ========
 
-  def ex given Fiber given Async = for {
+  def ex(using Fiber, Async) = for {
     p <- Async.async { for {
         _ <- log("Async 1")
         _ <- Fiber.suspend()
@@ -132,14 +131,14 @@ object scheduler extends App {
     }
   }
 
-  def join[S, T, E](ps: S / E, pt: T / E) given Async = for {
+  def join[S, T, E](ps: S / E, pt: T / E)(using Async) = for {
     pps <- Async.async { ps }
     ppt <- Async.async { pt }
     s <- Async.await(pps)
     t <- Async.await(ppt)
   } yield (s, t)
 
-  def interleaveTest given Fiber given Async = for {
+  def interleaveTest(using Fiber, Async) = for {
       ((a, x), b) <- join(join(for {
           () <- Fiber.suspend()
           () <- log("in first (1)")
@@ -174,14 +173,14 @@ object scheduler extends App {
     region { s =>
       scheduler[s.effect](s) { f =>
         poll(s, f) { a =>
-          (interleaveTest given f given a) flatMap log
+          (interleaveTest(using f, a)) flatMap log
         }
       }
     }
 
   }
 
-  def myFork given Fiber = for {
+  def myFork(using Fiber) = for {
     _ <- log("in fork")
     _ <- Fiber.suspend()
     _ <- log("in fork: after suspend")
@@ -189,13 +188,13 @@ object scheduler extends App {
     _ <- log("in fork: again, after suspend")
   } yield ()
 
-  def myMain given Fiber = for {
+  def myMain(using Fiber) = for {
     _ <- log("in main")
     _ <- Fiber.suspend()
     _ <- log("in main: after suspend")
   } yield ()
 
-  def prog given Fiber = for {
+  def prog(using Fiber) = for {
     _ <- log("before fork")
     forked <- Fiber.fork()
     _ <- if (forked) myFork else myMain
