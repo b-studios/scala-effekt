@@ -1,0 +1,10 @@
+language: scala
+jdk:
+- openjdk8
+cache:
+  directories:
+  - "$HOME/.ivy2/cache"
+  - "$HOME/.sbt/launchers"
+  - "$HOME/.cache/coursier/v1"
+script:
+- sbt test
