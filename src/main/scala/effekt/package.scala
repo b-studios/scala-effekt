@@ -27,7 +27,7 @@ package object effekt {
     def apply[A](body: CPS[A, Control[R, E]]): Control[A, effect] = switch(body)
     def switch[A](body: CPS[A, Control[R, E]]): Control[A, effect]
   }
-  def Scope[R, E] given (s: Scope[R, E]): s.type = s
+  def Scope[R, E](using s: Scope[R, E]): s.type = s
 
   def handle[R, E](prog: (c: Scope[R, E]) => R / (c.effect & E)): R / E = {
     val scope = new Scope[R, E] {
@@ -71,7 +71,7 @@ package object effekt {
       } yield ()
     }
   }
-  def State given (s: State): s.type = s
+  def State(using s: State): s.type = s
 
   def region[R, FX](prog: (s: State) => Control[R, s.effect & FX]): Control[R, FX] = {
     val s = new State {}

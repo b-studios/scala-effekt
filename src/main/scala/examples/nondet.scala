@@ -5,17 +5,17 @@ import effekt._
 object nondet extends App {
 
   trait Exc extends Eff { def raise(msg: String): Nothing / effect }
-  def Exc given (e: Exc): e.type = e
+  def Exc(using e: Exc): e.type = e
 
   trait Amb extends Eff { def flip(): Boolean / effect }
-  def Amb given (a: Amb): a.type = a
+  def Amb(using a: Amb): a.type = a
 
   def drunkFlip(amb: Amb, exc: Exc): Control[String, exc.effect & amb.effect] = for {
     caught <- amb.flip()
     r <- if (caught) amb.flip() else exc.raise("oops")
   } yield if (r) "heads" else "tails"
 
-  def drunkFlipI given Exc given Amb = for {
+  def drunkFlipI(using Exc, Amb) = for {
     caught <- Amb.flip()
     r <- if (caught) Amb.flip() else Exc.raise("oops")
   } yield if (r) "heads" else "tails"
