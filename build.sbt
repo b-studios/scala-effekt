@@ -2,7 +2,7 @@ lazy val root = project
   .in(file("."))
   .settings(moduleName := "effekt", name := "effekt")
   .settings(Seq(
-    scalaVersion := "0.23.0-RC1", //dottyLatestNightlyBuild.get,
+    scalaVersion := "0.24.0-RC1", //dottyLatestNightlyBuild.get,
     version := "0.2-SNAPSHOT",
     organization := "de.b-studios",
     scalacOptions ++= Seq(
