@@ -43,6 +43,7 @@ lazy val micrositeSettings = Seq(
   micrositeGithubRepo := "scala-effekt",
   micrositeHighlightTheme := "atom-one-light",
   micrositeOrganizationHomepage := "http://b-studios.de",
+  micrositeCompilingDocsTool := WithTut, // TODO migrate to mdoc
   // micrositePushSiteWith := GitHub4s,
   resolvers ~= (_.map {
     case r: sbt.librarymanagement.MavenRepo =>
