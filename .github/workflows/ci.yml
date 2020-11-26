@@ -1,0 +1,44 @@
+name: CI
+on:
+  pull_request:
+  push:
+  schedule:
+  - cron: '0 0 * * 0'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - java: 8
+    steps:
+    - uses: actions/checkout@v2.3.4
+    - uses: olafurpg/setup-scala@v10
+      with:
+        java-version: "adopt@1.${{ matrix.java }}"
+    - uses: coursier/cache-action@v5
+    - run: sbt -v "+ test"
+  push_gh_pages:
+    needs: test
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+    - uses: olafurpg/setup-scala@v10
+      with:
+        java-version: "adopt@1.8"
+    - uses: actions/checkout@v2.3.4
+    - uses: coursier/cache-action@v5
+    - uses: actions/setup-ruby@v1
+      with:
+        ruby-version: 2.7.2
+    - run: gem update --system && gem install jekyll bundler
+    - run: sbt -v docs/makeMicrosite
+    - name: Push to gh-pages
+      if: ${{ !github.event.repository.fork && github.ref == 'refs/heads/master' && github.event_name == 'push' }}
+      uses: JamesIves/github-pages-deploy-action@3.7.1
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        BRANCH: gh-pages
+        FOLDER: docs/target/site
+        CLEAN: true
