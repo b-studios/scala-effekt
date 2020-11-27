@@ -6,43 +6,41 @@ by Ohad Kammar and colleagues.
 In particular, we are interested in treating sending and receiving of
 information as effects.
 For simplicity, we’ll restrict ourselves to the case where the sent
-information is of type <code class="highlighter-rouge">Int</code>.</p>
+information is of type <code class="language-plaintext highlighter-rouge">Int</code>.</p>
 
 <p>First of all, let’s define the effect signatures for sending and
 receiving of information:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">import</span> <span class="nn">effekt._</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">effekt._</span>
 
 <span class="k">trait</span> <span class="nc">Send</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">send</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
+  <span class="k">def</span> <span class="nf">send</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
 <span class="o">}</span>
 <span class="k">trait</span> <span class="nc">Receive</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">receive</span><span class="o">()</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span>
+  <span class="k">def</span> <span class="nf">receive</span><span class="o">()</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Now, using these effect signatures we can define an example producer and
 a corresponding example consumer:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">producer</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">Send</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">producer</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">Send</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">s</span><span class="o">.</span><span class="n">send</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">s</span><span class="o">.</span><span class="n">send</span><span class="o">(</span><span class="mi">2</span><span class="o">)</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">s</span><span class="o">.</span><span class="n">send</span><span class="o">(</span><span class="mi">3</span><span class="o">)</span>
-  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nv">s</span><span class="o">.</span><span class="py">send</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nv">s</span><span class="o">.</span><span class="py">send</span><span class="o">(</span><span class="mi">2</span><span class="o">)</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nv">s</span><span class="o">.</span><span class="py">send</span><span class="o">(</span><span class="mi">3</span><span class="o">)</span>
+  <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
 
-<span class="k">def</span> <span class="n">consumer</span><span class="o">(</span><span class="n">r</span><span class="k">:</span> <span class="kt">Receive</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+<span class="k">def</span> <span class="nf">consumer</span><span class="o">(</span><span class="n">r</span><span class="k">:</span> <span class="kt">Receive</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
-    <span class="n">x1</span> <span class="k">&lt;-</span> <span class="n">r</span><span class="o">.</span><span class="n">receive</span><span class="o">()</span>
-    <span class="k">_</span> <span class="k">=</span> <span class="n">println</span><span class="o">(</span><span class="s">"1: "</span> <span class="o">+</span> <span class="n">x1</span><span class="o">)</span>
-    <span class="n">x2</span> <span class="k">&lt;-</span> <span class="n">r</span><span class="o">.</span><span class="n">receive</span><span class="o">()</span>
-    <span class="k">_</span> <span class="k">=</span> <span class="n">println</span><span class="o">(</span><span class="s">"2: "</span> <span class="o">+</span> <span class="n">x2</span><span class="o">)</span>
-    <span class="n">x3</span> <span class="k">&lt;-</span> <span class="n">r</span><span class="o">.</span><span class="n">receive</span><span class="o">()</span>
-    <span class="k">_</span> <span class="k">=</span> <span class="n">println</span><span class="o">(</span><span class="s">"3: "</span> <span class="o">+</span> <span class="n">x3</span><span class="o">)</span>
-  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
-</code></pre>
-</div>
+    <span class="n">x1</span> <span class="k">&lt;-</span> <span class="nv">r</span><span class="o">.</span><span class="py">receive</span><span class="o">()</span>
+    <span class="k">_</span> <span class="k">=</span> <span class="nf">println</span><span class="o">(</span><span class="s">"1: "</span> <span class="o">+</span> <span class="n">x1</span><span class="o">)</span>
+    <span class="n">x2</span> <span class="k">&lt;-</span> <span class="nv">r</span><span class="o">.</span><span class="py">receive</span><span class="o">()</span>
+    <span class="k">_</span> <span class="k">=</span> <span class="nf">println</span><span class="o">(</span><span class="s">"2: "</span> <span class="o">+</span> <span class="n">x2</span><span class="o">)</span>
+    <span class="n">x3</span> <span class="k">&lt;-</span> <span class="nv">r</span><span class="o">.</span><span class="py">receive</span><span class="o">()</span>
+    <span class="k">_</span> <span class="k">=</span> <span class="nf">println</span><span class="o">(</span><span class="s">"3: "</span> <span class="o">+</span> <span class="n">x3</span><span class="o">)</span>
+  <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
+</code></pre></div></div>
 
 <p>What is missing, is a way to connect the two in order to form a pipe.
 The core insight to achieve this the following:
@@ -57,58 +55,53 @@ current continuation.</p>
 processes as handlers and use the state of the handler to store the
 opposite end:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Process</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">P</span><span class="o">[</span><span class="k">_</span><span class="o">]](</span><span class="k">val</span> <span class="n">init</span><span class="k">:</span> <span class="kt">P</span><span class="o">[</span><span class="kt">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">]])</span> <span class="k">extends</span> <span class="nc">Handler</span><span class="o">.</span><span class="nc">Stateful</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">P</span><span class="o">[</span><span class="kt">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">]]]</span>
-</code></pre>
-</div>
-<p>In our case, the type constructor <code class="highlighter-rouge">P[_]</code> will be one of the following:</p>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Process</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">P</span><span class="o">[</span><span class="k">_</span><span class="o">]](</span><span class="k">val</span> <span class="nv">init</span><span class="k">:</span> <span class="kt">P</span><span class="o">[</span><span class="kt">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">]])</span> <span class="k">extends</span> <span class="nv">Handler</span><span class="o">.</span><span class="py">Stateful</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">P</span><span class="o">[</span><span class="kt">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">]]]</span>
+</code></pre></div></div>
+<p>In our case, the type constructor <code class="language-plaintext highlighter-rouge">P[_]</code> will be one of the following:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">object</span> <span class="nc">Process</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">object</span> <span class="nc">Process</span> <span class="o">{</span>
   <span class="k">case</span> <span class="k">class</span> <span class="nc">Prod</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="n">apply</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=&gt;</span> <span class="nc">Cons</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="n">R</span><span class="o">)</span>
   <span class="k">case</span> <span class="k">class</span> <span class="nc">Cons</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="n">apply</span><span class="k">:</span> <span class="kt">Int</span>  <span class="o">=&gt;</span> <span class="nc">Prod</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="n">R</span><span class="o">)</span>
 <span class="o">}</span>
 <span class="k">import</span> <span class="nn">Process._</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 <p>Note that each process holds a <strong>continuation</strong> which takes the resulting
 value as first argument <strong>and the updated opposite process</strong> as state
-(second argument) to finally compute an <code class="highlighter-rouge">R</code>. As can be seen in the
-definition of <code class="highlighter-rouge">Process</code> above, the <code class="highlighter-rouge">R</code> will eventually be instantiated
-as <code class="highlighter-rouge">Control[R0]</code> since it needs to be effectful.</p>
+(second argument) to finally compute an <code class="language-plaintext highlighter-rouge">R</code>. As can be seen in the
+definition of <code class="language-plaintext highlighter-rouge">Process</code> above, the <code class="language-plaintext highlighter-rouge">R</code> will eventually be instantiated
+as <code class="language-plaintext highlighter-rouge">Control[R0]</code> since it needs to be effectful.</p>
 
 <p>The two handlers corresponding to receiving and producing processes
 now can be defined as:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">down</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="n">p</span><span class="k">:</span> <span class="kt">Prod</span><span class="o">[</span><span class="kt">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">]])</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">Process</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">Prod</span><span class="o">](</span><span class="n">p</span><span class="o">)</span> <span class="k">with</span> <span class="nc">Receive</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">receive</span><span class="o">()</span> <span class="k">=</span> <span class="n">useState</span> <span class="o">{</span>
-    <span class="k">case</span> <span class="nc">Prod</span><span class="o">(</span><span class="n">prod</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="n">prod</span><span class="o">(())(</span><span class="nc">Cons</span><span class="o">(</span><span class="n">resume</span><span class="o">))</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">down</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="n">p</span><span class="k">:</span> <span class="kt">Prod</span><span class="o">[</span><span class="kt">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">]])</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">Process</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">Prod</span><span class="o">](</span><span class="n">p</span><span class="o">)</span> <span class="k">with</span> <span class="nc">Receive</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="nf">receive</span><span class="o">()</span> <span class="k">=</span> <span class="n">useState</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nc">Prod</span><span class="o">(</span><span class="n">prod</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="nf">prod</span><span class="o">(())(</span><span class="nc">Cons</span><span class="o">(</span><span class="n">resume</span><span class="o">))</span>
   <span class="o">}</span>
 <span class="o">}</span>
 
 
-<span class="k">def</span> <span class="n">up</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="n">p</span><span class="k">:</span> <span class="kt">Cons</span><span class="o">[</span><span class="kt">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">]])</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">Process</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">Cons</span><span class="o">](</span><span class="n">p</span><span class="o">)</span> <span class="k">with</span> <span class="nc">Send</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">send</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="n">useState</span> <span class="o">{</span>
-    <span class="k">case</span> <span class="nc">Cons</span><span class="o">(</span><span class="n">cons</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="n">cons</span><span class="o">(</span><span class="n">n</span><span class="o">)(</span><span class="nc">Prod</span><span class="o">(</span><span class="n">resume</span><span class="o">))</span>
+<span class="k">def</span> <span class="nf">up</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="n">p</span><span class="k">:</span> <span class="kt">Cons</span><span class="o">[</span><span class="kt">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">]])</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">Process</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">Cons</span><span class="o">](</span><span class="n">p</span><span class="o">)</span> <span class="k">with</span> <span class="nc">Send</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="nf">send</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=</span> <span class="n">useState</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nc">Cons</span><span class="o">(</span><span class="n">cons</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="nf">cons</span><span class="o">(</span><span class="n">n</span><span class="o">)(</span><span class="nc">Prod</span><span class="o">(</span><span class="n">resume</span><span class="o">))</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Stunning symmetry, isn’t it? :)</p>
 
-<p>Finally, the pipe can be created by connecting <code class="highlighter-rouge">up</code> and <code class="highlighter-rouge">down</code> to
-handle two program fragments using <code class="highlighter-rouge">Receive</code> and <code class="highlighter-rouge">Send</code> correspondingly.</p>
+<p>Finally, the pipe can be created by connecting <code class="language-plaintext highlighter-rouge">up</code> and <code class="language-plaintext highlighter-rouge">down</code> to
+handle two program fragments using <code class="language-plaintext highlighter-rouge">Receive</code> and <code class="language-plaintext highlighter-rouge">Send</code> correspondingly.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">pipe</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="n">d</span><span class="k">:</span> <span class="kt">Receive</span> <span class="o">=&gt;</span> <span class="nc">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">],</span> <span class="n">u</span><span class="k">:</span> <span class="kt">Send</span> <span class="o">=&gt;</span> <span class="nc">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="k">=</span>
-  <span class="n">down</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="nc">Prod</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="n">cons</span> <span class="k">=&gt;</span> <span class="n">up</span><span class="o">(</span><span class="n">cons</span><span class="o">)</span> <span class="o">{</span> <span class="n">u</span> <span class="o">}))</span> <span class="o">{</span> <span class="n">d</span> <span class="o">}</span>
-</code></pre>
-</div>
-<p>Running our above example with <code class="highlighter-rouge">pipe</code> yields:</p>
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">pipe</span><span class="o">(</span><span class="n">d</span> <span class="k">=&gt;</span> <span class="n">consumer</span><span class="o">(</span><span class="n">d</span><span class="o">),</span> <span class="n">u</span> <span class="k">=&gt;</span> <span class="n">producer</span><span class="o">(</span><span class="n">u</span><span class="o">)).</span><span class="n">run</span><span class="o">()</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">pipe</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="n">d</span><span class="k">:</span> <span class="kt">Receive</span> <span class="o">=&gt;</span> <span class="nc">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">],</span> <span class="n">u</span><span class="k">:</span> <span class="kt">Send</span> <span class="o">=&gt;</span> <span class="nc">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="k">=</span>
+  <span class="n">down</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="nc">Prod</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="n">cons</span> <span class="k">=&gt;</span> <span class="nf">up</span><span class="o">(</span><span class="n">cons</span><span class="o">)</span> <span class="o">{</span> <span class="n">u</span> <span class="o">}))</span> <span class="o">{</span> <span class="n">d</span> <span class="o">}</span>
+</code></pre></div></div>
+<p>Running our above example with <code class="language-plaintext highlighter-rouge">pipe</code> yields:</p>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="nf">pipe</span><span class="o">(</span><span class="n">d</span> <span class="k">=&gt;</span> <span class="nf">consumer</span><span class="o">(</span><span class="n">d</span><span class="o">),</span> <span class="n">u</span> <span class="k">=&gt;</span> <span class="nf">producer</span><span class="o">(</span><span class="n">u</span><span class="o">)).</span><span class="py">run</span><span class="o">()</span>
 <span class="mi">1</span><span class="k">:</span> <span class="err">1</span>
 <span class="err">2</span><span class="kt">:</span> <span class="err">2</span>
 <span class="err">3</span><span class="kt">:</span> <span class="err">3</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 </section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scala-effekt/highlight/highlight.pack.js"></script><script>hljs.configure({languages:['scala','java','bash']});
 hljs.initHighlighting();
               </script><script src="/scala-effekt/js/boilerplate.js"></script><script>((window.gitter = {}).chat = {}).options = {

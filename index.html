@@ -12,13 +12,13 @@ monad transformer based program structuring techniques or free monads.</p>
     <div class="row">
       <div class="col-md-5">
         <h3 id="an-example">An example</h3>
-        <p>The <code class="highlighter-rouge">Twitter</code>-API example shows how to define an effect signature with
-one effectful operation <code class="highlighter-rouge">userTweets</code>. The effect itself can be
+        <p>The <code class="language-plaintext highlighter-rouge">Twitter</code>-API example shows how to define an effect signature with
+one effectful operation <code class="language-plaintext highlighter-rouge">userTweets</code>. The effect itself can be
 implemented in many ways by simply implementing the abstract methods
-in the <code class="highlighter-rouge">Twitter</code> trait. It could actually contact the Twitter API
+in the <code class="language-plaintext highlighter-rouge">Twitter</code> trait. It could actually contact the Twitter API
 (potentially using other effects, like HTTP in the implementation) or
 it could just return dummy tweets for testing purposes. We chose the
-latter for the implementation of <code class="highlighter-rouge">twitterStub</code> and thus running the
+latter for the implementation of <code class="language-plaintext highlighter-rouge">twitterStub</code> and thus running the
 result actually perform the side-effects always gives the same results.</p>
 
         <p>You can find the full sources for this example in <a href="https://scastie.scala-lang.org/JplohyA1RWeE7ykU08BqwQ">this Dotty Scastie</a>.</p>
@@ -26,22 +26,20 @@ result actually perform the side-effects always gives the same results.</p>
       <div class="col-md-7">
 
         <p><strong>Effect signature</strong></p>
-        <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">Twitter</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">userTweets</span><span class="o">(</span><span class="n">userId</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Tweet</span><span class="o">]]</span>
+        <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">Twitter</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="nf">userTweets</span><span class="o">(</span><span class="n">userId</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Tweet</span><span class="o">]]</span>
 <span class="o">}</span>
-</code></pre>
-        </div>
+</code></pre></div>        </div>
 
         <p><strong>Effect usage</strong></p>
-        <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">query</span><span class="o">(</span><span class="n">T</span><span class="k">:</span> <span class="kt">Twitter</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Tweet</span><span class="o">]]</span> <span class="k">=</span>
+        <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">query</span><span class="o">(</span><span class="n">T</span><span class="k">:</span> <span class="kt">Twitter</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Tweet</span><span class="o">]]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
-    <span class="n">ts1</span> <span class="k">&lt;-</span> <span class="n">T</span><span class="o">.</span><span class="n">userTweets</span><span class="o">(</span><span class="mi">133452</span><span class="o">)</span>
-    <span class="n">ts2</span> <span class="k">&lt;-</span> <span class="n">T</span><span class="o">.</span><span class="n">userTweets</span><span class="o">(</span><span class="mi">111345</span><span class="o">)</span>
+    <span class="n">ts1</span> <span class="k">&lt;-</span> <span class="nv">T</span><span class="o">.</span><span class="py">userTweets</span><span class="o">(</span><span class="mi">133452</span><span class="o">)</span>
+    <span class="n">ts2</span> <span class="k">&lt;-</span> <span class="nv">T</span><span class="o">.</span><span class="py">userTweets</span><span class="o">(</span><span class="mi">111345</span><span class="o">)</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">ts1</span> <span class="o">++</span> <span class="n">ts2</span>
 
-<span class="k">val</span> <span class="n">result</span> <span class="k">=</span> <span class="n">twitterStub</span> <span class="o">{</span> <span class="n">query</span> <span class="o">}</span>
-</code></pre>
-        </div>
+<span class="k">val</span> <span class="nv">result</span> <span class="k">=</span> <span class="n">twitterStub</span> <span class="o">{</span> <span class="n">query</span> <span class="o">}</span>
+</code></pre></div>        </div>
       </div>
     </div>
   </div>
@@ -49,13 +47,12 @@ result actually perform the side-effects always gives the same results.</p>
 
 <h2 id="getting-started">Getting Started</h2>
 <p>To use <strong>Effekt</strong> (tested with Scala 2.11 and Scala 2.12), include the
-following line to your <code class="highlighter-rouge">build.sbt</code> file:</p>
+following line to your <code class="language-plaintext highlighter-rouge">build.sbt</code> file:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>resolvers += Opts.resolver.sonatypeSnapshots
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>resolvers += Opts.resolver.sonatypeSnapshots
 
 libraryDependencies += "de.b-studios" %% "effekt" % "0.4-SNAPSHOT"
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>To learn how to use the library, see <a href="./guides/getting-started.html">Your First Effect</a>.</p>
 </div></div></section><section class="technologies"><div class="container"><div class="row"></div></div></section></main><footer id="site-footer"><div class="container"><div class="row"><div class="col-xs-6"><p>Scala Effekt is designed and developed by <a href="http://b-studios.de" target="_blank" rel="noopener noreferrer">Jonathan Brachthäuser (@b-studios)</a></p></div><div class="col-xs-6"><p class="text-right"><a href="https://github.com/b-studios/scala-effekt"><span class="fa fa-github"></span>View on GitHub</a></p></div></div><div class="row"><div class="col-xs-6"><p>Website built with <a href="https://47deg.github.io/sbt-microsites/" target="_blank" rel="noopener noreferrer">sbt-microsites</a> - © 2019 <a href="https://www.47deg.com/" target="_blank" rel="noopener noreferrer">47 Degrees</a></p></div></div><script src="/scala-effekt/highlight/highlight.pack.js"></script><script>hljs.initHighlighting();

@@ -1,0 +1,11 @@
+name: Scala Effekt
+baseurl: /scala-effekt
+description: Extensible algebraic effects with handlers
+highlighter: rouge
+docs: true
+collections:
+  tut:
+    output: true
+version: 0.4-SNAPSHOT
+org: de.b-studios
+markdown: kramdown

@@ -5,18 +5,16 @@ The basic idea is, that all non-trivial terms (in a very wide sense,
 those that correspond to computation, or invoke side-effects) are
 bound to variables. For example, translating</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="mi">1</span> <span class="o">-</span> <span class="o">((</span><span class="mi">3</span> <span class="o">-</span> <span class="mi">2</span><span class="o">)</span> <span class="o">-</span> <span class="mi">4</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="mi">1</span> <span class="o">-</span> <span class="o">((</span><span class="mi">3</span> <span class="o">-</span> <span class="mi">2</span><span class="o">)</span> <span class="o">-</span> <span class="mi">4</span><span class="o">)</span>
+</code></pre></div></div>
 
 <p>to ANF gives</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">var</span> <span class="n">x0</span> <span class="k">=</span> <span class="mi">3</span> <span class="o">-</span> <span class="mi">2</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">var</span> <span class="n">x0</span> <span class="k">=</span> <span class="mi">3</span> <span class="o">-</span> <span class="mi">2</span>
 <span class="k">var</span> <span class="n">x1</span> <span class="k">=</span> <span class="n">x0</span> <span class="o">-</span> <span class="mi">4</span>
 <span class="k">var</span> <span class="n">x2</span> <span class="k">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">x1</span>
 <span class="n">x2</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>ANF transformations can be implemented using continuation passing style,
 as demonstrated by <a href="http://matt.might.net/articles/a-normalization/">Matt Might</a>.</p>
@@ -24,128 +22,119 @@ as demonstrated by <a href="http://matt.might.net/articles/a-normalization/">Mat
 <p>In this short guide, we will see how algebraic effects can be used to
 describe an ANF transformation for a very simple expression language.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">Exp</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">Exp</span>
 <span class="k">case</span> <span class="k">class</span> <span class="nc">Lit</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
 <span class="k">case</span> <span class="k">class</span> <span class="nc">Sub</span><span class="o">(</span><span class="n">l</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">r</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
 <span class="k">case</span> <span class="k">class</span> <span class="nc">Var</span><span class="o">(</span><span class="n">name</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
 <span class="k">case</span> <span class="k">class</span> <span class="nc">Let</span><span class="o">(</span><span class="n">name</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">value</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">,</span> <span class="n">body</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Exp</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The language features numeric literals, subtraction, let-bindings
 and variables. The above example in our small language reads as:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">val</span> <span class="n">ex</span> <span class="k">=</span> <span class="nc">Sub</span><span class="o">(</span><span class="nc">Lit</span><span class="o">(</span><span class="mi">1</span><span class="o">),</span> <span class="nc">Sub</span><span class="o">(</span><span class="nc">Sub</span><span class="o">(</span><span class="nc">Lit</span><span class="o">(</span><span class="mi">3</span><span class="o">),</span> <span class="nc">Lit</span><span class="o">(</span><span class="mi">2</span><span class="o">)),</span> <span class="nc">Lit</span><span class="o">(</span><span class="mi">4</span><span class="o">)))</span>
-</code></pre>
-</div>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="nv">ex</span> <span class="k">=</span> <span class="nc">Sub</span><span class="o">(</span><span class="nc">Lit</span><span class="o">(</span><span class="mi">1</span><span class="o">),</span> <span class="nc">Sub</span><span class="o">(</span><span class="nc">Sub</span><span class="o">(</span><span class="nc">Lit</span><span class="o">(</span><span class="mi">3</span><span class="o">),</span> <span class="nc">Lit</span><span class="o">(</span><span class="mi">2</span><span class="o">)),</span> <span class="nc">Lit</span><span class="o">(</span><span class="mi">4</span><span class="o">)))</span>
+</code></pre></div></div>
 
-<p>To implement the transformation we define a <code class="highlighter-rouge">Transform</code> effect that
-we use to mark elements of our language as either <code class="highlighter-rouge">value</code>s or
-<code class="highlighter-rouge">computation</code>s:</p>
+<p>To implement the transformation we define a <code class="language-plaintext highlighter-rouge">Transform</code> effect that
+we use to mark elements of our language as either <code class="language-plaintext highlighter-rouge">value</code>s or
+<code class="language-plaintext highlighter-rouge">computation</code>s:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">import</span> <span class="nn">effekt._</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">effekt._</span>
 <span class="k">trait</span> <span class="nc">Transform</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">value</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span>
-  <span class="k">def</span> <span class="n">computation</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span>
+  <span class="k">def</span> <span class="nf">value</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span>
+  <span class="k">def</span> <span class="nf">computation</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<p>We also define a recursive traversal function that uses <code class="highlighter-rouge">Transform</code>
+<p>We also define a recursive traversal function that uses <code class="language-plaintext highlighter-rouge">Transform</code>
 to visit each node in our tree:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">visit</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">t</span><span class="k">:</span> <span class="kt">Transform</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="k">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">visit</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">t</span><span class="k">:</span> <span class="kt">Transform</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="k">=</span> <span class="n">e</span> <span class="k">match</span> <span class="o">{</span>
 
-    <span class="k">case</span> <span class="n">v</span> <span class="k">:</span> <span class="kt">Var</span> <span class="o">=&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">value</span><span class="o">(</span><span class="n">v</span><span class="o">)</span>
-    <span class="k">case</span> <span class="n">l</span> <span class="k">:</span> <span class="kt">Lit</span> <span class="o">=&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">value</span><span class="o">(</span><span class="n">l</span><span class="o">)</span>
+    <span class="k">case</span> <span class="n">v</span> <span class="k">:</span> <span class="kt">Var</span> <span class="o">=&gt;</span> <span class="nv">t</span><span class="o">.</span><span class="py">value</span><span class="o">(</span><span class="n">v</span><span class="o">)</span>
+    <span class="k">case</span> <span class="n">l</span> <span class="k">:</span> <span class="kt">Lit</span> <span class="o">=&gt;</span> <span class="nv">t</span><span class="o">.</span><span class="py">value</span><span class="o">(</span><span class="n">l</span><span class="o">)</span>
 
     <span class="k">case</span> <span class="nc">Let</span><span class="o">(</span><span class="n">name</span><span class="o">,</span> <span class="n">v</span><span class="o">,</span> <span class="n">b</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
-      <span class="n">vv</span> <span class="k">&lt;-</span> <span class="n">visit</span><span class="o">(</span><span class="n">v</span><span class="o">)</span>
-      <span class="n">bv</span> <span class="k">&lt;-</span> <span class="n">visit</span><span class="o">(</span><span class="n">b</span><span class="o">)</span>
-      <span class="n">e</span>  <span class="k">&lt;-</span> <span class="n">t</span><span class="o">.</span><span class="n">value</span><span class="o">(</span><span class="nc">Let</span><span class="o">(</span><span class="n">name</span><span class="o">,</span> <span class="n">vv</span><span class="o">,</span> <span class="n">bv</span><span class="o">))</span>
+      <span class="n">vv</span> <span class="k">&lt;-</span> <span class="nf">visit</span><span class="o">(</span><span class="n">v</span><span class="o">)</span>
+      <span class="n">bv</span> <span class="k">&lt;-</span> <span class="nf">visit</span><span class="o">(</span><span class="n">b</span><span class="o">)</span>
+      <span class="n">e</span>  <span class="k">&lt;-</span> <span class="nv">t</span><span class="o">.</span><span class="py">value</span><span class="o">(</span><span class="nc">Let</span><span class="o">(</span><span class="n">name</span><span class="o">,</span> <span class="n">vv</span><span class="o">,</span> <span class="n">bv</span><span class="o">))</span>
     <span class="o">}</span> <span class="k">yield</span> <span class="n">e</span>
 
     <span class="k">case</span> <span class="nc">Sub</span><span class="o">(</span><span class="n">l</span><span class="o">,</span> <span class="n">r</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
-      <span class="n">lv</span>  <span class="k">&lt;-</span> <span class="n">visit</span><span class="o">(</span><span class="n">l</span><span class="o">)</span>
-      <span class="n">rv</span>  <span class="k">&lt;-</span> <span class="n">visit</span><span class="o">(</span><span class="n">r</span><span class="o">)</span>
-      <span class="n">e</span> <span class="k">&lt;-</span> <span class="n">t</span><span class="o">.</span><span class="n">computation</span><span class="o">(</span><span class="nc">Sub</span><span class="o">(</span><span class="n">lv</span><span class="o">,</span> <span class="n">rv</span><span class="o">))</span>
+      <span class="n">lv</span>  <span class="k">&lt;-</span> <span class="nf">visit</span><span class="o">(</span><span class="n">l</span><span class="o">)</span>
+      <span class="n">rv</span>  <span class="k">&lt;-</span> <span class="nf">visit</span><span class="o">(</span><span class="n">r</span><span class="o">)</span>
+      <span class="n">e</span> <span class="k">&lt;-</span> <span class="nv">t</span><span class="o">.</span><span class="py">computation</span><span class="o">(</span><span class="nc">Sub</span><span class="o">(</span><span class="n">lv</span><span class="o">,</span> <span class="n">rv</span><span class="o">))</span>
     <span class="o">}</span> <span class="k">yield</span> <span class="n">e</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>This traversal marks variables and literals as values, traverses the
-subcomponents of <code class="highlighter-rouge">Let</code> and <code class="highlighter-rouge">Sub</code> and finally marks let bindings as
+subcomponents of <code class="language-plaintext highlighter-rouge">Let</code> and <code class="language-plaintext highlighter-rouge">Sub</code> and finally marks let bindings as
 values and subtraction as computation.</p>
 
 <h2 id="intermezzo-generating-fresh-names">Intermezzo: Generating fresh names</h2>
 
 <p>To define our ANF transformation we need to come up with fresh names
-such as <code class="highlighter-rouge">x1</code>, <code class="highlighter-rouge">x2</code> above. Generating fresh variable names / symbols
+such as <code class="language-plaintext highlighter-rouge">x1</code>, <code class="language-plaintext highlighter-rouge">x2</code> above. Generating fresh variable names / symbols
 can be seen as an effect, so we define another effect signature for
-<code class="highlighter-rouge">SymGen</code>:</p>
+<code class="language-plaintext highlighter-rouge">SymGen</code>:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">SymGen</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">fresh</span><span class="o">()</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">SymGen</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="nf">fresh</span><span class="o">()</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<p>A handler for <code class="highlighter-rouge">fresh</code> can be implemented using stateful-handlers, as
+<p>A handler for <code class="language-plaintext highlighter-rouge">fresh</code> can be implemented using stateful-handlers, as
 provided by effekt:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">SymState</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="nc">extends</span> <span class="nc">SymGen</span> <span class="k">with</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="k">with</span> <span class="nc">State</span> <span class="o">{</span>
-  <span class="k">val</span> <span class="n">count</span> <span class="k">=</span> <span class="nc">Field</span><span class="o">(</span><span class="mi">0</span><span class="o">)</span>
-  <span class="k">private</span> <span class="k">def</span> <span class="n">inc</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
-    <span class="n">x</span> <span class="k">&lt;-</span> <span class="n">count</span><span class="o">.</span><span class="n">value</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">count</span><span class="o">.</span><span class="n">value</span> <span class="k">=</span> <span class="n">x</span> <span class="o">+</span> <span class="mi">1</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">SymState</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="nc">extends</span> <span class="nc">SymGen</span> <span class="k">with</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="k">with</span> <span class="nc">State</span> <span class="o">{</span>
+  <span class="k">val</span> <span class="nv">count</span> <span class="k">=</span> <span class="nc">Field</span><span class="o">(</span><span class="mi">0</span><span class="o">)</span>
+  <span class="k">private</span> <span class="k">def</span> <span class="nf">inc</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+    <span class="n">x</span> <span class="k">&lt;-</span> <span class="nv">count</span><span class="o">.</span><span class="py">value</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nv">count</span><span class="o">.</span><span class="py">value</span> <span class="k">=</span> <span class="n">x</span> <span class="o">+</span> <span class="mi">1</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">x</span>
 
-  <span class="k">def</span> <span class="n">fresh</span><span class="o">()</span> <span class="k">=</span> <span class="n">inc</span> <span class="n">map</span> <span class="o">{</span> <span class="s">"x"</span> <span class="o">+</span> <span class="k">_</span> <span class="o">}</span>
+  <span class="k">def</span> <span class="nf">fresh</span><span class="o">()</span> <span class="k">=</span> <span class="n">inc</span> <span class="n">map</span> <span class="o">{</span> <span class="s">"x"</span> <span class="o">+</span> <span class="k">_</span> <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<h2 id="defining-an-anf-handler-for-transform">Defining an ANF handler for <code class="highlighter-rouge">Transform</code></h2>
+<h2 id="defining-an-anf-handler-for-transform">Defining an ANF handler for <code class="language-plaintext highlighter-rouge">Transform</code></h2>
 <p>With the ability to generate fresh names, we are now ready to define
-an ANF transformation as a handler for <code class="highlighter-rouge">Transform</code>:</p>
+an ANF transformation as a handler for <code class="language-plaintext highlighter-rouge">Transform</code>:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ANF</span><span class="o">(</span><span class="k">implicit</span> <span class="n">sym</span><span class="k">:</span> <span class="kt">SymGen</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Transform</span> <span class="k">with</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">value</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="n">resume</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="o">}</span>
-  <span class="k">def</span> <span class="n">computation</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
-    <span class="n">x</span> <span class="k">&lt;-</span> <span class="n">sym</span><span class="o">.</span><span class="n">fresh</span><span class="o">()</span>
-    <span class="n">body</span> <span class="k">&lt;-</span> <span class="n">resume</span><span class="o">(</span><span class="nc">Var</span><span class="o">(</span><span class="n">x</span><span class="o">))</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ANF</span><span class="o">(</span><span class="k">implicit</span> <span class="n">sym</span><span class="k">:</span> <span class="kt">SymGen</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Transform</span> <span class="k">with</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="nf">value</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="nf">resume</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="o">}</span>
+  <span class="k">def</span> <span class="nf">computation</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span> <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
+    <span class="n">x</span> <span class="k">&lt;-</span> <span class="nv">sym</span><span class="o">.</span><span class="py">fresh</span><span class="o">()</span>
+    <span class="n">body</span> <span class="k">&lt;-</span> <span class="nf">resume</span><span class="o">(</span><span class="nc">Var</span><span class="o">(</span><span class="n">x</span><span class="o">))</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="nc">Let</span><span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">e</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span> <span class="o">}</span>
 <span class="o">}</span>
-<span class="k">def</span> <span class="nc">ANF</span><span class="o">(</span><span class="n">prog</span><span class="k">:</span> <span class="kt">Transform</span> <span class="o">=&gt;</span> <span class="nc">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">sym</span><span class="k">:</span> <span class="kt">SymGen</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="k">=</span>
-    <span class="o">(</span><span class="k">new</span> <span class="nc">ANF</span><span class="o">).</span><span class="n">apply</span><span class="o">(</span><span class="n">prog</span><span class="o">)</span>
-</code></pre>
-</div>
+<span class="k">def</span> <span class="nf">ANF</span><span class="o">(</span><span class="n">prog</span><span class="k">:</span> <span class="kt">Transform</span> <span class="o">=&gt;</span> <span class="nc">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">sym</span><span class="k">:</span> <span class="kt">SymGen</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="k">=</span>
+    <span class="o">(</span><span class="k">new</span> <span class="nc">ANF</span><span class="o">).</span><span class="py">apply</span><span class="o">(</span><span class="n">prog</span><span class="o">)</span>
+</code></pre></div></div>
 
-<p>Note that this handler itself is effectful and uses the <code class="highlighter-rouge">SymGen</code> effect. To do so, it
-requires a capability as constructor argument. We only need the <code class="highlighter-rouge">Basic</code> handler here
-and discard the handler state (hence the <code class="highlighter-rouge">_</code>). For values, we just resume with the
+<p>Note that this handler itself is effectful and uses the <code class="language-plaintext highlighter-rouge">SymGen</code> effect. To do so, it
+requires a capability as constructor argument. We only need the <code class="language-plaintext highlighter-rouge">Basic</code> handler here
+and discard the handler state (hence the <code class="language-plaintext highlighter-rouge">_</code>). For values, we just resume with the
 expression unchanged.
 However, for computations we generate a fresh name, build the corresponding tree using
 the freshly generated variable and wrap it finally in a let-binding.
 It is important to note that this let-binding will be introduced at the point where
 the ANF handler is used.</p>
 
-<p>Finally the anf-transformation can be defined in terms of the <code class="highlighter-rouge">SymState</code> handler and
-the <code class="highlighter-rouge">ANF</code> handler:</p>
+<p>Finally the anf-transformation can be defined in terms of the <code class="language-plaintext highlighter-rouge">SymState</code> handler and
+the <code class="language-plaintext highlighter-rouge">ANF</code> handler:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">anfTransform</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">SymState</span> <span class="n">handle</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">sym</span><span class="k">:</span> <span class="kt">SymGen</span> <span class="o">=&gt;</span>
-  <span class="k">new</span> <span class="nc">ANF</span> <span class="n">handle</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">anf</span><span class="k">:</span> <span class="kt">Transform</span> <span class="o">=&gt;</span> <span class="n">visit</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="o">}</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">anfTransform</span><span class="o">(</span><span class="n">e</span><span class="k">:</span> <span class="kt">Exp</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Exp</span><span class="o">]</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">SymState</span> <span class="n">handle</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">sym</span><span class="k">:</span> <span class="kt">SymGen</span> <span class="o">=&gt;</span>
+  <span class="k">new</span> <span class="nc">ANF</span> <span class="n">handle</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">anf</span><span class="k">:</span> <span class="kt">Transform</span> <span class="o">=&gt;</span> <span class="nf">visit</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<p>Calling <code class="highlighter-rouge">anfTransform</code> on our running example, we obtain:</p>
+<p>Calling <code class="language-plaintext highlighter-rouge">anfTransform</code> on our running example, we obtain:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">run</span> <span class="o">{</span> <span class="n">anfTransform</span><span class="o">(</span><span class="n">ex</span><span class="o">)</span> <span class="o">}</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">run</span> <span class="o">{</span> <span class="nf">anfTransform</span><span class="o">(</span><span class="n">ex</span><span class="o">)</span> <span class="o">}</span>
 <span class="n">res2</span><span class="k">:</span> <span class="kt">Exp</span> <span class="o">=</span> <span class="nc">Let</span><span class="o">(</span><span class="n">x0</span><span class="o">,</span><span class="nc">Sub</span><span class="o">(</span><span class="nc">Lit</span><span class="o">(</span><span class="mi">3</span><span class="o">),</span><span class="nc">Lit</span><span class="o">(</span><span class="mi">2</span><span class="o">)),</span><span class="nc">Let</span><span class="o">(</span><span class="n">x1</span><span class="o">,</span><span class="nc">Sub</span><span class="o">(</span><span class="nc">Var</span><span class="o">(</span><span class="n">x0</span><span class="o">),</span><span class="nc">Lit</span><span class="o">(</span><span class="mi">4</span><span class="o">)),</span><span class="nc">Let</span><span class="o">(</span><span class="n">x2</span><span class="o">,</span><span class="nc">Sub</span><span class="o">(</span><span class="nc">Lit</span><span class="o">(</span><span class="mi">1</span><span class="o">),</span><span class="nc">Var</span><span class="o">(</span><span class="n">x1</span><span class="o">)),</span><span class="nc">Var</span><span class="o">(</span><span class="n">x2</span><span class="o">))))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>which exactly corresponds to our manual translation from above.</p>
 </section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scala-effekt/highlight/highlight.pack.js"></script><script>hljs.configure({languages:['scala','java','bash']});

@@ -16,27 +16,25 @@ free monads to represent effectful operations and define interpreters
 for the free monad to implement handling of the effect.</p>
 
 <p>In <strong>Effekt</strong> effect signatures are shallowly embedded. That is,
-instead of creating an instance of a <code class="highlighter-rouge">Flip()</code> class to represent the
+instead of creating an instance of a <code class="language-plaintext highlighter-rouge">Flip()</code> class to represent the
 action of flipping a coin and later interpreting it, in <strong>Effekt</strong> the
 flip operation is immediately called on the corresponding handler:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>def prog(implicit amb: Use[Amb]): Control[Int] =
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>def prog(implicit amb: Use[Amb]): Control[Int] =
   amb.flip() map { x =&gt; if (x) 2 else 3 }
-</code></pre>
-</div>
+</code></pre></div></div>
 <p>(<strong>ATTENTION</strong>: The above code is a slight simplification, only for
 illustrative purposes. For real code see <a href="./guides/getting-started.html">Your First Effect</a>)</p>
 
 <p>As can be seen above, <strong>Effekt</strong> uses implicit arguments to pass down
-handler implementations to the use-site (<code class="highlighter-rouge">flip</code>).</p>
+handler implementations to the use-site (<code class="language-plaintext highlighter-rouge">flip</code>).</p>
 
 <p>This works even more nicely in <a href="http://dotty.epfl.ch/">Dotty</a>, where
 implicit function types are available:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>type using[A, E &lt;: Eff] = implicit Use[E] =&gt; Control[A]
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>type using[A, E &lt;: Eff] = implicit Use[E] =&gt; Control[A]
 def prog: Int using Amb = Amb.flip() map { x =&gt; if (x) 2 else 3 }
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Pretty neat, isn’t it?</p>
 
@@ -47,21 +45,20 @@ you to play around with dotty and <strong>effekt</strong>.</p>
 <p>As in the Koka language, effect handlers in <strong>Effekt</strong> get access to
 the operation’s continuation delimited by the handler itself:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>object ambList extends Amb {
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>object ambList extends Amb {
   def flip[R]() = use { resume =&gt; resume(true) }
 }
-</code></pre>
-</div>
+</code></pre></div></div>
 <p>The continuation may be called zero to arbitrary many times. To
 implement this functionality, <strong>Effekt</strong> is based on a specialized
-variant of the <code class="highlighter-rouge">CC</code>-monad as introduced in</p>
+variant of the <code class="language-plaintext highlighter-rouge">CC</code>-monad as introduced in</p>
 
 <blockquote>
   <p><strong>A Monadic Framework for Delimited Continuations</strong>
 by R. Kent Dybvig, Simon Peyton Jones and Amr Sabry (2007), <a href="https://www.cs.indiana.edu/~sabry/papers/monadicDC.pdf">PDF</a></p>
 </blockquote>
 
-<p>In <strong>Effekt</strong> the control-monad is called <code class="highlighter-rouge">Control</code>, no surprise there.</p>
+<p>In <strong>Effekt</strong> the control-monad is called <code class="language-plaintext highlighter-rouge">Control</code>, no surprise there.</p>
 </div></div></section></main><footer id="site-footer"><div class="container"><div class="row"><div class="col-xs-6"><p>Scala Effekt is designed and developed by <a href="http://b-studios.de" target="_blank" rel="noopener noreferrer">Jonathan Brachthäuser (@b-studios)</a></p></div><div class="col-xs-6"><p class="text-right"><a href="https://github.com/b-studios/scala-effekt"><span class="fa fa-github"></span>View on GitHub</a></p></div></div><div class="row"><div class="col-xs-6"><p>Website built with <a href="https://47deg.github.io/sbt-microsites/" target="_blank" rel="noopener noreferrer">sbt-microsites</a> - © 2019 <a href="https://www.47deg.com/" target="_blank" rel="noopener noreferrer">47 Degrees</a></p></div></div><script src="/scala-effekt/highlight/highlight.pack.js"></script><script>hljs.initHighlighting();
               </script></div></footer><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scala-effekt/highlight/highlight.pack.js"></script><script>hljs.configure({languages:['scala','java','bash']});
 hljs.initHighlighting();

@@ -12,58 +12,53 @@
 first effect. The ambiguity effect signature had one effect operation
 and looked like this:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">import</span> <span class="nn">effekt._</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">effekt._</span>
 
 <span class="k">trait</span> <span class="nc">Amb</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">flip</span><span class="o">()</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Boolean</span><span class="o">]</span>
+  <span class="k">def</span> <span class="nf">flip</span><span class="o">()</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Boolean</span><span class="o">]</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-scala boilerplate highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">ambList</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="n">prog</span><span class="k">:</span> <span class="kt">Amb</span> <span class="o">=&gt;</span> <span class="nc">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">R</span><span class="o">]]</span> <span class="k">=</span>
+<div class="language-scala boilerplate highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">ambList</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="n">prog</span><span class="k">:</span> <span class="kt">Amb</span> <span class="o">=&gt;</span> <span class="nc">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">R</span><span class="o">]]</span> <span class="k">=</span>
   <span class="k">new</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">R</span><span class="o">]]</span> <span class="k">with</span> <span class="nc">Amb</span> <span class="o">{</span>
-    <span class="k">def</span> <span class="n">flip</span><span class="o">()</span> <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
-      <span class="n">ts</span> <span class="k">&lt;-</span> <span class="n">resume</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span>
-      <span class="n">fs</span> <span class="k">&lt;-</span> <span class="n">resume</span><span class="o">(</span><span class="kc">false</span><span class="o">)</span>
+    <span class="k">def</span> <span class="nf">flip</span><span class="o">()</span> <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
+      <span class="n">ts</span> <span class="k">&lt;-</span> <span class="nf">resume</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span>
+      <span class="n">fs</span> <span class="k">&lt;-</span> <span class="nf">resume</span><span class="o">(</span><span class="kc">false</span><span class="o">)</span>
     <span class="o">}</span> <span class="k">yield</span> <span class="n">ts</span> <span class="o">++</span> <span class="n">fs</span> <span class="o">}</span>
-  <span class="o">}</span> <span class="n">handle</span> <span class="o">{</span> <span class="n">amb</span> <span class="k">=&gt;</span> <span class="n">prog</span><span class="o">(</span><span class="n">amb</span><span class="o">)</span> <span class="n">map</span> <span class="o">{</span> <span class="n">r</span> <span class="k">=&gt;</span> <span class="nc">List</span><span class="o">(</span><span class="n">r</span><span class="o">)</span> <span class="o">}</span> <span class="o">}</span>
-</code></pre>
-</div>
+  <span class="o">}</span> <span class="n">handle</span> <span class="o">{</span> <span class="n">amb</span> <span class="k">=&gt;</span> <span class="nf">prog</span><span class="o">(</span><span class="n">amb</span><span class="o">)</span> <span class="n">map</span> <span class="o">{</span> <span class="n">r</span> <span class="k">=&gt;</span> <span class="nc">List</span><span class="o">(</span><span class="n">r</span><span class="o">)</span> <span class="o">}</span> <span class="o">}</span>
+</code></pre></div></div>
 <p>We also defined a handler for the ambiguity effect as an implementation
-of the <code class="highlighter-rouge">Amb</code> trait, called <code class="highlighter-rouge">ambList</code>. To see how to combine two
+of the <code class="language-plaintext highlighter-rouge">Amb</code> trait, called <code class="language-plaintext highlighter-rouge">ambList</code>. To see how to combine two
 different effects, we will now first define a second (quite standard)
 effect: Mutable state. As before we start with the effect signature.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">State</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">get</span><span class="o">()</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span>
-  <span class="k">def</span> <span class="n">put</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">S</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">State</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="nf">get</span><span class="o">()</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span>
+  <span class="k">def</span> <span class="nf">put</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">S</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 <p>Having defined the effect signature, we can implement a handler that,
 like the state monad, does not actually use mutable state but passes
 the current value around through the whole program.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="n">state</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">S</span><span class="o">](</span><span class="n">init</span><span class="k">:</span> <span class="kt">S</span><span class="o">)(</span><span class="n">prog</span><span class="k">:</span> <span class="kt">State</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="nc">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="k">=</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">state</span><span class="o">[</span><span class="kt">R</span>, <span class="kt">S</span><span class="o">](</span><span class="n">init</span><span class="k">:</span> <span class="kt">S</span><span class="o">)(</span><span class="n">prog</span><span class="k">:</span> <span class="kt">State</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="nc">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">new</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">S</span> <span class="k">=&gt;</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">]]</span> <span class="k">with</span> <span class="nc">State</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="o">{</span>
-    <span class="k">def</span> <span class="n">put</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">S</span><span class="o">)</span> <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="n">pure</span> <span class="o">{</span> <span class="n">s2</span> <span class="k">=&gt;</span> <span class="n">resume</span><span class="o">(())</span> <span class="n">flatMap</span> <span class="o">{</span> <span class="k">_</span> <span class="n">apply</span> <span class="n">s</span> <span class="o">}</span> <span class="o">}</span> <span class="o">}</span>
-    <span class="k">def</span> <span class="n">get</span><span class="o">()</span>     <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="n">pure</span> <span class="o">{</span> <span class="n">s2</span> <span class="k">=&gt;</span> <span class="n">resume</span><span class="o">(</span><span class="n">s2</span><span class="o">)</span> <span class="n">flatMap</span> <span class="o">{</span> <span class="k">_</span> <span class="n">apply</span> <span class="n">s2</span> <span class="o">}</span> <span class="o">}</span> <span class="o">}</span>
-  <span class="o">}</span> <span class="n">handle</span> <span class="o">{</span> <span class="n">state</span> <span class="k">=&gt;</span> <span class="n">prog</span><span class="o">(</span><span class="n">state</span><span class="o">)</span> <span class="n">map</span> <span class="o">{</span> <span class="n">r</span> <span class="k">=&gt;</span> <span class="n">s</span> <span class="k">=&gt;</span> <span class="n">pure</span><span class="o">(</span><span class="n">r</span><span class="o">)</span> <span class="o">}</span> <span class="o">}</span> <span class="n">flatMap</span> <span class="o">{</span> <span class="k">_</span> <span class="n">apply</span> <span class="n">init</span> <span class="o">}</span>
-</code></pre>
-</div>
+    <span class="k">def</span> <span class="nf">put</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">S</span><span class="o">)</span> <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="n">pure</span> <span class="o">{</span> <span class="n">s2</span> <span class="k">=&gt;</span> <span class="nf">resume</span><span class="o">(())</span> <span class="n">flatMap</span> <span class="o">{</span> <span class="k">_</span> <span class="n">apply</span> <span class="n">s</span> <span class="o">}</span> <span class="o">}</span> <span class="o">}</span>
+    <span class="k">def</span> <span class="nf">get</span><span class="o">()</span>     <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="n">pure</span> <span class="o">{</span> <span class="n">s2</span> <span class="k">=&gt;</span> <span class="nf">resume</span><span class="o">(</span><span class="n">s2</span><span class="o">)</span> <span class="n">flatMap</span> <span class="o">{</span> <span class="k">_</span> <span class="n">apply</span> <span class="n">s2</span> <span class="o">}</span> <span class="o">}</span> <span class="o">}</span>
+  <span class="o">}</span> <span class="n">handle</span> <span class="o">{</span> <span class="n">state</span> <span class="k">=&gt;</span> <span class="nf">prog</span><span class="o">(</span><span class="n">state</span><span class="o">)</span> <span class="n">map</span> <span class="o">{</span> <span class="n">r</span> <span class="k">=&gt;</span> <span class="n">s</span> <span class="k">=&gt;</span> <span class="nf">pure</span><span class="o">(</span><span class="n">r</span><span class="o">)</span> <span class="o">}</span> <span class="o">}</span> <span class="n">flatMap</span> <span class="o">{</span> <span class="k">_</span> <span class="n">apply</span> <span class="n">init</span> <span class="o">}</span>
+</code></pre></div></div>
 
-<h2 id="using-amb-and-state-in-one-example">Using <code class="highlighter-rouge">Amb</code> and <code class="highlighter-rouge">State</code> in one example</h2>
+<h2 id="using-amb-and-state-in-one-example">Using <code class="language-plaintext highlighter-rouge">Amb</code> and <code class="language-plaintext highlighter-rouge">State</code> in one example</h2>
 <p>Let us now use the two effects to write a program that combines them.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code>
-<span class="k">def</span> <span class="n">example</span><span class="o">(</span><span class="k">implicit</span> <span class="n">s</span><span class="k">:</span> <span class="kt">State</span><span class="o">[</span><span class="kt">Int</span><span class="o">],</span> <span class="n">amb</span><span class="k">:</span> <span class="kt">Amb</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
-  <span class="n">x</span> <span class="k">&lt;-</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="o">()</span>
-  <span class="n">b</span> <span class="k">&lt;-</span> <span class="n">amb</span><span class="o">.</span><span class="n">flip</span><span class="o">()</span>
-  <span class="k">_</span> <span class="k">&lt;-</span> <span class="k">if</span> <span class="o">(</span><span class="n">b</span><span class="o">)</span> <span class="n">s</span><span class="o">.</span><span class="n">put</span><span class="o">(</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span> <span class="k">else</span> <span class="n">pure</span><span class="o">(())</span>
-  <span class="n">y</span> <span class="k">&lt;-</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="o">()</span>
-<span class="o">}</span> <span class="k">yield</span> <span class="o">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">y</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="k">def</span> <span class="nf">example</span><span class="o">(</span><span class="k">implicit</span> <span class="n">s</span><span class="k">:</span> <span class="kt">State</span><span class="o">[</span><span class="kt">Int</span><span class="o">],</span> <span class="n">amb</span><span class="k">:</span> <span class="kt">Amb</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+  <span class="n">x</span> <span class="k">&lt;-</span> <span class="nv">s</span><span class="o">.</span><span class="py">get</span><span class="o">()</span>
+  <span class="n">b</span> <span class="k">&lt;-</span> <span class="nv">amb</span><span class="o">.</span><span class="py">flip</span><span class="o">()</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="nf">if</span> <span class="o">(</span><span class="n">b</span><span class="o">)</span> <span class="nv">s</span><span class="o">.</span><span class="py">put</span><span class="o">(</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span> <span class="k">else</span> <span class="nf">pure</span><span class="o">(())</span>
+  <span class="n">y</span> <span class="k">&lt;-</span> <span class="nv">s</span><span class="o">.</span><span class="py">get</span><span class="o">()</span>
+<span class="o">}</span> <span class="nf">yield</span> <span class="o">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">y</span><span class="o">)</span>
+</code></pre></div></div>
 <p>The example program requires capabilities for both effects, a state
 effect carrying an integer and the ambiguity effect. We first retreive
 the current state, then toss a coin and depending on result mutate the
@@ -80,37 +75,33 @@ effects and handlers is that we can decide very late.</p>
 
 <p>Let’s experiment with the two options:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">val</span> <span class="n">result1</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="n">ambList</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">a</span><span class="k">:</span> <span class="kt">Amb</span> <span class="o">=&gt;</span>
-  <span class="n">state</span><span class="o">(</span><span class="mi">0</span><span class="o">)</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">s</span><span class="k">:</span> <span class="kt">State</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=&gt;</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="nv">result1</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="n">ambList</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">a</span><span class="k">:</span> <span class="kt">Amb</span> <span class="o">=&gt;</span>
+  <span class="nf">state</span><span class="o">(</span><span class="mi">0</span><span class="o">)</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">s</span><span class="k">:</span> <span class="kt">State</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=&gt;</span>
     <span class="n">example</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">result1</span><span class="o">.</span><span class="n">run</span><span class="o">()</span>
+</code></pre></div></div>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="nv">result1</span><span class="o">.</span><span class="py">run</span><span class="o">()</span>
 <span class="n">res0</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">List</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">0</span><span class="o">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>In this variant, we first handle away the state effect and then handle ambiguity.
-The ambiguity handler invokes the continuation twice, once with <code class="highlighter-rouge">true</code>
-and once with <code class="highlighter-rouge">false</code>. Since the state handler is nested in the
-ambiguity handler, it will be reset for the second invocation with <code class="highlighter-rouge">false</code>
-and thus the second element in the resulting list is <code class="highlighter-rouge">0</code>.</p>
+The ambiguity handler invokes the continuation twice, once with <code class="language-plaintext highlighter-rouge">true</code>
+and once with <code class="language-plaintext highlighter-rouge">false</code>. Since the state handler is nested in the
+ambiguity handler, it will be reset for the second invocation with <code class="language-plaintext highlighter-rouge">false</code>
+and thus the second element in the resulting list is <code class="language-plaintext highlighter-rouge">0</code>.</p>
 
 <p>Commuting the two handlers, we get different results:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">val</span> <span class="n">result2</span> <span class="k">=</span> <span class="n">state</span><span class="o">(</span><span class="mi">0</span><span class="o">)</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">s</span><span class="k">:</span> <span class="kt">State</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=&gt;</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="nv">result2</span> <span class="k">=</span> <span class="nf">state</span><span class="o">(</span><span class="mi">0</span><span class="o">)</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">s</span><span class="k">:</span> <span class="kt">State</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=&gt;</span>
   <span class="n">ambList</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">a</span><span class="k">:</span> <span class="kt">Amb</span> <span class="o">=&gt;</span>
     <span class="n">example</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">result2</span><span class="o">.</span><span class="n">run</span><span class="o">()</span>
+</code></pre></div></div>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="nv">result2</span><span class="o">.</span><span class="py">run</span><span class="o">()</span>
 <span class="n">res1</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">List</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">1</span><span class="o">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Now, ambiguity is run inside of state and the change of state carries
 over to the second coin flipping result.</p>
