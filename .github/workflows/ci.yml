@@ -34,6 +34,8 @@ jobs:
         ruby-version: 2.7.2
     - run: gem update --system && gem install jekyll bundler
     - run: sbt -v docs/makeMicrosite
+    - run: sudo apt-get install tree
+    - run: tree docs/target/site
     - name: Push to gh-pages
       if: ${{ !github.event.repository.fork && github.ref == 'refs/heads/master' && github.event_name == 'push' }}
       uses: JamesIves/github-pages-deploy-action@3.7.1
