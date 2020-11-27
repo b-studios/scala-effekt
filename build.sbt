@@ -44,6 +44,12 @@ lazy val micrositeSettings = Seq(
   micrositeHighlightTheme := "atom-one-light",
   micrositeOrganizationHomepage := "http://b-studios.de",
   // micrositePushSiteWith := GitHub4s,
+  resolvers ~= (_.map {
+    case r: sbt.librarymanagement.MavenRepo =>
+      r.withAllowInsecureProtocol(true)
+    case r =>
+      r
+  }),
   includeFilter in makeSite := "*.html" | "*.css" | "*.png" | "*.jpg" | "*.gif" | "*.js" | "*.swf" | "*.md",
   micrositePalette := greenTheme,
   micrositeCssDirectory := (resourceDirectory in Compile).value / "microsite" / "styles",
