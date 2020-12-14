@@ -4,7 +4,7 @@ lazy val commonSettings = Seq(
   scalaVersion := "2.12.12",
   version := "0.4-SNAPSHOT",
   organization := "de.b-studios",
-  crossScalaVersions := Seq("2.11.12", "2.12.12", "2.13.4"),
+  crossScalaVersions := Seq("2.12.12", "2.13.4"),
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding", "UTF-8",
@@ -109,7 +109,7 @@ lazy val effectsJS = effects.js
 
 lazy val effectsSettings = Seq(
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-core" % "2.0.0"
+    "org.typelevel" %% "cats-core" % "2.3.0"
   )
 )
 

@@ -5,7 +5,7 @@ The **Effekt** library allows you to structure your effectful programs
 in a functional way. It thus represents an alternative to traditional
 monad transformer based program structuring techniques.
 
-To use **Effekt** (tested with Scala 2.11 and Scala 2.12), include the
+To use **Effekt** (tested with Scala 2.12 and Scala 2.13), include the
 following line to your `build.sbt` file:
 
 ```scala

@@ -60,7 +60,7 @@ val result = twitterStub { query }
 </section>
 
 ## Getting Started
-To use **Effekt** (tested with Scala 2.11 and Scala 2.12), include the
+To use **Effekt** (tested with Scala 2.12 and Scala 2.13), include the
 following line to your `build.sbt` file:
 
 ```
