@@ -68,12 +68,12 @@ simple example program.</p>
 
 <p>Handling the example with our combined handler, we get:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">run</span> <span class="o">{</span>
-     <span class="o">|</span>   <span class="n">rwHandler</span> <span class="n">handle</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">rw</span><span class="k">:</span> <span class="kt">Reader</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">with</span> <span class="nc">Writer</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=&gt;</span>
-     <span class="o">|</span>     <span class="n">example</span>
-     <span class="o">|</span>   <span class="o">}</span>
-     <span class="o">|</span> <span class="o">}</span>
-<span class="n">res0</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="mi">6</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">run</span> <span class="o">{</span>
+  <span class="n">rwHandler</span> <span class="n">handle</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">rw</span><span class="k">:</span> <span class="kt">Reader</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">with</span> <span class="nc">Writer</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=&gt;</span>
+    <span class="n">example</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+<span class="c1">// res0: Int = 6</span>
 </code></pre></div></div>
 
 </section></div></div></div></div><script src="/scala-effekt/highlight/highlight.pack.js"></script><script>

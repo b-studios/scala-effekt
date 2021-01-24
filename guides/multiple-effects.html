@@ -19,7 +19,7 @@ and looked like this:</p>
 <span class="o">}</span>
 </code></pre></div></div>
 
-<div class="language-scala boilerplate highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">ambList</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="n">prog</span><span class="k">:</span> <span class="kt">Amb</span> <span class="o">=&gt;</span> <span class="nc">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">R</span><span class="o">]]</span> <span class="k">=</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">ambList</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="n">prog</span><span class="k">:</span> <span class="kt">Amb</span> <span class="o">=&gt;</span> <span class="nc">Control</span><span class="o">[</span><span class="kt">R</span><span class="o">])</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">R</span><span class="o">]]</span> <span class="k">=</span>
   <span class="k">new</span> <span class="nc">Handler</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">R</span><span class="o">]]</span> <span class="k">with</span> <span class="nc">Amb</span> <span class="o">{</span>
     <span class="k">def</span> <span class="nf">flip</span><span class="o">()</span> <span class="k">=</span> <span class="n">use</span> <span class="o">{</span> <span class="n">resume</span> <span class="k">=&gt;</span> <span class="k">for</span> <span class="o">{</span>
       <span class="n">ts</span> <span class="k">&lt;-</span> <span class="nf">resume</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span>
@@ -81,8 +81,8 @@ effects and handlers is that we can decide very late.</p>
   <span class="o">}</span>
 <span class="o">}</span>
 </code></pre></div></div>
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="nv">result1</span><span class="o">.</span><span class="py">run</span><span class="o">()</span>
-<span class="n">res0</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">List</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">0</span><span class="o">)</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">result1</span><span class="o">.</span><span class="py">run</span><span class="o">()</span>
+<span class="c1">// res0: List[Int] = List(1, 0)</span>
 </code></pre></div></div>
 
 <p>In this variant, we first handle away the state effect and then handle ambiguity.
@@ -99,8 +99,8 @@ and thus the second element in the resulting list is <code class="language-plain
   <span class="o">}</span>
 <span class="o">}</span>
 </code></pre></div></div>
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="nv">result2</span><span class="o">.</span><span class="py">run</span><span class="o">()</span>
-<span class="n">res1</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">List</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">1</span><span class="o">)</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">result2</span><span class="o">.</span><span class="py">run</span><span class="o">()</span>
+<span class="c1">// res1: List[Int] = List(1, 1)</span>
 </code></pre></div></div>
 
 <p>Now, ambiguity is run inside of state and the change of state carries

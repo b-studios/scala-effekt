@@ -24,13 +24,11 @@ result actually perform the side-effects always gives the same results.</p>
         <p>You can find the full sources for this example in <a href="https://scastie.scala-lang.org/JplohyA1RWeE7ykU08BqwQ">this Dotty Scastie</a>.</p>
       </div>
       <div class="col-md-7">
-
         <p><strong>Effect signature</strong></p>
         <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">Twitter</span> <span class="o">{</span>
   <span class="k">def</span> <span class="nf">userTweets</span><span class="o">(</span><span class="n">userId</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Tweet</span><span class="o">]]</span>
 <span class="o">}</span>
 </code></pre></div>        </div>
-
         <p><strong>Effect usage</strong></p>
         <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">query</span><span class="o">(</span><span class="n">T</span><span class="k">:</span> <span class="kt">Twitter</span><span class="o">)</span><span class="k">:</span> <span class="kt">Control</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Tweet</span><span class="o">]]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>

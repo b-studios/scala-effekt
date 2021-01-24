@@ -132,8 +132,16 @@ the <code class="language-plaintext highlighter-rouge">ANF</code> handler:</p>
 
 <p>Calling <code class="language-plaintext highlighter-rouge">anfTransform</code> on our running example, we obtain:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">run</span> <span class="o">{</span> <span class="nf">anfTransform</span><span class="o">(</span><span class="n">ex</span><span class="o">)</span> <span class="o">}</span>
-<span class="n">res2</span><span class="k">:</span> <span class="kt">Exp</span> <span class="o">=</span> <span class="nc">Let</span><span class="o">(</span><span class="n">x0</span><span class="o">,</span><span class="nc">Sub</span><span class="o">(</span><span class="nc">Lit</span><span class="o">(</span><span class="mi">3</span><span class="o">),</span><span class="nc">Lit</span><span class="o">(</span><span class="mi">2</span><span class="o">)),</span><span class="nc">Let</span><span class="o">(</span><span class="n">x1</span><span class="o">,</span><span class="nc">Sub</span><span class="o">(</span><span class="nc">Var</span><span class="o">(</span><span class="n">x0</span><span class="o">),</span><span class="nc">Lit</span><span class="o">(</span><span class="mi">4</span><span class="o">)),</span><span class="nc">Let</span><span class="o">(</span><span class="n">x2</span><span class="o">,</span><span class="nc">Sub</span><span class="o">(</span><span class="nc">Lit</span><span class="o">(</span><span class="mi">1</span><span class="o">),</span><span class="nc">Var</span><span class="o">(</span><span class="n">x1</span><span class="o">)),</span><span class="nc">Var</span><span class="o">(</span><span class="n">x2</span><span class="o">))))</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">run</span> <span class="o">{</span> <span class="nf">anfTransform</span><span class="o">(</span><span class="n">ex</span><span class="o">)</span> <span class="o">}</span>
+<span class="c1">// res2: Exp = Let(</span>
+<span class="c1">//   "x0",</span>
+<span class="c1">//   Sub(Lit(3), Lit(2)),</span>
+<span class="c1">//   Let(</span>
+<span class="c1">//     "x1",</span>
+<span class="c1">//     Sub(Var("x0"), Lit(4)),</span>
+<span class="c1">//     Let("x2", Sub(Lit(1), Var("x1")), Var("x2"))</span>
+<span class="c1">//   )</span>
+<span class="c1">// )</span>
 </code></pre></div></div>
 
 <p>which exactly corresponds to our manual translation from above.</p>

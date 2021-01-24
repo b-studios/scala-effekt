@@ -97,10 +97,10 @@ handle two program fragments using <code class="language-plaintext highlighter-r
   <span class="n">down</span><span class="o">[</span><span class="kt">R</span><span class="o">](</span><span class="nc">Prod</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="n">cons</span> <span class="k">=&gt;</span> <span class="nf">up</span><span class="o">(</span><span class="n">cons</span><span class="o">)</span> <span class="o">{</span> <span class="n">u</span> <span class="o">}))</span> <span class="o">{</span> <span class="n">d</span> <span class="o">}</span>
 </code></pre></div></div>
 <p>Running our above example with <code class="language-plaintext highlighter-rouge">pipe</code> yields:</p>
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="nf">pipe</span><span class="o">(</span><span class="n">d</span> <span class="k">=&gt;</span> <span class="nf">consumer</span><span class="o">(</span><span class="n">d</span><span class="o">),</span> <span class="n">u</span> <span class="k">=&gt;</span> <span class="nf">producer</span><span class="o">(</span><span class="n">u</span><span class="o">)).</span><span class="py">run</span><span class="o">()</span>
-<span class="mi">1</span><span class="k">:</span> <span class="err">1</span>
-<span class="err">2</span><span class="kt">:</span> <span class="err">2</span>
-<span class="err">3</span><span class="kt">:</span> <span class="err">3</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">pipe</span><span class="o">(</span><span class="n">d</span> <span class="k">=&gt;</span> <span class="nf">consumer</span><span class="o">(</span><span class="n">d</span><span class="o">),</span> <span class="n">u</span> <span class="k">=&gt;</span> <span class="nf">producer</span><span class="o">(</span><span class="n">u</span><span class="o">)).</span><span class="py">run</span><span class="o">()</span>
+<span class="c1">// 1: 1</span>
+<span class="c1">// 2: 2</span>
+<span class="c1">// 3: 3</span>
 </code></pre></div></div>
 </section></div></div></div></div><script src="/scala-effekt/highlight/highlight.pack.js"></script><script>
 // For all code blocks, copy the language from the containing div
