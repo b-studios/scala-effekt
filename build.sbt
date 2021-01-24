@@ -43,19 +43,11 @@ lazy val micrositeSettings = Seq(
   micrositeGithubRepo := "scala-effekt",
   micrositeHighlightTheme := "atom-one-light",
   micrositeOrganizationHomepage := "http://b-studios.de",
-  micrositeCompilingDocsTool := WithTut, // TODO migrate to mdoc
   // micrositePushSiteWith := GitHub4s,
-  resolvers ~= (_.map {
-    case r: sbt.librarymanagement.MavenRepo =>
-      r.withAllowInsecureProtocol(true)
-    case r =>
-      r
-  }),
   includeFilter in makeSite := "*.html" | "*.css" | "*.png" | "*.jpg" | "*.gif" | "*.js" | "*.swf" | "*.md",
   micrositePalette := greenTheme,
   micrositeCssDirectory := (resourceDirectory in Compile).value / "microsite" / "styles",
   micrositeJsDirectory := (resourceDirectory in Compile).value / "microsite" / "js",
-  fork in tut := true,
   git.remoteRepo := "git@github.com:b-studios/scala-effekt.git"
 )
 

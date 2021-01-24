@@ -26,7 +26,7 @@ also use Scastie. We prepared two different Scasties for you
 First we import all the necessary types and functions.
 Then, to define our first effect, we specify the *effect signature*.
 
-```tut:book:silent
+```scala mdoc:silent
 import effekt._
 
 // The effect signature
@@ -52,7 +52,7 @@ get such capabilities from, we just define a function asking for it.
 We flip a coin once and then return 2 or 3 depending on the result.
 
 
-```tut:book:silent
+```scala mdoc:silent
 def prog(amb: Amb): Control[Int] = for {
   x <- amb.flip()
 } yield if (x) 2 else 3
@@ -71,7 +71,7 @@ a list by mapping `r => List(r)` over it before applying the handler.
 This way we convert the result type from `R` into the semantic
 domain `List[R]`.
 
-```tut:book:silent
+```scala mdoc:silent
 def ambList[R](prog: Amb => Control[R]): Control[List[R]] =
   new Handler[List[R]] with Amb {
     def flip() = use { resume => for {
@@ -98,7 +98,7 @@ to be `Control[List[R]]`.
 To handle an effect we use the apply method that is defined on an
 instance of `handler`.
 
-```tut:book:silent
+```scala mdoc:silent
 val handled: Control[List[Int]] = ambList { amb => prog(amb) }
 ```
 
@@ -109,6 +109,6 @@ would correspond to `throw` and the handler `ambList` to a surrounding
 
 After all effects are handled, we can now run the effectful computation:
 
-```tut
+```scala mdoc
 run { handled }
 ```

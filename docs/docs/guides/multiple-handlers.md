@@ -18,7 +18,7 @@ effect signatures for `Reader` and `Writer`.
 You can play around with the full source code for this example at this
 [Scastie (Scala 2.12)](https://scastie.scala-lang.org/xsU2asSTQNiEI93ocjHpSg).
 
-```tut:book:silent
+```scala mdoc:silent
 import effekt._
 
 trait Reader[S] {
@@ -40,7 +40,7 @@ might implement multiple of such signatures. Below, we define a
 simple handler for `Reader` and `Writer` that uses a list to mediate
 between the two effects.
 
-```tut:book:silent
+```scala mdoc:silent
 def rwHandler[R, S] = new Handler[R] with Reader[S] with Writer[S] with State {
 
   // create a new field
@@ -64,7 +64,7 @@ def rwHandler[R, S] = new Handler[R] with Reader[S] with Writer[S] with State {
 
 To show the usage of the combined handler, let's first define a
 simple example program.
-```tut:book:silent
+```scala mdoc:silent
 def example(implicit r: Reader[Int], w: Writer[Int]): Control[Int] =
   for {
     _ <- w.write(2)
@@ -77,7 +77,7 @@ def example(implicit r: Reader[Int], w: Writer[Int]): Control[Int] =
 
 Handling the example with our combined handler, we get:
 
-```tut
+```scala mdoc
 run {
   rwHandler handle { implicit rw: Reader[Int] with Writer[Int] =>
     example

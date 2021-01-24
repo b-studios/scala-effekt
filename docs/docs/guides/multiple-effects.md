@@ -16,7 +16,7 @@ In [Getting Started](./getting-started) we have defined ambiguity as our
 first effect. The ambiguity effect signature had one effect operation
 and looked like this:
 
-```tut:book:silent
+```scala mdoc:silent
 import effekt._
 
 trait Amb {
@@ -24,7 +24,7 @@ trait Amb {
 }
 ```
 
-```tut:book:silent:decorate(.boilerplate)
+```scala mdoc:silent
 def ambList[R](prog: Amb => Control[R]): Control[List[R]] =
   new Handler[List[R]] with Amb {
     def flip() = use { resume => for {
@@ -38,7 +38,7 @@ of the `Amb` trait, called `ambList`. To see how to combine two
 different effects, we will now first define a second (quite standard)
 effect: Mutable state. As before we start with the effect signature.
 
-```tut:book:silent
+```scala mdoc:silent
 trait State[S] {
   def get(): Control[S]
   def put(s: S): Control[Unit]
@@ -49,7 +49,7 @@ like the state monad, does not actually use mutable state but passes
 the current value around through the whole program.
 
 
-```tut:book:silent
+```scala mdoc:silent
 def state[R, S](init: S)(prog: State[S] => Control[R]): Control[R] =
   new Handler[S => Control[R]] with State[S] {
     def put(s: S) = use { resume => pure { s2 => resume(()) flatMap { _ apply s } } }
@@ -60,7 +60,7 @@ def state[R, S](init: S)(prog: State[S] => Control[R]): Control[R] =
 ## Using `Amb` and `State` in one example
 Let us now use the two effects to write a program that combines them.
 
-```tut:book:silent
+```scala mdoc:silent
 
 def example(implicit s: State[Int], amb: Amb): Control[Int] = for {
   x <- s.get()
@@ -85,14 +85,14 @@ effects and handlers is that we can decide very late.
 
 Let's experiment with the two options:
 
-```tut:book:silent
+```scala mdoc:silent
 val result1: Control[List[Int]] = ambList { implicit a: Amb =>
   state(0) { implicit s: State[Int] =>
     example
   }
 }
 ```
-```tut
+```scala mdoc
 result1.run()
 ```
 
@@ -104,14 +104,14 @@ and thus the second element in the resulting list is `0`.
 
 Commuting the two handlers, we get different results:
 
-```tut:book:silent
+```scala mdoc:silent
 val result2 = state(0) { implicit s: State[Int] =>
   ambList { implicit a: Amb =>
     example
   }
 }
 ```
-```tut
+```scala mdoc
 result2.run()
 ```
 

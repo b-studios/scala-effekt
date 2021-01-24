@@ -11,13 +11,13 @@ The basic idea is, that all non-trivial terms (in a very wide sense,
 those that correspond to computation, or invoke side-effects) are
 bound to variables. For example, translating
 
-```tut:book:silent
+```scala mdoc:silent
 1 - ((3 - 2) - 4)
 ```
 
 to ANF gives
 
-```tut:book:silent
+```scala mdoc:silent
 var x0 = 3 - 2
 var x1 = x0 - 4
 var x2 = 1 - x1
@@ -30,7 +30,7 @@ as demonstrated by [Matt Might](http://matt.might.net/articles/a-normalization/)
 In this short guide, we will see how algebraic effects can be used to
 describe an ANF transformation for a very simple expression language.
 
-```tut:book:silent
+```scala mdoc:silent
 trait Exp
 case class Lit(n: Int) extends Exp
 case class Sub(l: Exp, r: Exp) extends Exp
@@ -41,7 +41,7 @@ case class Let(name: String, value: Exp, body: Exp) extends Exp
 The language features numeric literals, subtraction, let-bindings
 and variables. The above example in our small language reads as:
 
-```tut:book:silent
+```scala mdoc:silent
 val ex = Sub(Lit(1), Sub(Sub(Lit(3), Lit(2)), Lit(4)))
 ```
 
@@ -49,7 +49,7 @@ To implement the transformation we define a `Transform` effect that
 we use to mark elements of our language as either `value`s or
 `computation`s:
 
-```tut:book:silent
+```scala mdoc:silent
 import effekt._
 trait Transform {
   def value(e: Exp): Control[Exp]
@@ -60,7 +60,7 @@ trait Transform {
 We also define a recursive traversal function that uses `Transform`
 to visit each node in our tree:
 
-```tut:book:silent
+```scala mdoc:silent
 def visit(e: Exp)(implicit t: Transform): Control[Exp] = e match {
 
     case v : Var => t.value(v)
@@ -91,7 +91,7 @@ such as `x1`, `x2` above. Generating fresh variable names / symbols
 can be seen as an effect, so we define another effect signature for
 `SymGen`:
 
-```tut:book:silent
+```scala mdoc:silent
 trait SymGen {
   def fresh(): Control[String]
 }
@@ -100,7 +100,7 @@ trait SymGen {
 A handler for `fresh` can be implemented using stateful-handlers, as
 provided by effekt:
 
-```tut:book:silent
+```scala mdoc:silent
 class SymState[R] extends SymGen with Handler[R] with State {
   val count = Field(0)
   private def inc = for {
@@ -116,7 +116,7 @@ class SymState[R] extends SymGen with Handler[R] with State {
 With the ability to generate fresh names, we are now ready to define
 an ANF transformation as a handler for `Transform`:
 
-```tut:book:silent
+```scala mdoc:silent
 class ANF(implicit sym: SymGen) extends Transform with Handler[Exp] {
   def value(e: Exp) = use { resume => resume(e) }
   def computation(e: Exp) = use { resume => for {
@@ -140,7 +140,7 @@ the ANF handler is used.
 Finally the anf-transformation can be defined in terms of the `SymState` handler and
 the `ANF` handler:
 
-```tut:book:silent
+```scala mdoc:silent
 def anfTransform(e: Exp): Control[Exp] = new SymState handle { implicit sym: SymGen =>
   new ANF handle { implicit anf: Transform => visit(e) }
 }
@@ -148,7 +148,7 @@ def anfTransform(e: Exp): Control[Exp] = new SymState handle { implicit sym: Sym
 
 Calling `anfTransform` on our running example, we obtain:
 
-```tut
+```scala mdoc
 run { anfTransform(ex) }
 ```
 

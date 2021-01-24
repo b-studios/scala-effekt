@@ -28,24 +28,24 @@ result actually perform the side-effects always gives the same results.
 You can find the full sources for this example in [this Dotty Scastie](https://scastie.scala-lang.org/JplohyA1RWeE7ykU08BqwQ).
 </div>
 <div class="col-md-7" markdown="1">
-```tut:invisible
+```scala mdoc:invisible
 import effekt._
 case class Tweet(msg: String)
 ```
 **Effect signature**
-```tut:book:silent
+```scala mdoc:silent
 trait Twitter {
   def userTweets(userId: Long): Control[List[Tweet]]
 }
 ```
-```tut:invisible
+```scala mdoc:invisible
 class TwitterStub[R] extends Twitter with Handler[R] {
   def userTweets(userId: Long): Control[List[Tweet]] = pure(List(Tweet("hi")))
 }
 def twitterStub[R] = new TwitterStub[R]
 ```
 **Effect usage**
-```tut:book:silent
+```scala mdoc:silent
 def query(T: Twitter): Control[List[Tweet]] =
   for {
     ts1 <- T.userTweets(133452)

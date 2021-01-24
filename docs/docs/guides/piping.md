@@ -17,7 +17,7 @@ information is of type `Int`.
 First of all, let's define the effect signatures for sending and
 receiving of information:
 
-```tut:book:silent
+```scala mdoc:silent
 import effekt._
 
 trait Send {
@@ -32,7 +32,7 @@ trait Receive {
 Now, using these effect signatures we can define an example producer and
 a corresponding example consumer:
 
-```tut:book:silent
+```scala mdoc:silent
 def producer(s: Send): Control[Unit] =
   for {
     _ <- s.send(1)
@@ -64,12 +64,12 @@ Now let's implement this behavior in Effekt. To this end, we define
 processes as handlers and use the state of the handler to store the
 opposite end:
 
-```tut:book:silent
+```scala mdoc:silent
 class Process[R, P[_]](val init: P[Control[R]]) extends Handler.Stateful[R, P[Control[R]]]
 ```
 In our case, the type constructor `P[_]` will be one of the following:
 
-```tut:book:silent
+```scala mdoc:silent
 object Process {
   case class Prod[R](apply: Unit => Cons[R] => R)
   case class Cons[R](apply: Int  => Prod[R] => R)
@@ -85,7 +85,7 @@ as `Control[R0]` since it needs to be effectful.
 The two handlers corresponding to receiving and producing processes
 now can be defined as:
 
-```tut:book:silent
+```scala mdoc:silent
 def down[R](p: Prod[Control[R]]) = new Process[R, Prod](p) with Receive {
   def receive() = useState {
     case Prod(prod) => resume => prod(())(Cons(resume))
@@ -106,11 +106,11 @@ Stunning symmetry, isn't it? :)
 Finally, the pipe can be created by connecting `up` and `down` to
 handle two program fragments using `Receive` and `Send` correspondingly.
 
-```tut:book:silent
+```scala mdoc:silent
 def pipe[R](d: Receive => Control[R], u: Send => Control[R]): Control[R] =
   down[R](Prod(_ => cons => up(cons) { u })) { d }
 ```
 Running our above example with `pipe` yields:
-```tut
+```scala mdoc
 pipe(d => consumer(d), u => producer(u)).run()
 ```
