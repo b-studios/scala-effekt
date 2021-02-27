@@ -125,11 +125,11 @@ lazy val publishSettings = Seq(
       else
         Some("Sonatype OSS Staging" at "https://oss.sonatype.org/service/local/staging/deploy/maven2/")
   },
-  homepage := Some(url("http://b-studios.de/scala-effekt")),
+  homepage := Some(url("https://b-studios.de/scala-effekt")),
   licenses := Seq("MIT" -> url("http://opensource.org/licenses/MIT")),
   scmInfo := Some(ScmInfo(url("https://github.com/b-studios/scala-effekt"), "scm:git:git@github.com:b-studios/scala-effekt.git")),
   autoAPIMappings := true,
-  apiURL := Some(url("http://b-studios.de/scala-effekt")),
+  apiURL := Some(url("https://b-studios.de/scala-effekt")),
   pomExtra := (
     <developers>
       <developer>
