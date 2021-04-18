@@ -29,8 +29,9 @@ jobs:
         java-version: "adopt@1.8"
     - uses: actions/checkout@v2.3.4
     - uses: coursier/cache-action@v6
-    - uses: actions/setup-ruby@v1
+    - uses: ruby/setup-ruby@v1
       with:
+        bundler-cache: true
         ruby-version: 2.7.2
     - run: gem update --system && gem install jekyll bundler
     - run: sbt -v docs/makeMicrosite
