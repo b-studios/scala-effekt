@@ -101,12 +101,12 @@ object Control {
 
         val (init, tail) = k splitAt c
 
-        val handled: Control[Res] = f given { a =>
+        val handled: Control[Res] = f(using { a =>
           new Control[Res] {
             def apply[R2](k: MetaCont[Res, R2]): Result[R2] =
               (init append k).apply(a)
           }
-        }
+        })
 
         // continue with tail
         Computation(handled, tail)
@@ -116,7 +116,7 @@ object Control {
   private[effekt] final def delimitCont[Res](marker: ContMarker[Res])(f: Res using marker.type): Control[Res] =
     new Control[Res] {
       def apply[R2](k: MetaCont[Res, R2]): Result[R2] = {
-        Computation(f given marker, HandlerCont[Res, R2](marker)(k))
+        Computation(f(using marker), HandlerCont[Res, R2](marker)(k))
       }
     }
 

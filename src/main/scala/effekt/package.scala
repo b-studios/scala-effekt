@@ -33,11 +33,11 @@ package object effekt {
 
   private[effekt] type Frame[-A, +B] = A => Control[B]
 
-  type using[+A, -E] = given E => Control[A]
+  type using[+A, -E] = E ?=> Control[A]
 
-  type and[+A, -E] = given E => A
+  type and[+A, -E] = E ?=> A
 
-  type CPS[A, E] = given (A => Control[E]) => Control[E]
+  type CPS[A, E] = (A => Control[E]) ?=> Control[E]
 
 
   // Main API
@@ -49,9 +49,9 @@ package object effekt {
 
   final def handle[Res](h: Handler[Res])(f: Res using h.type): Control[Res] = h.handle(f)
 
-  final def resume[A, Res](a: A): CPS[A, Res] = given k => k(a)
+  final def resume[A, Res](a: A): CPS[A, Res] = k ?=> k(a)
 
-  final def resume[A, Res, S](a: A, s: S) given (k: (A => S => Control[Res])): Control[Res] = k(a)(s)
+  final def resume[A, Res, S](a: A, s: S)(using k: (A => S => Control[Res])): Control[Res] = k(a)(s)
 
 
   // Low Level API
@@ -61,16 +61,16 @@ package object effekt {
   // ===
   final def handling[Res](f: Res using ContMarker[Res]): Control[Res] = Control.delimitCont(new ContMarker[Res] {})(f)
 
-  def use[A, Res](body: CPS[A, Res]) given (p: ContMarker[Res]) = Control.use(p) { body }
+  def use[A, Res](body: CPS[A, Res])(using p: ContMarker[Res]) = Control.use(p) { body }
 
   // State
   // ===
   // State
-  final def region[R](prog: given State => Control[R]): Control[R] = {
+  final def region[R](prog: State ?=> Control[R]): Control[R] = {
     val s = new State {}
-    Control.delimitState(s) { prog given s }
+    Control.delimitState(s) { prog(using s) }
   }
-  def Field[T](value: T) given (s: State): s.Field[T] = s.Field(value)
+  def Field[T](value: T)(using s: State): s.Field[T] = s.Field(value)
 
   // Catch
   final def _try[Res](prog: Control[Res])(handler: PartialFunction[Throwable, Control[Res]]): Control[Res] =

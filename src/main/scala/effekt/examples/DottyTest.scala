@@ -21,7 +21,7 @@ object DottyTest extends App {
     def raise[A](msg: String): Control[A]
   }
 
-  def raise[A](msg: String): A using Exc = given e => e.raise(msg)
+  def raise[A](msg: String): A using Exc = e ?=> e.raise(msg)
 
   trait Maybe[R] extends Exc with Handler[Option[R]] {
     def raise[A](msg: String) = use { pure(None) }
@@ -40,7 +40,7 @@ object DottyTest extends App {
         yield xs ++ ys
     }
   }
-  def flip(): Boolean using Amb = given a => a.flip()
+  def flip(): Boolean using Amb = a ?=> a.flip()
 
   def AmbList[R](prog: R using Amb) = handle(new AmbList[R] {}) {
     prog map { r => List(r) }
@@ -77,7 +77,7 @@ object DottyTest extends App {
   trait Out[A] {
     def out(a: A): Control[Unit]
   }
-  def out[A](a: A) given (o: Out[A]) = o.out(a)
+  def out[A](a: A)(using o: Out[A]) = o.out(a)
 
   class ListWriter[R, A] extends Handler.Stateful[R, List[A]](Nil) with Out[A] {
     // Oh. Now it would be helpful to have the unit / return clauses again
@@ -97,13 +97,13 @@ object DottyTest extends App {
   // another, equally akward way of obtaining the final state.
   // However, this one show cases how to define a handler that depends on
   // another effect.
-  class ListWriter2[R, A] given State extends Handler[R] with Out[A] {
+  class ListWriter2[R, A](using State) extends Handler[R] with Out[A] {
     private val state = Field(List.empty[A])
     def results: Control[List[A]] = state.value
     def out(a: A) = state update { a :: _ }
   }
   def ListWriter2[R, A](prog: R using Out[A]): Control[(R, List[A])] = region {
-    handle(new ListWriter2[(R, List[A]), A]) { given W => for {
+    handle(new ListWriter2[(R, List[A]), A]) { W ?=> for {
       r <- prog
       s <- W.results
     } yield (r, s) }
@@ -115,7 +115,7 @@ object DottyTest extends App {
       val state = Field(List.empty[A])
       for {
         r <- handling[R] {
-          prog given { a => use { state update { a :: _ } andThen { resume[Unit, R](()) } } }
+          prog(using { a => use { state update { a :: _ } andThen { resume[Unit, R](()) } } })
         }
         s <- state.value
       } yield (r, s)
@@ -126,7 +126,7 @@ object DottyTest extends App {
     region {
       val buffer = Field(List.empty[A])
       for {
-        r <- prog given { a => buffer update { a :: _ } }
+        r <- prog(using { a => buffer update { a :: _ } })
         s <- buffer.value
       } yield (r, s)
     }
