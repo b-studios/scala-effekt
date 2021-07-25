@@ -4,7 +4,7 @@ lazy val commonSettings = Seq(
   scalaVersion := "2.12.14",
   version := "0.4-SNAPSHOT",
   organization := "de.b-studios",
-  crossScalaVersions := Seq("2.12.14", "2.13.6"),
+  crossScalaVersions := Seq("2.12.14", "2.13.6", "3.0.2-RC1"),
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding", "UTF-8",
@@ -14,9 +14,6 @@ lazy val commonSettings = Seq(
     "-language:implicitConversions",
     "-unchecked",
     "-Xfatal-warnings",
-    "-Ywarn-dead-code",
-    "-Ywarn-numeric-widen",
-    "-Ywarn-value-discard"
   ),
   scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
@@ -27,6 +24,17 @@ lazy val commonSettings = Seq(
         )
       case _ =>
         Nil
+    }
+  },
+  scalacOptions ++= {
+    if (scalaBinaryVersion.value == "3") {
+      Nil
+    } else {
+      Seq(
+        "-Ywarn-dead-code",
+        "-Ywarn-numeric-widen",
+        "-Ywarn-value-discard"
+      )
     }
   },
   test / fork := true,
@@ -80,9 +88,9 @@ lazy val effekt = crossProject(JSPlatform, JVMPlatform)
 lazy val effektJVM = effekt.jvm
 lazy val effektJS = effekt.js
 
-lazy val commonJvmSettings = commonSettings
+lazy val commonJvmSettings = Def.settings()
 
-lazy val commonJsSettings = commonSettings ++ Seq(
+lazy val commonJsSettings = Seq(
   scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
   Global / scalaJSStage := FastOptStage
 )
