@@ -1,5 +1,3 @@
-import sbtcrossproject.CrossPlugin.autoImport.{ crossProject, CrossType }
-
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.14",
   version := "0.4-SNAPSHOT",
