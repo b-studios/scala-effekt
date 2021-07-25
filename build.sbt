@@ -29,8 +29,8 @@ lazy val commonSettings = Seq(
         Nil
     }
   },
-  fork in test := true,
-  parallelExecution in Test := false
+  test / fork := true,
+  Test / parallelExecution := false
 )
 
 lazy val micrositeSettings = Seq(
@@ -44,10 +44,10 @@ lazy val micrositeSettings = Seq(
   micrositeHighlightTheme := "atom-one-light",
   micrositeOrganizationHomepage := "http://b-studios.de",
   // micrositePushSiteWith := GitHub4s,
-  includeFilter in makeSite := "*.html" | "*.css" | "*.png" | "*.jpg" | "*.gif" | "*.js" | "*.swf" | "*.md",
+  makeSite / includeFilter := "*.html" | "*.css" | "*.png" | "*.jpg" | "*.gif" | "*.js" | "*.swf" | "*.md",
   micrositePalette := greenTheme,
-  micrositeCssDirectory := (resourceDirectory in Compile).value / "microsite" / "styles",
-  micrositeJsDirectory := (resourceDirectory in Compile).value / "microsite" / "js",
+  micrositeCssDirectory := (Compile / resourceDirectory).value / "microsite" / "styles",
+  micrositeJsDirectory := (Compile / resourceDirectory).value / "microsite" / "js",
   git.remoteRepo := "git@github.com:b-studios/scala-effekt.git"
 )
 
@@ -84,7 +84,7 @@ lazy val commonJvmSettings = commonSettings
 
 lazy val commonJsSettings = commonSettings ++ Seq(
   scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
-  scalaJSStage in Global := FastOptStage
+  Global / scalaJSStage := FastOptStage
 )
 
 lazy val effects = crossProject(JSPlatform, JVMPlatform)
@@ -117,7 +117,7 @@ lazy val greenTheme = Map(
 
 lazy val publishSettings = Seq(
   publishMavenStyle := true,
-  publishArtifact in Test := false,
+  Test / publishArtifact := false,
   pomIncludeRepository := (_ => false),
   publishTo := {
       if (version.value.trim endsWith "SNAPSHOT")
