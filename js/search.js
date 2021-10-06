@@ -45,7 +45,7 @@ function prepareIdxAndDocMap() {
     {
       "title": "Guides & Examples",
       "url": "/scala-effekt/guides.html",
-      "content": "Guides &amp; Examples {% for x in site.pages %} {% if x.section == ‘guides’ and x.title != page.title %} {{x.title}} {% endif %} {% endfor %}"
+      "content": "Guides &amp; Examples ANF Transformation using Algebraic Effects Getting Started Multiple Effects Multiple Handlers at Once Pipes: Connecting Producers and Consumers"
     } ,        
     {
       "title": "Multiple Effects",
