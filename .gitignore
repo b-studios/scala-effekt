@@ -17,3 +17,15 @@ project/plugins/project/
 .worksheet
 .idea
 .metals
+
+# IDE
+/.idea
+*.iml
+/.metals
+.bsp/
+.vscode/
+.bloop/
+*metals.sbt
+
+# MacOS
+.DS_Store
