@@ -9,7 +9,7 @@ object parser extends App {
 
   def parseAB(amb: Amb, exc: Exc, in: Input) : Int / (amb.effect & exc.effect & in.effect) =
     alternative(
-      accept('a')(in, exc) andThen parseAB(amb, exc, in) map { _ + 1 },
+      accept('a')(in, exc) andThen parseAB(amb, exc, in).map { _ + 1 },
       accept('b')(in, exc) map { x => 0 })(amb)
 
   def accept(exp: Char)(in: Input, exc: Exc) = in.read() flatMap { t =>
@@ -38,10 +38,10 @@ object parser extends App {
 
     def parseAB(p: Parser) : Int / (p.amb.effect & p.exc.effect & p.in.effect) =
       alternative(
-        accept('a')(p) andThen parseAB(p) map { _ + 1 },
+        accept('a')(p).andThen(parseAB(p).map { _ + 1 }),
         accept('b')(p) map { x => 0 })(p)
 
-    def accept(exp: Char)(p: Parser) = p.in.read() flatMap { t =>
+    def accept(exp: Char)(p: Parser): Unit / (p.in.effect & p.exc.effect) = p.in.read() flatMap { t =>
       if (t == exp) pure(()) else p.exc.raise("Expected " + exp)
     }
 
