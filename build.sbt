@@ -2,7 +2,7 @@ lazy val commonSettings = Seq(
   scalaVersion := "2.12.15",
   version := "0.4-SNAPSHOT",
   organization := "de.b-studios",
-  crossScalaVersions := Seq("2.12.15", "2.13.6", "3.0.2"),
+  crossScalaVersions := Seq("2.12.15", "2.13.6", "3.1.0"),
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding", "UTF-8",
