@@ -11,7 +11,6 @@ lazy val commonSettings = Seq(
     "-language:higherKinds",
     "-language:implicitConversions",
     "-unchecked",
-    "-Xfatal-warnings",
   ),
   scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
