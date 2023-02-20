@@ -40,7 +40,7 @@ jobs:
     - run: sudo apt-get install tree
     - run: tree docs/target/site
     - name: Push to gh-pages
-      if: ${{ !github.event.repository.fork && github.ref == 'refs/heads/master' && github.event_name == 'push' }}
+      if: ${{ github.repository_owner == 'b-studios' && github.ref == 'refs/heads/master' && github.event_name == 'push' }}
       uses: JamesIves/github-pages-deploy-action@v4.4.1
       with:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
