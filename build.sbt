@@ -34,6 +34,7 @@ lazy val commonSettings = Seq(
       )
     }
   },
+  run / fork := true,
   test / fork := true,
   Test / parallelExecution := false
 )
