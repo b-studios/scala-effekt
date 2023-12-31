@@ -34,7 +34,7 @@ jobs:
     - uses: ruby/setup-ruby@v1
       with:
         bundler-cache: true
-        ruby-version: 2.7.2
+        ruby-version: 3.3.0
     - run: gem update --system && gem install jekyll bundler
     - run: sbt -v docs/makeMicrosite
     - run: sudo apt-get install tree
