@@ -19,6 +19,7 @@ jobs:
         java-version: ${{matrix.java}}
         distribution: adopt
     - uses: coursier/cache-action@v6
+    - uses: sbt/setup-sbt@v1
     - run: sbt -v "+ test"
   push_gh_pages:
     needs: test
@@ -36,6 +37,7 @@ jobs:
         bundler-cache: true
         ruby-version: 3.3.0
     - run: gem update --system && gem install jekyll bundler
+    - uses: sbt/setup-sbt@v1
     - run: sbt -v docs/makeMicrosite
     - run: sudo apt-get install tree
     - run: tree docs/target/site
