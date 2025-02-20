@@ -1,7 +1,12 @@
 [![Chat](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scala-effekt/scala-effekt)
 
-# Disclaimer
-This Scala library **is different from** the equally named standalone ["Effekt language"](http://effekt-lang.org), developed by the same authors. Recent publications only address the latter.
+# DISCONTINUED
+
+The Scala library "Scala Effekt" is discontinued. In 2020, its development has been superseded by our own [_standalone programming language_ **Effekt**](https://effekt-lang.org/), independent of Scala.
+
+Due to its origins, but confusingly, both carry **Effekt** in their name. To disambiguate, we recommend to use **Scala Effekt** to refer to the library and **Effekt** to the standalone programming language.
+
+The evolution of the Effekt language and its predecessors is [explained here](https://effekt-lang.org/evolution).
 
 # Scala Effekt
 The **Effekt** library allows you to structure your effectful programs
