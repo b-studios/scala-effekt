@@ -2,11 +2,19 @@
 layout: home
 ---
 
+# DISCONTINUED
+
+The Scala library "Scala Effekt" is discontinued. In 2020, its development has been superseded by our own [_standalone programming language_ **Effekt**](https://effekt-lang.org/), independent of Scala.
+
+Due to its origins, but confusingly, both carry **Effekt** in their name. To disambiguate, we recommend to use **Scala Effekt** to refer to the library and **Effekt** to the standalone programming language.
+
+The evolution of the Effekt language and its predecessors is [explained here](https://effekt-lang.org/evolution).
+
 # Extensible, effectful DSLs
 Create extensible, effectful domain specific
 languages while separating the effect definition from the effect
 implementation.
-**Effekt** is an implementation of *algebraic effects
+**Scala Effekt** is an implementation of *algebraic effects
 with handlers* and allows you to structure your effectful programs in a
 purely functional way. It thus represents an alternative to
 monad transformer based program structuring techniques or free monads.
