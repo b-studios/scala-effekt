@@ -18,7 +18,7 @@ jobs:
       with:
         java-version: ${{matrix.java}}
         distribution: temurin
-    - uses: coursier/cache-action@v8
+    - uses: coursier/cache-action@v9
     - uses: sbt/setup-sbt@v1
     - run: sbt -v "+ test"
   push_gh_pages:
@@ -31,7 +31,7 @@ jobs:
         java-version: 17
         distribution: temurin
     - uses: actions/checkout@v7
-    - uses: coursier/cache-action@v8
+    - uses: coursier/cache-action@v9
     - uses: ruby/setup-ruby@v1
       with:
         bundler-cache: true
